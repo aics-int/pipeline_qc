@@ -19,6 +19,7 @@ import pandas as pd
 from scipy import ndimage
 from skimage import exposure, filters, measure
 
+
 def generate_images(image):
     image_TL = image.data[0, 0, :, :, :]
     image_EGFP = image.data[0, 1, :, :, :]
@@ -31,9 +32,12 @@ def generate_images(image):
     mip_xy = np.amax(image_EGFP, axis=0)
     mip_xz = np.amax(image_EGFP, axis=1)
     mip_yz = np.amax(image_EGFP, axis=2)
+
+
     
     #return {'top_TL':top_TL, 'bottom_TL': bottom_TL, 'center_TL': center_TL, 'mip_xy': mip_xy, 'mip_xz': mip_xz, 'mip_yz':mip_yz}
     return top_TL, bottom_TL, center_TL, mip_xy, mip_xz, mip_yz
+
 
 def create_display_setting(rows, control_column, folder_path):
     display_dict = {}
@@ -53,6 +57,7 @@ def create_display_setting(rows, control_column, folder_path):
         display_maximum = int(round(np.mean([dis_max[1] for dis_max in display_settings])))
         display_dict.update({row: (display_minimum, display_maximum)})
     return display_dict
+
 
 def find_center_z_plane(image):
     
@@ -79,6 +84,7 @@ def find_center_z_plane(image):
     z_center = int(round(np.median(z)))
     
     return (z_center)
+
 
 #------------------------------------------------------------------------------
 display_settings_dict = create_display_setting(rows = rows, 
@@ -138,11 +144,15 @@ for img_file in images:
             fuse[0:z_height, 0:img_width] = rescaled_xz
             fuse[z_height:z_height+img_height, 0:img_width] = rescaled_xy
             fuse[z_height:z_height+img_height, img_width:img_width+z_height] = np.rot90(rescaled_yz)
+            # Create qc image combining fuse and center_TL
+            qc = np.zeros((img_height + z_height), (2*img_width + z_height))
+            qc[:, 0:img_width+z_height] = fuse
+            qc[0:img_height, img_width+z_height:2*img_width+z_height] = center_TL_0
             
             # Save and reformat images in a dictionary
-            new_images_dict = {'top_TL': np.reshape(top_TL_0,(1, img_height, img_width)), 
-                               'bottom_TL': np.reshape(bottom_TL_0,(1, img_height, img_width)), 
-                               'center_TL': np.reshape(center_TL_0,(1, img_height, img_width)), 
+            new_images_dict = {'top_TL': np.reshape(top_TL_0, (1, img_height, img_width)),
+                               'bottom_TL': np.reshape(bottom_TL_0, (1, img_height, img_width)),
+                               'center_TL': np.reshape(center_TL_0, (1, img_height, img_width)),
                                'mip_xy': np.reshape(rescaled_xy, (1, img_height, img_width)), 
                                'mip_xz': np.reshape(rescaled_xz, (1, z_height, img_width)), 
                                'mip_yz': np.reshape(rescaled_yz, (1, z_height, img_height)), 
@@ -150,7 +160,10 @@ for img_file in images:
             print ('edited ' + img_file)
             # Save image in file directory
             file_name = img_file.split('.')[0]
+
+            qc_writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, 'QC', 'qc_images', file_name + '-qc.tif'))
+            qc_writer.save(image.astype(np.uint16))
+
             for key, image in new_images_dict.items():
                 writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, wellid, key, file_name + '-' + key + '.tif'))
                 writer.save(image.astype(np.uint16))
-
