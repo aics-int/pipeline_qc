@@ -197,7 +197,7 @@ for img_file in images:
             file_name = img_file.split('.')[0]
             
             qc = np.reshape(qc, (1, qc.shape[0], qc.shape[1]))
-            qc_writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, '100X_zstack', 'QC', 'qc_images', file_name + '-qc.tif'), 
+            qc_writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, 'QC', 'qc_images', file_name + '-qc.tif'), 
                                                   overwrite_file=True)
             qc_writer.save(qc.astype(np.uint16))
             
@@ -205,3 +205,5 @@ for img_file in images:
                 writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, wellid, key, file_name + '-' + key + '.tif'), 
                                                    overwrite_file=True)
                 writer.save(image.astype(np.uint16))
+            
+            print ('saved ' + img_file)
