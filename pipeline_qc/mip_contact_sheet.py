@@ -5,13 +5,13 @@ Created on Sat Apr 20 14:20:34 2019
 @author: Calysta Yan
 """
 # User's input
-plate_path = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_5.2\3500002174\ZSD1\100X_zstack'
-output_path = r'\\allen\aics\microscopy\Calysta\test'
+plate_path = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_5.2\3500002342\ZSD2\100X_zstack'
+output_path = r'\\allen\aics\microscopy\Antoine\plates\3500002342'
 
 
 rows = ['B','C','D','E','F','G']
 control_column = '11'
-cell_line_dict = {'B':1, 'C':2, 'D': 2, 'E':3, 'F':10, 'G':11}
+cell_line_dict = {'B':30, 'C':33, 'D': 40, 'E':30, 'F':33, 'G':40}
 
 #------------------------------------------------------------------------------
 import os
@@ -196,21 +196,12 @@ for img_file in images:
             # Save image in file directory
             file_name = img_file.split('.')[0]
             
-            qc_writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, 'QC', 'qc_images', file_name + '-qc.tif'))
+            qc = np.reshape(qc, (1, qc.shape[0], qc.shape[1]))
+            qc_writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, '100X_zstack', 'QC', 'qc_images', file_name + '-qc.tif'), 
+                                                  overwrite_file=True)
             qc_writer.save(qc.astype(np.uint16))
             
             for key, image in new_images_dict.items():
                 writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, wellid, key, file_name + '-' + key + '.tif'), 
                                                    overwrite_file=True)
                 writer.save(image.astype(np.uint16))
-
-
-
-
-
-
-
-
-
-
-
