@@ -5,8 +5,9 @@ Created on Sat Apr 20 14:20:34 2019
 @author: Calysta Yan
 """
 # User's input
-plate_path = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_5.2\3500002625\ZSD3\100X_zstack_2hr'
-output_path = r'\\allen\aics\microscopy\Antoine\plates\3500002625'
+plate_path = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_5.2\3500002174\ZSD1\100X_zstack\to_process'
+output_path = r'\\allen\aics\microscopy\Calysta\test'
+
 
 rows = ['B','C','D','E','F','G']
 control_column = '11'
@@ -33,8 +34,6 @@ def generate_images(image):
     mip_xz = np.amax(image_EGFP, axis=1)
     mip_yz = np.amax(image_EGFP, axis=2)
 
-
-    
     #return {'top_TL':top_TL, 'bottom_TL': bottom_TL, 'center_TL': center_TL, 'mip_xy': mip_xy, 'mip_xz': mip_xz, 'mip_yz':mip_yz}
     return top_TL, bottom_TL, center_TL, mip_xy, mip_xz, mip_yz
 
@@ -81,15 +80,18 @@ def find_center_z_plane(image):
         z.append(z_center)
     
     z = [z_center for z_center in z if ~np.isnan(z_center)]
+    print (z)
     z_center = int(round(np.median(z)))
-    
+    print (z_center)
     return (z_center)
 
 
 #------------------------------------------------------------------------------
+
 display_settings_dict = create_display_setting(rows = rows, 
                                                control_column = control_column, 
-                                               folder_path = plate_path)
+                                               folder_path = plate_path, 
+                                               cell_line_dict = cell_line_dict)
 
 print (display_settings_dict)
 # Create folder structure
@@ -127,8 +129,8 @@ for img_file in images:
         
             # associate with display settings
             settings = display_settings_dict[wellid]
-            img = AICSImage(os.path.join(plate_path, img_file), max_workers=1)
-            print ('read image')
+            img = AICSImage(os.path.join(plate_path, img_file))
+            print ('read image ' + img_file)
             
             # generate 6 images 
             top_TL_0, bottom_TL_0, center_TL_0, mip_xy_0, mip_xz_0, mip_yz_0 = generate_images(img)
@@ -144,6 +146,7 @@ for img_file in images:
             fuse[0:z_height, 0:img_width] = rescaled_xz
             fuse[z_height:z_height+img_height, 0:img_width] = rescaled_xy
             fuse[z_height:z_height+img_height, img_width:img_width+z_height] = np.rot90(rescaled_yz)
+            
             # Create qc image combining fuse and center_TL
             qc = np.zeros((img_height + z_height), (2*img_width + z_height))
             qc[:, 0:img_width+z_height] = fuse
@@ -160,10 +163,11 @@ for img_file in images:
             print ('edited ' + img_file)
             # Save image in file directory
             file_name = img_file.split('.')[0]
-
+            
             qc_writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, 'QC', 'qc_images', file_name + '-qc.tif'))
             qc_writer.save(image.astype(np.uint16))
-
+            
             for key, image in new_images_dict.items():
-                writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, wellid, key, file_name + '-' + key + '.tif'))
+                writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, wellid, key, file_name + '-' + key + '.tif'), 
+                                                   overwrite_file=True)
                 writer.save(image.astype(np.uint16))
