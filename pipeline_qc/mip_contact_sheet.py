@@ -90,14 +90,23 @@ def find_center_z_plane(image):
 
 display_settings_dict = create_display_setting(rows = rows, 
                                                control_column = control_column, 
-                                               folder_path = plate_path, 
-                                               cell_line_dict = cell_line_dict)
+                                               folder_path = plate_path)
 
 print (display_settings_dict)
 # Create folder structure
 extension = plate_path.split('\\')[-1]
 try:
     os.mkdir(os.path.join(output_path, extension))
+except:
+    pass
+
+try:
+    os.mkdir(os.path.join(output_path, extension, 'QC'))
+except:
+    pass
+
+try:
+    os.mkdir(os.path.join(output_path, extension, 'QC', 'qc_images'))
 except:
     pass
 
@@ -148,9 +157,9 @@ for img_file in images:
             fuse[z_height:z_height+img_height, img_width:img_width+z_height] = np.rot90(rescaled_yz)
             
             # Create qc image combining fuse and center_TL
-            qc = np.zeros((img_height + z_height), (2*img_width + z_height))
+            qc = np.zeros(((img_height + z_height), (2*img_width + z_height)))
             qc[:, 0:img_width+z_height] = fuse
-            qc[0:img_height, img_width+z_height:2*img_width+z_height] = center_TL_0
+            qc[z_height:img_height+z_height, img_width+z_height:2*img_width+z_height] = center_TL_0
             
             # Save and reformat images in a dictionary
             new_images_dict = {'top_TL': np.reshape(top_TL_0, (1, img_height, img_width)),
@@ -165,7 +174,7 @@ for img_file in images:
             file_name = img_file.split('.')[0]
             
             qc_writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, 'QC', 'qc_images', file_name + '-qc.tif'))
-            qc_writer.save(image.astype(np.uint16))
+            qc_writer.save(qc.astype(np.uint16))
             
             for key, image in new_images_dict.items():
                 writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, wellid, key, file_name + '-' + key + '.tif'), 
