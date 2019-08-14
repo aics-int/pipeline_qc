@@ -5,12 +5,13 @@ Created on Sat Apr 20 14:20:34 2019
 @author: Calysta Yan
 """
 # User's input
-plate_path = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_5.2\3500002174\ZSD1\100X_zstack\to_process'
+plate_path = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_5.2\3500002174\ZSD1\100X_zstack'
 output_path = r'\\allen\aics\microscopy\Calysta\test'
 
 
 rows = ['B','C','D','E','F','G']
 control_column = '11'
+cell_line_dict = {'B':1, 'C':2, 'D': 2, 'E':3, 'F':10, 'G':11}
 
 #------------------------------------------------------------------------------
 import os
@@ -38,23 +39,46 @@ def generate_images(image):
     return top_TL, bottom_TL, center_TL, mip_xy, mip_xz, mip_yz
 
 
-def create_display_setting(rows, control_column, folder_path):
+def create_display_setting(rows, control_column, folder_path, cell_line_dict):
     display_dict = {}
+    
+    # Convert maps from rows:cell_line to cell_line:row
+    line_row_dict = {}
+    for key, value in cell_line_dict.items():
+        if value in line_row_dict:
+            line_row_dict[value].append(key)
+        else:
+            line_row_dict[value] = [key]
+    
     images = os.listdir(plate_path)
-    for row in rows:
-        print (row)
+
+    for cell_line, rows in line_row_dict.items():
+        # gather display setting
+        print (rows)
+        image_list = []
+        
+        # generate a list of images grouped by cell line across rows
+        for row in rows:
+            for image in images:
+                if image.endswith(row + control_column + '.czi'):
+                    image_list.append(image)
+        
+        # generate display setting per cell line
         display_settings = []
-        for img_file in images:
-            if img_file.endswith(row + control_column + '.czi'):
-                image = AICSImage(os.path.join(plate_path, img_file), max_workers=1)
-                print (img_file)
-                image_EGFP = image.data[0, 1, :, :, :]
-                mip_xy = np.amax(image_EGFP, axis=0)
-                display_min, display_max = np.min(mip_xy), np.max(mip_xy)
-                display_settings.append((display_min, display_max))
+        for img_file in image_list:
+            image = AICSImage(os.path.join(plate_path, img_file), max_workers=1)
+            print (img_file)
+            image_EGFP = image.data[0, 1, :, :, :]
+            mip_xy = np.amax(image_EGFP, axis=0)
+            display_min, display_max = np.min(mip_xy), np.max(mip_xy)
+            display_settings.append((display_min, display_max))
         display_minimum = int(round(np.mean([dis_min[0] for dis_min in display_settings])))
         display_maximum = int(round(np.mean([dis_max[1] for dis_max in display_settings])))
-        display_dict.update({row: (display_minimum, display_maximum)})
+        
+        # save display setting in row:display format
+        for row in rows:
+            display_dict.update({row: (display_minimum, display_maximum)})
+    
     return display_dict
 
 
@@ -80,9 +104,7 @@ def find_center_z_plane(image):
         z.append(z_center)
     
     z = [z_center for z_center in z if ~np.isnan(z_center)]
-    print (z)
     z_center = int(round(np.median(z)))
-    print (z_center)
     return (z_center)
 
 
@@ -90,7 +112,8 @@ def find_center_z_plane(image):
 
 display_settings_dict = create_display_setting(rows = rows, 
                                                control_column = control_column, 
-                                               folder_path = plate_path)
+                                               folder_path = plate_path, 
+                                               cell_line_dict = cell_line_dict)
 
 print (display_settings_dict)
 # Create folder structure
@@ -180,3 +203,14 @@ for img_file in images:
                 writer = omeTifWriter.OmeTifWriter(os.path.join(output_path, extension, wellid, key, file_name + '-' + key + '.tif'), 
                                                    overwrite_file=True)
                 writer.save(image.astype(np.uint16))
+
+
+
+
+
+
+
+
+
+
+
