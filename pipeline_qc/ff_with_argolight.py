@@ -5,7 +5,7 @@ from scipy import interpolate, optimize
 from scipy.optimize import curve_fit
 from skimage import filters, measure, io
 
-channel = '488'
+channel = '405'
 
 # Read images (flat field, black reference, argolight)
 ff_f_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20190813\3500003331_100X_20190813_' + channel + '.czi')
@@ -20,10 +20,10 @@ ff_smooth = filters.gaussian(image=ff_f, sigma=3, preserve_range=True)
 ff_norm = ff_smooth/np.max(ff_smooth)
 
 # Plot profiles for flat field images
-plot_profile(ff_f, px_crop=100, fit=False) # Intensity profile of raw dye ff image
-plot_profile(norm_img=ff_norm, px_crop=100, fit=False) # Intensity profile of normalized dye ff
+plot_profile(ff_f, px_crop=0, fit=False)  # Intensity profile of raw dye ff image
+plot_profile(norm_img=ff_norm, px_crop=0, fit=False)  # Intensity profile of normalized dye ff
 
-#=======================================================================================================================
+# ======================================================================================================================
 # Generate simulated homogeneity map with dye ff (sample across the image)
 
 # Sample a dye-ff image with points
@@ -36,9 +36,9 @@ label_ref = measure.label(img_mask)
 
 field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=label_ref, img_raw=ff_smooth, mode='mean')
 norm_corr = field_non_uni_raw/np.max(field_non_uni_raw)
-plot_profile(norm_corr, px_crop=100, fit=False) # Intensity profile of normalized simulated sampled ff
+plot_profile(norm_corr, px_crop=100, fit=False)  # Intensity profile of normalized simulated sampled ff
 
-#=======================================================================================================================
+# ======================================================================================================================
 # Use a simulated homogeneity map to correct images (requires black reference, homogeneity map)
 smooth_br = filters.gaussian(br, sigma=3, preserve_range=True)
 
@@ -54,7 +54,7 @@ corr_argo = correct_img(argo[100:-100, 100:-100], smooth_br[100:-100, 100:-100],
 plt.figure()
 plt.imshow(corr_argo)
 
-#=======================================================================================================================
+# ======================================================================================================================
 # Generate homogeneity maps from argolight
 # Option 1: homogeneity_raw_map.png output from daybook
 compare = io.imread(r'\\allen\aics\microscopy\Calysta\argolight\zsd1_20190813\homogeneity_raw_map.png')
@@ -73,7 +73,7 @@ label_ref = measure.label(ff_argo_segment)
 
 field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=label_ref, img_raw=argo_smooth, mode='median')
 norm_f = field_non_uni_raw/np.max(field_non_uni_raw)
-plot_profile(norm_f, px_crop=100) # Intensity profile of normalized simulated rings ff
+plot_profile(norm_f, px_crop=100)  # Intensity profile of normalized simulated rings ff
 
 # Option 3: From rings image, segment rings with the centered cross
 update = label_ref.copy()
@@ -82,9 +82,9 @@ update[label_ref==15] = 0
 masked_update = argo_smooth*update
 field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=update, img_raw=argo_smooth, mode='median')
 norm_f = field_non_uni_raw/np.max(field_non_uni_raw)
-plot_profile(norm_f, px_crop=100) # Intensity profile of normalized simulated rings+cross ff
+plot_profile(norm_f, px_crop=100)  # Intensity profile of normalized simulated rings+cross ff
 
-#=======================================================================================================================
+# ======================================================================================================================
 # 2D fit over (sampled) flat field images
 # Option 1: Fit the sampled image with a 2D paraboloid function
 sampled_img = masked_ff
@@ -99,16 +99,17 @@ for coor in coors:
     y.append(coor[0])
 
 # Generate mesh grid to fit over
-all_x = np.arange(0, np.shape(sampled_img[1]))
-all_y = np.arange(0, np.shape(sampled_img[1]))
+all_x = np.arange(0, np.shape(sampled_img)[1])
+all_y = np.arange(0, np.shape(sampled_img)[0])
 xx, yy = np.meshgrid(all_x, all_y, sparse=True)
 
 # Fit (x,y), z to a 2d paraboloid function
 params_paraboloid, cov_paraboloid = curve_fit(f=fit_2d_paraboloid, xdata=(y, x), ydata=z)
 
 fit = fit_2d_paraboloid((yy, xx), *params_paraboloid)
-fit_field_non_uni_raw = fit.reshape(624, 924)
-plot_profile(fit_field_non_uni_raw, px_crop=0)
+fit_paraboloid_field_non_uni_raw = fit.reshape(624, 924)
+norm = fit_paraboloid_field_non_uni_raw/np.max(fit_paraboloid_field_non_uni_raw)
+plot_profile(norm, px_crop=0)
 
 # Option 2: Fit the normalized image (more data points) with a 2D gaussian function
 # 2D gaussian fit cannot find parameters for small sample size (tested with image with only 20 data points).
@@ -116,17 +117,17 @@ plot_profile(fit_field_non_uni_raw, px_crop=0)
 
 params_gaussian = fitgaussian(ff_norm)
 fit_function = gaussian(*params_gaussian)
-fit_field_non_uni_raw = fit_function(*np.indices(ff_norm.shape))
+fit_gaussian_field_non_uni_raw = fit_function(*np.indices(ff_norm.shape))
+norm = fit_gaussian_field_non_uni_raw/np.max(fit_gaussian_field_non_uni_raw)
+plot_profile(norm, px_crop=0)
 
-plot_profile(fit_field_non_uni_raw, px_crop=0)
+# ======================================================================================================================
+# Extract metrics from homogeneity map: roll-off %, center of hot spot, range of 10% intensity drop, px in bins
 
-#=======================================================================================================================
-# Extract metrics from homogeneity map: roll-off %, center of hotspot, range of 10% intensity drop, px in bins
-
-homogeneity_map = ff_smooth # Select which method to use as homogeneity reference
+homogeneity_map = fit_gaussian_field_non_uni_raw  # Select which method to use as homogeneity reference
 
 
-#=======================================================================================================================
+# ======================================================================================================================
 # Functions developed
 
 def plot_profile (norm_img, px_crop=0, fit=False):
@@ -141,20 +142,29 @@ def plot_profile (norm_img, px_crop=0, fit=False):
                                             dst=(0, norm_img.shape[1]))
     negative_profile = measure.profile_line(image=norm_img, src=(norm_img.shape[0], norm_img.shape[1]),
                                             dst=(0, 0))
-    roll_off_pos = find_roll_off(positive_profile[px_crop:-px_crop])
-    roll_off_neg = find_roll_off(negative_profile[px_crop:-px_crop])
-    x_data = np.linspace(0, 1, len(negative_profile[px_crop:-px_crop]))
+
+    if px_crop==0:
+        positive_crop = positive_profile
+        negative_crop = negative_profile
+    else:
+        positive_crop = positive_profile[px_crop:-px_crop]
+        negative_crop = negative_profile[px_crop:-px_crop]
+
+    roll_off_pos = find_roll_off(positive_crop[5:-5])
+    roll_off_neg = find_roll_off(negative_crop[5:-5])
+    x_data = np.linspace(0, 1, len(negative_crop))
 
     plt.figure()
     plt.ylim((0,1))
-    plt.xlim(px_crop, len(negative_profile)-px_crop)
-    plt.plot(negative_profile[5:-5], 'r')
-    plt.plot(positive_profile[5:-5], 'b')
+    if px_crop!=0:
+        plt.xlim(px_crop, len(negative_profile)-px_crop)
+    plt.plot(negative_crop, 'r')
+    plt.plot(positive_crop, 'b')
     plt.title('roll-off for ' + channel + ': ' + str(np.min([roll_off_neg, roll_off_pos])))
 
     if fit:
-        popt_neg, pcov_neg = curve_fit(f=fit_func, xdata=x_data, ydata=negative_profile[px_crop:-px_crop])
-        popt_pos, pcov_pos = curve_fit(f=fit_func, xdata=x_data, ydata=positive_profile[px_crop:-px_crop])
+        popt_neg, pcov_neg = curve_fit(f=fit_func, xdata=x_data, ydata=negative_crop)
+        popt_pos, pcov_pos = curve_fit(f=fit_func, xdata=x_data, ydata=positive_crop)
         plt.plot(fit_func(x_data, *popt_neg), 'r-')
         plt.plot(fit_func(x_data, *popt_pos), 'b-')
 
