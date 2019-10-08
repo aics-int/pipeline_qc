@@ -86,7 +86,7 @@ plot_profile(norm_f, px_crop=100) # Intensity profile of normalized simulated ri
 
 #=======================================================================================================================
 # 2D fit over (sampled) flat field images
-# Option 1: Fit the sampled image with a 2D parabaloid function
+# Option 1: Fit the sampled image with a 2D paraboloid function
 sampled_img = masked_ff
 
 # Gather inputs for curve fit: x, y, z
@@ -103,10 +103,10 @@ all_x = np.arange(0, np.shape(sampled_img[1]))
 all_y = np.arange(0, np.shape(sampled_img[1]))
 xx, yy = np.meshgrid(all_x, all_y, sparse=True)
 
-# Fit (x,y), z to a 2d parabaloid function
-params_parabaloid, cov_parabaloid = curve_fit(f=fit_2d_parabaloid, xdata=(y, x), ydata=z)
+# Fit (x,y), z to a 2d paraboloid function
+params_paraboloid, cov_paraboloid = curve_fit(f=fit_2d_paraboloid, xdata=(y, x), ydata=z)
 
-fit = fit_2d_parabaloid((yy, xx), *params_parabaloid)
+fit = fit_2d_paraboloid((yy, xx), *params_paraboloid)
 fit_field_non_uni_raw = fit.reshape(624, 924)
 plot_profile(fit_field_non_uni_raw, px_crop=0)
 
@@ -129,7 +129,14 @@ homogeneity_map = ff_smooth # Select which method to use as homogeneity referenc
 #=======================================================================================================================
 # Functions developed
 
-def plot_profile (norm_img, px_crop, fit=False):
+def plot_profile (norm_img, px_crop=0, fit=False):
+    """
+
+    :param norm_img: A normalized image (intensity ranges from 0-1)
+    :param px_crop: An integer to crop intensity profile from pixels
+    :param fit: A boolean to provide the option of curve fitting over intensity profile
+    :return: A plot showing the intensity profile
+    """
     positive_profile = measure.profile_line(image=norm_img, src=(norm_img.shape[0], 0),
                                             dst=(0, norm_img.shape[1]))
     negative_profile = measure.profile_line(image=norm_img, src=(norm_img.shape[0], norm_img.shape[1]),
@@ -139,7 +146,7 @@ def plot_profile (norm_img, px_crop, fit=False):
     x_data = np.linspace(0, 1, len(negative_profile[px_crop:-px_crop]))
 
     plt.figure()
-    #plt.ylim((0,1))
+    plt.ylim((0,1))
     plt.xlim(px_crop, len(negative_profile)-px_crop)
     plt.plot(negative_profile[5:-5], 'r')
     plt.plot(positive_profile[5:-5], 'b')
@@ -153,6 +160,15 @@ def plot_profile (norm_img, px_crop, fit=False):
 
 
 def generate_homogeneity_ref(label_ref, img_raw, mode):
+    """
+
+    :param label_ref: An image with objects labelled (mostly used when ff is sampled, and only want to take
+                      measurements over the centroid of object location
+    :param img_raw: An image with intensities to map over with
+    :param mode: Method to set intensity of the object (mean, median, max)
+    :return: A field non homogeneity raw map, z = intensity values of points used as data for interpolation,
+             coors = set of coordinates used as data for interpolation
+    """
     props = measure.regionprops(label_ref)
     all_coors = []
     for x in range(0, label_ref.shape[1]):
@@ -188,20 +204,51 @@ def generate_homogeneity_ref(label_ref, img_raw, mode):
 
 
 def find_roll_off (profile):
+    """
+
+    :param profile: A list of intensity values over a profile
+    :return: A roll off value (0-1) across the line profile
+    """
     roll_off = (np.max(profile) - np.min(profile))/np.max(profile)
     return roll_off
 
 
 def fit_func(x, a, b, c):
+    """
+
+    :param x: x data points
+    :param a: weight to
+    :param b: shift of location of maximum intensity
+    :param c: constant, expected to be 1 if the input image was normalized
+    :return: A 1d fit function for an intensity profile
+    """
     return c - a * ((x - b) ** 2)
 
 
 def correct_img(img_to_corr, br, img_homogeneity_ref):
+    """
+
+    :param img_to_corr: An image to be corrected
+    :param br: A black reference image
+    :param img_homogeneity_ref: A field non homogeneity image
+    :return: A corrected image
+    """
     corr = (img_to_corr - br)/img_homogeneity_ref
     return corr
 
 
-def fit_2d_parabaloid(xdata_tuple, a, b, c, d, e, f):
+def fit_2d_paraboloid(xdata_tuple, a, b, c, d, e, f):
+    """
+
+    :param xdata_tuple: a tuple of (x,y) data points
+    :param a: weight
+    :param b: shift in x
+    :param c: weight
+    :param d: shift in y
+    :param e: weight
+    :param f: constant
+    :return: A 2d paraboloid fit function for a field non homogeneity image
+    """
     (y, x) = xdata_tuple
     g = a*(x-b)**2 + c*(y-d)**2 + e*x*y + f
     return g.ravel()
@@ -209,7 +256,7 @@ def fit_2d_parabaloid(xdata_tuple, a, b, c, d, e, f):
 
 def gaussian(height, center_x, center_y, width_x, width_y):
     """
-
+    Referenced from https://scipy-cookbook.readthedocs.io/items/FittingData.html
     :param height: amplitude
     :param center_x: xo
     :param center_y: yo
@@ -226,7 +273,7 @@ def gaussian(height, center_x, center_y, width_x, width_y):
 
 def moments(data):
     """
-
+    Referenced from https://scipy-cookbook.readthedocs.io/items/FittingData.html
     :param data: image to fit over (e.g. ff_norm)
     :return: the gaussian parameters of a 2D distribution by calculating its
         moments (height, x, y, width_x, width_y)
@@ -245,7 +292,7 @@ def moments(data):
 
 def fitgaussian(data):
     """
-
+    Referenced from https://scipy-cookbook.readthedocs.io/items/FittingData.html
     :param data: image to fit over (e.g. ff_norm)
     :return: gaussian parameters of a 2D distribution found by a fit (height, x, y, width_x, width_y)
     """
