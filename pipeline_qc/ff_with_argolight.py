@@ -77,7 +77,7 @@ plot_profile(norm_f, px_crop=100)  # Intensity profile of normalized simulated r
 
 # Option 3: From rings image, segment rings with the centered cross
 update = label_ref.copy()
-update[label_ref==15] = 0
+update[label_ref == 15] = 0
 
 masked_update = argo_smooth*update
 field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=update, img_raw=argo_smooth, mode='median')
@@ -122,15 +122,18 @@ norm = fit_gaussian_field_non_uni_raw/np.max(fit_gaussian_field_non_uni_raw)
 plot_profile(norm, px_crop=0)
 
 # ======================================================================================================================
-# Extract metrics from homogeneity map: roll-off %, center of hot spot, range of 10% intensity drop, px in bins
+# Extract metrics from homogeneity map:
+# 1) pos_roll_off, 2) neg_roll_off, 3) img_roll_off, 4) range_y_x_0.1_roll_off, 5) centroid_position
 
 homogeneity_map = fit_gaussian_field_non_uni_raw  # Select which method to use as homogeneity reference
-
+metric_dict = report_metric(homogeneity_map=homogeneity_map, roll_off_range=0.1)
+metric_dict_2 = report_metric(homogeneity_map=ff_f, roll_off_range=0.1)
 
 # ======================================================================================================================
 # Functions developed
 
-def plot_profile (norm_img, px_crop=0, fit=False):
+
+def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
     """
 
     :param norm_img: A normalized image (intensity ranges from 0-1)
@@ -154,19 +157,22 @@ def plot_profile (norm_img, px_crop=0, fit=False):
     roll_off_neg = find_roll_off(negative_crop[5:-5])
     x_data = np.linspace(0, 1, len(negative_crop))
 
-    plt.figure()
-    plt.ylim((0,1))
-    if px_crop!=0:
-        plt.xlim(px_crop, len(negative_profile)-px_crop)
-    plt.plot(negative_crop, 'r')
-    plt.plot(positive_crop, 'b')
-    plt.title('roll-off for ' + channel + ': ' + str(np.min([roll_off_neg, roll_off_pos])))
+    if plot:
+        plt.figure()
+        plt.ylim((0, 1))
+        if px_crop != 0:
+            plt.xlim(px_crop, len(negative_profile)-px_crop)
+        plt.plot(negative_crop, 'r')
+        plt.plot(positive_crop, 'b')
+        plt.title('roll-off for ' + channel + ': ' + str(np.min([roll_off_neg, roll_off_pos])))
 
-    if fit:
-        popt_neg, pcov_neg = curve_fit(f=fit_func, xdata=x_data, ydata=negative_crop)
-        popt_pos, pcov_pos = curve_fit(f=fit_func, xdata=x_data, ydata=positive_crop)
-        plt.plot(fit_func(x_data, *popt_neg), 'r-')
-        plt.plot(fit_func(x_data, *popt_pos), 'b-')
+        if fit:
+            popt_neg, pcov_neg = curve_fit(f=fit_func, xdata=x_data, ydata=negative_crop)
+            popt_pos, pcov_pos = curve_fit(f=fit_func, xdata=x_data, ydata=positive_crop)
+            plt.plot(fit_func(x_data, *popt_neg), 'r-')
+            plt.plot(fit_func(x_data, *popt_pos), 'b-')
+
+    return positive_profile, negative_profile, roll_off_pos, roll_off_neg
 
 
 def generate_homogeneity_ref(label_ref, img_raw, mode):
@@ -213,7 +219,7 @@ def generate_homogeneity_ref(label_ref, img_raw, mode):
     return field_non_uni_raw, z, coors
 
 
-def find_roll_off (profile):
+def find_roll_off(profile):
     """
 
     :param profile: A list of intensity values over a profile
@@ -310,3 +316,38 @@ def fitgaussian(data):
     errorfunction = lambda p: np.ravel(gaussian(*p)(*np.indices(data.shape)) - data)
     p, success = optimize.leastsq(errorfunction, params)
     return p
+
+
+def report_metric(homogeneity_map, roll_off_range):
+    """
+    Metric: 1) pos_roll_off, 2) neg_roll_off, 3) img_roll_off, 4) range_y_x_0.1_roll_off, 5) centroid_position
+    :param homogeneity_map: A field homogeneity map, could be un-normalized
+    :param roll_off_range: A float of roll off of interest, e.g. 0.1 roll off from max
+    :return: A dictionary of metrics
+    """
+    norm_map = homogeneity_map / np.max(homogeneity_map)
+    pos_prof, neg_prof, pos_roll_off, neg_roll_off = plot_profile(norm_img=norm_map, px_crop=0, plot=False, fit=False)
+    img_roll_off = (np.max(homogeneity_map) - np.min(homogeneity_map)) / np.max(homogeneity_map)
+
+    roll_off_area = (1.-roll_off_range)*np.max(homogeneity_map)
+    y_ro, x_ro = np.where(homogeneity_map > roll_off_area)
+    box_range = [np.min(y_ro), np.max(y_ro), np.min(x_ro), np.max(x_ro)]
+
+    hot_spot = homogeneity_map > roll_off_area
+    hot_spot_coverage = float(np.sum(hot_spot))/(homogeneity_map.shape[0]*homogeneity_map.shape[1])
+
+    # label = measure.label(hot_spot)
+    hot_spot.astype(int)  # TODO: peanut-shaped centroid?
+    props = measure.regionprops(label)
+
+    centroid_position = props[0].centroid
+    y_dist_from_center = centroid_position[0] - int(np.shape(homogeneity_map)[0] / 2)
+    x_dist_from_center = centroid_position[1] - int(np.shape(homogeneity_map)[1] / 2)
+
+    return {'pos_roll_off': pos_roll_off,
+            'neg_roll_off': neg_roll_off,
+            'img_roll_off': img_roll_off,
+            'px_range': box_range,
+            'hot_spot_coverage': hot_spot_coverage,
+            'hot_spot_center': centroid_position,
+            'hot_spot_deviation': (y_dist_from_center, x_dist_from_center)}
