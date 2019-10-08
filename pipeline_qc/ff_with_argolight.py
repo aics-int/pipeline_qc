@@ -8,15 +8,15 @@ from skimage import filters, measure, io
 channel = '405'
 
 # Read images (flat field, black reference, argolight)
-ff_f_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20190813\3500003331_100X_20190813_' + channel + '.czi')
+ff_f_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20180925\3500002315_100X_20180925_' + channel + '.czi')
 ff_f = ff_f_data.data[0, 0, 0, :, :]
-br_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20190813\3500003331_100X_20190813_BR.czi')
+br_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20180925\3500002315_100X_20180925_BR.czi')
 br = br_data.data[0, 0, 0, :, :]
 argo_data = AICSImage(r'C:\Users\calystay\Desktop\argo_488_test.czi')
 argo = argo_data.data[0, 0, 0, : ,:]
 
 # Pre-process flat field images
-ff_smooth = filters.gaussian(image=ff_f, sigma=3, preserve_range=True)
+ff_smooth = filters.gaussian(image=ff_f, sigma=1, preserve_range=True)
 ff_norm = ff_smooth/np.max(ff_smooth)
 
 # Plot profiles for flat field images
@@ -40,7 +40,7 @@ plot_profile(norm_corr, px_crop=100, fit=False)  # Intensity profile of normaliz
 
 # ======================================================================================================================
 # Use a simulated homogeneity map to correct images (requires black reference, homogeneity map)
-smooth_br = filters.gaussian(br, sigma=3, preserve_range=True)
+smooth_br = filters.gaussian(br, sigma=1, preserve_range=True)
 
 # Use sampled FF to correct full FF
 corr_ff = correct_img(ff_f[100:-100, 100:-100], smooth_br[100:-100, 100:-100], field_non_uni_raw[100:-100, 100:-100])
@@ -127,8 +127,15 @@ plot_profile(norm, px_crop=0)
 
 homogeneity_map = fit_gaussian_field_non_uni_raw  # Select which method to use as homogeneity reference
 metric_dict = report_metric(homogeneity_map=homogeneity_map, roll_off_range=0.1)
-metric_dict_2 = report_metric(homogeneity_map=ff_f, roll_off_range=0.1)
+metric_dict_2 = report_metric(homogeneity_map=ff_norm, roll_off_range=0.1)
 
+# Test for correction
+corr = correct_img(ff_norm, smooth_br, homogeneity_map)
+plt.figure()
+plt.imshow(corr)
+corr_norm = corr/np.max(corr)
+plot_profile(corr_norm)
+metric_corr = report_metric(homogeneity_map=corr, roll_off_range=0.1)
 # ======================================================================================================================
 # Functions developed
 
@@ -249,7 +256,7 @@ def correct_img(img_to_corr, br, img_homogeneity_ref):
     :param img_homogeneity_ref: A field non homogeneity image
     :return: A corrected image
     """
-    corr = (img_to_corr - br)/img_homogeneity_ref
+    corr = (img_to_corr - br)/(img_homogeneity_ref - br)
     return corr
 
 
@@ -336,9 +343,8 @@ def report_metric(homogeneity_map, roll_off_range):
     hot_spot = homogeneity_map > roll_off_area
     hot_spot_coverage = float(np.sum(hot_spot))/(homogeneity_map.shape[0]*homogeneity_map.shape[1])
 
-    # label = measure.label(hot_spot)
-    hot_spot.astype(int)  # TODO: peanut-shaped centroid?
-    props = measure.regionprops(label)
+    hot_spot = hot_spot.astype(int)  # TODO: peanut-shaped centroid?
+    props = measure.regionprops(hot_spot)
 
     centroid_position = props[0].centroid
     y_dist_from_center = centroid_position[0] - int(np.shape(homogeneity_map)[0] / 2)
@@ -347,6 +353,7 @@ def report_metric(homogeneity_map, roll_off_range):
     return {'pos_roll_off': pos_roll_off,
             'neg_roll_off': neg_roll_off,
             'img_roll_off': img_roll_off,
+            'roll_off_intensity': roll_off_area,
             'px_range': box_range,
             'hot_spot_coverage': hot_spot_coverage,
             'hot_spot_center': centroid_position,
