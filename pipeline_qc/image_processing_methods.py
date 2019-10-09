@@ -1,13 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri May 10 16:26:25 2019
-
-@author: Calysta Yan
-"""
 import numpy as np
+import matplotlib.pyplot as plt
 from aicsimageio import AICSImage
-import ndimage
-from skimage import filters, measure
+from scipy import interpolate, ndimage, optimize
+from scipy.optimize import curve_fit
+from skimage import filters, measure, io
+
 def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
     """
 
@@ -39,7 +36,7 @@ def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
             plt.xlim(px_crop, len(negative_profile)-px_crop)
         plt.plot(negative_crop, 'r')
         plt.plot(positive_crop, 'b')
-        plt.title('roll-off for ' + channel + ': ' + str(np.min([roll_off_neg, roll_off_pos])))
+        plt.title('roll-off: ' + str(np.min([roll_off_neg, roll_off_pos])))
 
         if fit:
             popt_neg, pcov_neg = curve_fit(f=fit_1d_parabola, xdata=x_data, ydata=negative_crop)
