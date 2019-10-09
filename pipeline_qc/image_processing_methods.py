@@ -3,7 +3,36 @@ import matplotlib.pyplot as plt
 from aicsimageio import AICSImage
 from scipy import interpolate, ndimage, optimize
 from scipy.optimize import curve_fit
-from skimage import filters, measure, io
+from skimage import filters, measure
+import xml.etree.ElementTree as ET
+
+
+def get_img_info(img, data):
+    """
+
+    :param img: a hxw image array
+    :param data: original data read from AICSImage
+    :return: A dictionary containing descriptions of the image (intensity, focus position in um)
+    """
+    meta = data.metadata
+    settings = meta.find("Metadata").getchildren()
+    hw_setting = settings[1]
+
+    for param_coll in hw_setting.getchildren():
+        if param_coll.attrib == {'Id': 'MTBFocus'}:
+            for info in param_coll.getchildren():
+                if info.tag == 'Position':
+                    position = info.text
+
+    max = np.max(img)
+    min = np.min(img)
+    median = np.median(img)
+    mean = np.average(img)
+    std = np.std(img)
+
+    return {'img_max': max, 'img_min': min, 'img_median': median, 'img_mean': mean, 'img_std': std,
+            'z_position': position
+            }
 
 def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
     """
