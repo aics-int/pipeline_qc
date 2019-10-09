@@ -170,7 +170,7 @@ def get_img_info (img, data):
     std = np.std(img)
 
     return {'img_max': max, 'img_min': min, 'img_median': median, 'img_mean': mean, 'img_std': std,
-            'z_position': position
+            'intensity_range': max-min, 'z_position': position
             }
 
 
