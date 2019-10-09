@@ -221,7 +221,8 @@ def fitgaussian(data):
 
 def report_metric(homogeneity_map, roll_off_range):
     """
-    Metric: 1) pos_roll_off, 2) neg_roll_off, 3) img_roll_off, 4) range_y_x_0.1_roll_off, 5) centroid_position
+    Metric: 1) pos_roll_off, 2) neg_roll_off, 3) img_roll_off, 4) range_y_x_0.1_roll_off, 5) centroid_position,
+     6) angle/magnitude from center (x_axis), 7_ centering accuracy (daybook)
     :param homogeneity_map: A field homogeneity map, could be un-normalized
     :param roll_off_range: A float of roll off of interest, e.g. 0.1 roll off from max
     :return: A dictionary of metrics
@@ -244,6 +245,11 @@ def report_metric(homogeneity_map, roll_off_range):
     y_dist_from_center = centroid_position[0] - int(np.shape(homogeneity_map)[0] / 2)
     x_dist_from_center = centroid_position[1] - int(np.shape(homogeneity_map)[1] / 2)
 
+    mag = math.sqrt(y_dist_from_center**2 + x_dist_from_center**2)
+    angle = math.degrees(math.atan2(x_dist_from_center, y_dist_from_center))
+
+    centering_accuracy = 1. - ((2. * mag) / (math.sqrt(np.shape(homogeneity_map)[0]**2 + np.shape(homogeneity_map)[1]**2)))
+
     return {'pos_roll_off': pos_roll_off,
             'neg_roll_off': neg_roll_off,
             'img_roll_off': img_roll_off,
@@ -251,7 +257,11 @@ def report_metric(homogeneity_map, roll_off_range):
             'px_range': box_range,
             'hot_spot_coverage': hot_spot_coverage,
             'hot_spot_center': centroid_position,
-            'hot_spot_deviation': (y_dist_from_center, x_dist_from_center)}
+            'hot_spot_deviation': (y_dist_from_center, x_dist_from_center),
+            'hot_spot_magnitude': mag,
+            'hot_spot_angle': angle,
+            'centering_accuracy': centering_accuracy
+            }
 
 
 def generate_images(image):
