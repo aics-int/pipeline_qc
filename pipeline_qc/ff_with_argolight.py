@@ -4,6 +4,7 @@ from aicsimageio import AICSImage
 from scipy import interpolate, optimize
 from scipy.optimize import curve_fit
 from skimage import filters, measure, io
+import xml.etree.ElementTree as ET
 
 channel = '405'
 
@@ -14,6 +15,9 @@ br_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_201
 br = br_data.data[0, 0, 0, :, :]
 argo_data = AICSImage(r'C:\Users\calystay\Desktop\argo_488_test.czi')
 argo = argo_data.data[0, 0, 0, : ,:]
+
+# Get image information
+img_dict = get_img_info(img=ff_f, data=ff_f_data)
 
 # Pre-process flat field images
 ff_smooth = filters.gaussian(image=ff_f, sigma=1, preserve_range=True)
@@ -132,12 +136,41 @@ metric_dict_2 = report_metric(homogeneity_map=ff_norm, roll_off_range=0.1)
 # Test for correction
 corr = correct_img(ff_norm, smooth_br, homogeneity_map)
 plt.figure()
-plt.imshow(corr)
+plt.imshow(corr, cmap='gray')
 corr_norm = corr/np.max(corr)
 plot_profile(corr_norm)
 metric_corr = report_metric(homogeneity_map=corr, roll_off_range=0.1)
+
 # ======================================================================================================================
 # Functions developed
+
+
+def get_img_info (img, data):
+    """
+
+    :param img: a hxw image array
+    :param data: original data read from AICSImage
+    :return: A dictionary containing descriptions of the image (intensity, focus position in um)
+    """
+    meta = data.metadata
+    settings = meta.find("Metadata").getchildren()
+    hw_setting = settings[1]
+
+    for param_coll in hw_setting.getchildren():
+        if param_coll.attrib == {'Id': 'MTBFocus'}:
+            for info in param_coll.getchildren():
+                if info.tag == 'Position':
+                    position = info.text
+
+    max = np.max(img)
+    min = np.min(img)
+    median = np.median(img)
+    mean = np.average(img)
+    std = np.std(img)
+
+    return {'img_max': max, 'img_min': min, 'img_median': median, 'img_mean': mean, 'img_std': std,
+            'z_position': position
+            }
 
 
 def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
