@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 from aicsimageio import AICSImage
 from scipy import interpolate, ndimage, optimize
 from scipy.optimize import curve_fit
@@ -33,6 +34,7 @@ def get_img_info(img, data):
     return {'img_max': max, 'img_min': min, 'img_median': median, 'img_mean': mean, 'img_std': std,
             'intensity_range': max-min, 'z_position': position
             }
+
 
 def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
     """
