@@ -2,13 +2,151 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 from aicsimageio import AICSImage
-from scipy import interpolate, ndimage, optimize
+from scipy import interpolate, optimize
 from scipy.optimize import curve_fit
-from skimage import filters, measure
+from skimage import filters, measure, io
 import xml.etree.ElementTree as ET
 
+channel = '405'
 
-def get_img_info(img, data):
+# Read images (flat field, black reference, argolight)
+ff_f_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20180925\3500002315_100X_20180925_' + channel + '.czi')
+ff_f = ff_f_data.data[0, 0, 0, :, :]
+br_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20180925\3500002315_100X_20180925_BR.czi')
+br = br_data.data[0, 0, 0, :, :]
+argo_data = AICSImage(r'C:\Users\calystay\Desktop\argo_488_test.czi')
+argo = argo_data.data[0, 0, 0, : ,:]
+
+# Get image information
+img_dict = get_img_info(img=ff_f, data=ff_f_data)
+
+# Pre-process flat field images
+ff_smooth = filters.gaussian(image=ff_f, sigma=1, preserve_range=True)
+ff_norm = ff_smooth/np.max(ff_smooth)
+
+# Plot profiles for flat field images
+plot_profile(ff_f, px_crop=0, fit=False)  # Intensity profile of raw dye ff image
+plot_profile(norm_img=ff_norm, px_crop=0, fit=False)  # Intensity profile of normalized dye ff
+
+# ======================================================================================================================
+# Generate simulated homogeneity map with dye ff (sample across the image)
+
+# Sample a dye-ff image with points
+img_mask = np.zeros((ff_norm.shape), dtype=bool)
+for x in range (50, img_mask.shape[1], 100):
+    for y in range (50, img_mask.shape[0], 100):
+        img_mask[y:y+25, x:x+25] = True
+masked_ff = ff_smooth*img_mask
+label_ref = measure.label(img_mask)
+
+field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=label_ref, img_raw=ff_smooth, mode='mean')
+norm_corr = field_non_uni_raw/np.max(field_non_uni_raw)
+plot_profile(norm_corr, px_crop=100, fit=False)  # Intensity profile of normalized simulated sampled ff
+
+# ======================================================================================================================
+# Use a simulated homogeneity map to correct images (requires black reference, homogeneity map)
+smooth_br = filters.gaussian(br, sigma=1, preserve_range=True)
+
+# Use sampled FF to correct full FF
+corr_ff = correct_img(ff_f[100:-100, 100:-100], smooth_br[100:-100, 100:-100], field_non_uni_raw[100:-100, 100:-100])
+plt.figure()
+plt.imshow(corr_ff)
+norm_corr_ff = corr_ff/np.max(corr_ff)
+plot_profile(norm_img=norm_corr_ff, px_crop=12, fit=False)
+
+# Use sampled FF to correct for argo
+corr_argo = correct_img(argo[100:-100, 100:-100], smooth_br[100:-100, 100:-100], field_non_uni_raw[100:-100, 100:-100])
+plt.figure()
+plt.imshow(corr_argo)
+
+# ======================================================================================================================
+# Generate homogeneity maps from argolight
+# Option 1: homogeneity_raw_map.png output from daybook
+compare = io.imread(r'\\allen\aics\microscopy\Calysta\argolight\zsd1_20190813\homogeneity_raw_map.png')
+compare_norm = compare/np.max(compare)
+plot_profile(compare_norm, 100, fit=False)
+
+# Option 2: From rings image, segment just the rings as samples
+argo_smooth = filters.gaussian(argo, sigma=3, preserve_range=True) # TODO: change filter, don't fill holes in argolight!
+thresh = filters.threshold_local(argo_smooth, block_size=11, offset=10)
+ff_argo_segment = (argo_smooth>thresh) & (argo_smooth>500)
+
+show = argo_smooth*ff_argo_segment
+plt.figure()
+plt.imshow(show)
+label_ref = measure.label(ff_argo_segment)
+
+field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=label_ref, img_raw=argo_smooth, mode='median')
+norm_f = field_non_uni_raw/np.max(field_non_uni_raw)
+plot_profile(norm_f, px_crop=100)  # Intensity profile of normalized simulated rings ff
+
+# Option 3: From rings image, segment rings with the centered cross
+update = label_ref.copy()
+update[label_ref == 15] = 0
+
+masked_update = argo_smooth*update
+field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=update, img_raw=argo_smooth, mode='median')
+norm_f = field_non_uni_raw/np.max(field_non_uni_raw)
+plot_profile(norm_f, px_crop=100)  # Intensity profile of normalized simulated rings+cross ff
+
+# ======================================================================================================================
+# 2D fit over (sampled) flat field images
+# Option 1: Fit the sampled image with a 2D paraboloid function
+sampled_img = masked_ff
+
+# Gather inputs for curve fit: x, y, z
+label_ref = measure.label(img_mask)
+field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=label_ref, img_raw=ff_smooth, mode='median')
+x = []
+y = []
+for coor in coors:
+    x.append(coor[1])
+    y.append(coor[0])
+
+# Generate mesh grid to fit over
+all_x = np.arange(0, np.shape(sampled_img)[1])
+all_y = np.arange(0, np.shape(sampled_img)[0])
+xx, yy = np.meshgrid(all_x, all_y, sparse=True)
+
+# Fit (x,y), z to a 2d paraboloid function
+params_paraboloid, cov_paraboloid = curve_fit(f=fit_2d_paraboloid, xdata=(y, x), ydata=z)
+
+fit = fit_2d_paraboloid((yy, xx), *params_paraboloid)
+fit_paraboloid_field_non_uni_raw = fit.reshape(624, 924)
+norm = fit_paraboloid_field_non_uni_raw/np.max(fit_paraboloid_field_non_uni_raw)
+plot_profile(norm, px_crop=0)
+
+# Option 2: Fit the normalized image (more data points) with a 2D gaussian function
+# 2D gaussian fit cannot find parameters for small sample size (tested with image with only 20 data points).
+# Only use 2D gaussian fit for more data points (e.g. normalized ff)
+
+params_gaussian = fitgaussian(ff_norm)
+fit_function = gaussian(*params_gaussian)
+fit_gaussian_field_non_uni_raw = fit_function(*np.indices(ff_norm.shape))
+norm = fit_gaussian_field_non_uni_raw/np.max(fit_gaussian_field_non_uni_raw)
+plot_profile(norm, px_crop=0)
+
+# ======================================================================================================================
+# Extract metrics from homogeneity map:
+# 1) pos_roll_off, 2) neg_roll_off, 3) img_roll_off, 4) range_y_x_0.1_roll_off, 5) centroid_position
+
+homogeneity_map = fit_gaussian_field_non_uni_raw  # Select which method to use as homogeneity reference
+metric_dict = report_metric(homogeneity_map=homogeneity_map, roll_off_range=0.1)
+metric_dict_2 = report_metric(homogeneity_map=ff_norm, roll_off_range=0.1)
+
+# Test for correction
+corr = correct_img(ff_norm, smooth_br, homogeneity_map)
+plt.figure()
+plt.imshow(corr, cmap='gray')
+corr_norm = corr/np.max(corr)
+plot_profile(corr_norm)
+metric_corr = report_metric(homogeneity_map=corr, roll_off_range=0.1)
+
+# ======================================================================================================================
+# Functions developed
+
+
+def get_img_info (img, data):
     """
 
     :param img: a hxw image array
@@ -18,7 +156,6 @@ def get_img_info(img, data):
     meta = data.metadata
     settings = meta.find("Metadata").getchildren()
     hw_setting = settings[1]
-    position = ''
 
     for param_coll in hw_setting.getchildren():
         if param_coll.attrib == {'Id': 'MTBFocus'}:
@@ -68,13 +205,13 @@ def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
             plt.xlim(px_crop, len(negative_profile)-px_crop)
         plt.plot(negative_crop, 'r')
         plt.plot(positive_crop, 'b')
-        plt.title('roll-off: ' + str(np.min([roll_off_neg, roll_off_pos])))
+        plt.title('roll-off for ' + channel + ': ' + str(np.min([roll_off_neg, roll_off_pos])))
 
         if fit:
-            popt_neg, pcov_neg = curve_fit(f=fit_1d_parabola, xdata=x_data, ydata=negative_crop)
-            popt_pos, pcov_pos = curve_fit(f=fit_1d_parabola, xdata=x_data, ydata=positive_crop)
-            plt.plot(fit_1d_parabola(x_data, *popt_neg), 'r-')
-            plt.plot(fit_1d_parabola(x_data, *popt_pos), 'b-')
+            popt_neg, pcov_neg = curve_fit(f=fit_func, xdata=x_data, ydata=negative_crop)
+            popt_pos, pcov_pos = curve_fit(f=fit_func, xdata=x_data, ydata=positive_crop)
+            plt.plot(fit_func(x_data, *popt_neg), 'r-')
+            plt.plot(fit_func(x_data, *popt_pos), 'b-')
 
     return positive_profile, negative_profile, roll_off_pos, roll_off_neg
 
@@ -133,7 +270,7 @@ def find_roll_off(profile):
     return roll_off
 
 
-def fit_1d_parabola(x, a, b, c):
+def fit_func(x, a, b, c):
     """
 
     :param x: x data points
@@ -265,80 +402,3 @@ def report_metric(homogeneity_map, roll_off_range):
             'hot_spot_angle': angle,
             'centering_accuracy': centering_accuracy
             }
-
-
-def generate_images(image):
-    """
-    This function generates 6 images from a zstack
-    :param image: an image with shape(T,C,Z,Y,X)
-    :return: 6 images: highest_z, lowest_z, center_z, mip_xy, mip_xz, mip_yz
-    """
-    image_TL = image.data[0, 0, :, :, :]
-    image_EGFP = image.data[0, 1, :, :, :]
-    center_plane = find_center_z_plane(image_TL)
-    # BF panels: top, bottom, center
-    top_TL = image_TL[-1, :, :]
-    bottom_TL = image_TL[0, :, :]
-    center_TL = image_TL[center_plane, :, :]
-    # EGFP panels: mip_xy, mip_xz, mip_yz
-    mip_xy = np.amax(image_EGFP, axis=0)
-    mip_xz = np.amax(image_EGFP, axis=1)
-    mip_yz = np.amax(image_EGFP, axis=2)
-
-    return top_TL, bottom_TL, center_TL, mip_xy, mip_xz, mip_yz
-
-def create_display_setting(rows, control_column, folder_path):
-    """
-    This function generates a dictionary of display setting to be applied to images
-    :param rows:
-    :param control_column:
-    :param folder_path:
-    :return:
-    """
-    display_dict = {}
-    images = os.listdir(plate_path)
-    for row in rows:
-        print (row)
-        display_settings = []
-        for img_file in images:
-            if img_file.endswith(row + control_column + '.czi'):
-                image = AICSImage(os.path.join(plate_path, img_file), max_workers=1)
-                print (img_file)
-                image_EGFP = image.data[0, 1, :, :, :]
-                mip_xy = np.amax(image_EGFP, axis=0)
-                display_min, display_max = np.min(mip_xy), np.max(mip_xy)
-                display_settings.append((display_min, display_max))
-        display_minimum = int(round(np.mean([dis_min[0] for dis_min in display_settings])))
-        display_maximum = int(round(np.mean([dis_max[1] for dis_max in display_settings])))
-        display_dict.update({row: (display_minimum, display_maximum)})
-    return display_dict
-
-def find_center_z_plane(image):
-    """
-
-    :param image:
-    :return:
-    """
-    mip_yz = np.amax(image, axis=2)
-    mip_gau = filters.gaussian(mip_yz, sigma=2)
-    edge_slice = filters.sobel(mip_gau)
-    contours = measure.find_contours(edge_slice, 0.005)
-    new_edge = np.zeros(edge_slice.shape)
-    for n, contour in enumerate (contours):
-        new_edge[np.round(contour[:, 0]).astype('int'), np.round(contour[:, 1]).astype('int')] = 1
-
-    # Fill empty spaces of contour to identify as 1 object
-    new_edge_filled = ndimage.morphology.binary_fill_holes(new_edge)
-
-    # Identify center of z stack by finding the center of mass of 'x' pattern
-    z = []
-    for i in range (100, mip_yz.shape[1]+1, 100):
-        edge_slab= new_edge_filled[:, i-100:i]
-        #print (i-100, i)
-        z_center, x_center = ndimage.measurements.center_of_mass(edge_slab)
-        z.append(z_center)
-
-    z = [z_center for z_center in z if ~np.isnan(z_center)]
-    z_center = int(round(np.median(z)))
-
-    return (z_center)
