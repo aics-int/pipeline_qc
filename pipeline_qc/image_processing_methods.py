@@ -18,6 +18,7 @@ def get_img_info(img, data):
     meta = data.metadata
     settings = meta.find("Metadata").getchildren()
     hw_setting = settings[1]
+    position = ''
 
     for param_coll in hw_setting.getchildren():
         if param_coll.attrib == {'Id': 'MTBFocus'}:
