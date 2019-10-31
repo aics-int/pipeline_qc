@@ -21,13 +21,13 @@ def find_peaks(image):
     peaks1 = np.transpose(peaks1)
 
     # plot peaks on image (optional)
-#    plt.subplots(figsize=(10,10))
-#    plt.imshow(image, cmap='jet', vmin=0, vmax=np.median(image)+np.std(image)*5,
-#               interpolation='nearest') # cmap = 'gray'
-#    plt.colorbar()
-#    plt.scatter(peaks1[:,1], peaks1[:,0], c='y', marker='x')
-#    plt.axis([0, image.shape[1], 0, image.shape[0]])
-#    plt.show
+    plt.subplots(figsize=(10,10))
+    plt.imshow(image, cmap='jet', vmin=0, vmax=np.median(image)+np.std(image)*5,
+               interpolation='nearest') # cmap = 'gray'
+    plt.colorbar()
+    plt.scatter(peaks1[:,1], peaks1[:,0], c='y', marker='x')
+    plt.axis([0, image.shape[1], 0, image.shape[0]])
+    plt.show
     return peaks1 
 
 def remove_close_peaks(image, peaks1, min_dist=30):
