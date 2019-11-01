@@ -87,6 +87,16 @@ par_output.update({'avg_par_xy': avg_psf_xy_dict['par']})
 writer_psf_xy = omeTifWriter.OmeTifWriter(os.path.join(beads_img_save_folder, file + '_psf_xy.tif'))
 writer_psf_xy.save(np.reshape(avg_psf_xy_dict['img'].astype(np.uint16), (1, window_xy*2, window_xy*2)))
 
+# Calculate goodness of fit: Is the psf gaussian?
+diff = np.mean((np.mean(psf_xy_all, axis=0) - np.mean(np.mean(psf_xy_all, axis=0)) * (avg_psf_xy_dict['img'] - np.mean(avg_psf_xy_dict['img']))) / (
+            np.std(np.mean(psf_xy_all, axis=0)) * np.std(avg_psf_xy_dict['img'])))
+
+# Measure angle deviation from center with pearson correlation
+angle_deviate = avg_psf_xy_dict['par']['theta']
+
+row.update({'avg_fwhm_xy_gof': diff,
+            'avg_fwhm_xy_tilt': angle_deviate})
+
 # ======================================================================================================================
 # Gather psf_3d for all beads, save parameters as json
 psf_3d_all = np.zeros(shape=(len(bead_3d_window), window_z*2, window_xy*2, window_xy*2))
@@ -188,6 +198,16 @@ for y in range (int(img_h/box), img_h+1, int(img_h/box)):
 
                 row.update({box_id_name[box_id] + '_' + axis_dict[axis] + '_fwhm': fwhm})
                 par_output.update({box_id_name[box_id] + '_' + axis_dict[axis] + '_par': psf_fit['par']})
+
+                # Calculate goodness of fit: Is the psf gaussian?
+                diff = np.mean((max_proj-np.mean(max_proj) * (psf_fit['img'] - np.mean(psf_fit['img']))) / (np.std(max_proj) * np.std(psf_fit['img'])))
+
+                # Measure angle deviation from center with pearson correlation
+                angle_deviate = psf_fit['par']['theta']
+
+                row.update({box_id_name[box_id] + '_' + axis_dict[axis] + '_gof': diff,
+                            box_id_name[box_id] + '_' + axis_dict[axis] + '_tilt': angle_deviate})
+
 
         box_id+=1
         org_x+=int(img_w/box)
