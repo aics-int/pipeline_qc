@@ -1,6 +1,6 @@
 from aicsimageio import AICSImage, omeTifWriter
 from scipy import optimize, ndimage, spatial
-from skimage import measure
+from skimage import measure, morphology
 import math
 import os
 import matplotlib.pyplot as plt
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import json
 
-folder = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20190605'
+folder = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD2_20190423'
 df = pd.DataFrame()
 
 files = os.listdir(folder)
@@ -147,7 +147,7 @@ org_y = 0
 box_id = 1
 box_id_name = {1:'topL', 3:'topR', 5:'center', 7:'botL', 9:'botR'}
 axis_dict = {0:'yx', 1:'zx', 2:'zy'}
-px_size_dict = {'yx':0.108, 'zx':0.29, 'zy':0.29}
+px_size_dict = {'yx':pxl_xy, 'zx':pxl_z, 'zy':pxl_z}
 for y in range (int(img_h/box), img_h+1, int(img_h/box)):
     org_x = 0
     for x in range (int(img_w/box), img_w+1, int(img_w/box)):
@@ -392,6 +392,9 @@ def filter_big_beads(img, center, area):
         size = np.sum(label_big_bead == obj)
         if size < area:
             seg_big_bead[label_big_bead == obj] = 0
+
+    # dilate seg big beads to minimize effects of rings from big beads
+    seg_big_bead = morphology.dilation(seg_big_bead, selem=morphology.disk(3))
 
     # Save filtered beads image after removing big beads as 'filtered'
     mask = np.zeros(img.shape)
