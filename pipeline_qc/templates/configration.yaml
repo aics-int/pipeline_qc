@@ -1,0 +1,113 @@
+##########################################################################################################
+# About data
+##########################################################################################################
+Data:
+#  - item: zstack
+#    dir: '/allen/aics/assay-dev/Segmentation/SLC25A17_Segmentation/pipeline_samples/3500002369_100X_20181001_aligned_cropped-P70-Scene-1-TR1-F03.czi'
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002825/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500003044/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500003065/ZSD3/100XB_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500003096/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500003034/ZSD3/100XB_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002880/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002874/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002873/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002828/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002823/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002811/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002810/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002797/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002798/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002700/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002700/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002699/ZSD2/100XA_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002684/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002680/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002683/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002671/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002670/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002666/ZSD2/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+  - item: folder
+    dir: '/allen/aics/microscopy/PRODUCTION/PIPELINE_4_4/3500002669/ZSD3/100X_zstack'
+    search: .czi  # other options: all, czi, ome.tif, tiff (there are other screte tricks, too)....
+
+# - item: timelapse
+#    dir: '/allen/aics/assay-dev/MicroscopyOtherData/Jianxu/LMNB1_40x/20190128_R01-Scene-2-P3.czi'
+
+
+##########################################################################################################
+# What to check
+##########################################################################################################
+QC:
+#  - check: glance
+#    type: in-montage #other options: in-sequence
+#    channel: 3
+#    view: mip #options: mip, mid_z, p25, p75
+#    contrast: auto # other options: auto, min-max
+#    save: '/allen/aics/assay-dev/MicroscopyOtherData/Jianxu/test_montage.png'
+  - check: intensity_stats
+    channel: [1,2,3]
+    save: '/allen/aics/assay-dev/Jianxu/CoreCode/ad-simple-utils/result/H2B_line_stats.csv'
+
+##########################################################################################################
+# What to process
+##########################################################################################################
+#Proc:
+#  - do: extract-single-channel
+#    channel: 0
+#    save: '/allen/aics/assay-dev/Segmentation/DeepLearning/dna_iterative_dl_segmentation/LaminB1_training_assay/full_lamin/bf'
+#    csv: None
+#  - do: generate_csv
+#    csv: '/allen/aics/assay-dev/Segmentation/DeepLearning/dna_iterative_dl_segmentation/LaminB1_training_assay/full_lamin/labelfree_test.csv'
+#  - do: extract-single-channel
+#    channel: 1
+#    save: '/allen/aics/assay-dev/MicroscopyOtherData/Jianxu/test_single_1'
+#  - do: extract-subset-channel
+#    channel: [1,2]
+#    save: '/allen/aics/assay-dev/MicroscopyOtherData/Jianxu/test_subset'
