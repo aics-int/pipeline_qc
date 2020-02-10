@@ -341,4 +341,4 @@ def find_center_z_plane(image):
     z = [z_center for z_center in z if ~np.isnan(z_center)]
     z_center = int(round(np.median(z)))
 
-    return (z_center)
+    return (new_edge_filled, z_center)
