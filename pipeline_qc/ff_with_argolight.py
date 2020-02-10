@@ -12,9 +12,9 @@ channel = '405'
 # Read images (flat field, black reference, argolight)
 ff_f_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20180925\3500002315_100X_20180925_' + channel + '.czi')
 ff_f = ff_f_data.data[0, 0, 0, :, :]
-br_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20180925\3500002315_100X_20180925_BR.czi')
+br_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\data_set\100X_20191108_BR-left_t25.czi')
 br = br_data.data[0, 0, 0, :, :]
-argo_data = AICSImage(r'C:\Users\calystay\Desktop\argo_488_test.czi')
+argo_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\argo_100x_dual_20190809_488.czi')
 argo = argo_data.data[0, 0, 0, : ,:]
 
 # Get image information
@@ -135,12 +135,50 @@ metric_dict = report_metric(homogeneity_map=homogeneity_map, roll_off_range=0.1)
 metric_dict_2 = report_metric(homogeneity_map=ff_norm, roll_off_range=0.1)
 
 # Test for correction
-corr = correct_img(ff_norm, smooth_br, homogeneity_map)
+corr = correct_img(argo_map, smooth_br, argo_map)
 plt.figure()
 plt.imshow(corr, cmap='gray')
 corr_norm = corr/np.max(corr)
 plot_profile(corr_norm)
 metric_corr = report_metric(homogeneity_map=corr, roll_off_range=0.1)
+
+# ======================================================================================================================
+# Generate matrix for analysis
+ff_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\data_set\488_200ms-bright.czi')
+# get ff_f, and ff_norm from above, generate fit_gaussian_field_non_uni_raw
+
+br_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\data_set\br\100X_20191108_BR-left_t25.czi')
+
+fit_gaussian_field_non_uni_raw = fit_gaussian_field_non_uni_raw*65535
+# run correction using all 16bit data (raw img, br, homogeneity map)
+
+bright_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\data_set\488_200ms-bright.czi')
+bright = bright_data.data[0, 0, 0, :, :]
+
+writer = omeTifWriter.OmeTifWriter(r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\corr_img\argo2_argo2.tif')
+
+# add noise to corrected image
+if np.min(corr) < 0:
+    corr = corr + math.fabs(np.min(corr))
+corr_img = (corr*65535 + smooth_br).astype(np.uint16)
+writer.save(corr_img.reshape(1, 624, 924))
+
+corr_img_folder = r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\corr_img'
+files = os.listdir(corr_img_folder)
+df = pd.DataFrame()
+for file in files:
+    print (file)
+    if file.endswith('argo1.tif') == False:
+        print ('here')
+        row = {'file_name': file}
+        img = io.imread(os.path.join(corr_img_folder, file))
+        smooth = filters.gaussian(img, sigma=3, preserve_range=True)
+        norm = smooth/np.max(smooth)
+        metric_dict = report_metric(homogeneity_map=norm, roll_off_range=0.1)
+        row.update(metric_dict)
+        df = df.append(row, ignore_index=True)
+df.to_csv(r'C:\Users\calystay\Desktop\dynamic_range_488.csv')
+
 
 # ======================================================================================================================
 # Functions developed
