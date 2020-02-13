@@ -36,6 +36,9 @@ def plot_profile_clip (detect_bottom, detect_top, profiles, output_path, true_bo
 
 def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
     """
+    NOT READ TO USE -- This method FAILS when a small portion of FOV contains floating/popping/mitotic cell on top
+    Run a detect_floating/popping/mitotic cell filter before use.
+
     Detect top and bottom of z-stack with bright field using laplace transforms and filters
     :param bf_z: a z-stack image in bright field
     :param threshold: a tuple to set threshold for peak prominence and laplace range cutoff
@@ -262,7 +265,7 @@ for index, row in df.iterrows():
 
     cmdr = image[0, cmdr_index, :, :, :]
 
-    detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity = detect_false_clip(
+    detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity = detect_false_clip_cmdr(
         cmdr, contrast_threshold=(0.2, 0.19))
 
     # Plot to compare
