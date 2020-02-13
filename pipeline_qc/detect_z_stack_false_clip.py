@@ -5,7 +5,7 @@ from aicsimageio import AICSImage
 import numpy as np
 import pandas as pd
 from scipy import signal, stats
-from skimage import exposure
+from skimage import exposure, filters
 
 
 def plot_profile_clip (detect_bottom, detect_top, profiles, output_path, true_bottom=None, true_top=None,):
@@ -34,7 +34,75 @@ def plot_profile_clip (detect_bottom, detect_top, profiles, output_path, true_bo
     plt.savefig(output_path)
 
 
-def detect_false_clip(cmdr, contrast_threshold=(0.2, 0.19)):
+def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
+    """
+    Detect top and bottom of z-stack with bright field using laplace transforms and filters
+    :param bf_z: a z-stack image in bright field
+    :param threshold: a tuple to set threshold for peak prominence and laplace range cutoff
+    :return:
+        detect_bottom: an integer of index of bottom-z-stack or None
+        detect_top: an integer of index of top-z-stack or None
+        crop_top: a boolean if crop top is True or False
+        crop_bottom: a boolean if crop bottom is True or False
+        flag_top: a boolean if the top should be flagged
+        flag_bottom: a boolean if the bottom should be flagged
+        laplace_range: a list of range of laplace transform intensity (between 99.5th percentile and 0.5th percentile)
+    """
+    # Initialize values:
+    crop_top = True
+    crop_bottom = True
+    flag_bottom = False
+    flag_top = False
+    detect_top = None
+    detect_bottom = None
+
+    laplace_range = []
+    for z in range(0, bf_z.shape[0]):
+        bf = bf_z[z, :, :]
+        laplace = filters.laplace(bf, ksize=3)
+        # diff = np.max(laplace) - np.min(laplace)
+        diff = (np.percentile(laplace, 99.5) - np.percentile(laplace, 0.5))
+        laplace_range.append(diff)
+
+    if np.max(laplace_range) < 0.08:
+        # peak = np.where (laplace_range == np.max(laplace_range))[0][0]
+        all_peaks = signal.argrelmax(np.asarray(laplace_range))
+        # Check if it is a 'good peak'
+        peak_prom = signal.peak_prominences(laplace_range, all_peaks[0])[0]
+        if peak_prom[np.where(peak_prom == np.max(peak_prom))][0] > threshold[0]:
+            peak = all_peaks[0][np.where(peak_prom == np.max(peak_prom))][0]
+    else:
+        peak = np.where(laplace_range == np.max(laplace_range))[0][0]
+
+    if peak is not None:
+        for z in range(peak, len(laplace_range)):
+            if laplace_range[z] <= (np.max(laplace_range) - 2.5 * np.std(laplace_range)):
+                detect_top = z
+                crop_top = flag_top = False
+                break
+        for z in reversed(range(0, peak)):
+            if laplace_range[z] <= (np.max(laplace_range) - 2.5 * np.std(laplace_range)):
+                detect_bottom = z
+                crop_bottom = flag_bottom = False
+                break
+
+        if detect_top is None:
+            for z in range(peak + 1, len(laplace_range)):
+                if laplace_range[z] < threshold[1]:
+                    detect_top = z
+                    crop_top = flag_top = False
+                    break
+        if detect_bottom is None:
+            for z in reversed(range(0, peak)):
+                if laplace_range[z] < threshold[1]:
+                    detect_bottom = z
+                    crop_bottom = flag_bottom = False
+                    break
+
+    return detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, laplace_range
+
+
+def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
     """
     Detects top/bottom clipping in a z-stack. (The method will fail if you have small debris/floating cells on top. )
     :param cmdr: a (z, y, x) cmdr image
