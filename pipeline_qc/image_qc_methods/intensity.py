@@ -2,7 +2,6 @@ import numpy as np
 from aicsimageio import AICSImage
 import matplotlib.pyplot as plt
 import pandas as pd
-from lkaccess import LabKey, contexts
 
 
 def intensity_stats_per_image(im_path, plots=False):
@@ -52,26 +51,4 @@ def run_qc(im_path_list, intensity_check=True):
 
 
 def query_from_fms(cellline):
-
-    server_context = LabKey(contexts.PROD)
-
-    cellline = 'AICS-7'
-
-    sql = f'''
-     SELECT
-        fov.fovid, fov.sourceimagefileid, well.wellname.name as wellname, plate.barcode,
-        instrument.name as instrument, fcl.celllineid.name as cellline, fov.created, file.localfilepath
-        FROM microscopy.fov as fov
-        INNER JOIN microscopy.well as well on fov.wellid = well.wellid
-        INNER JOIN microscopy.plate as plate on well.plateid = plate.plateid
-        INNER JOIN microscopy.instrument as instrument on fov.instrumentid = instrument.instrumentid
-        INNER JOIN celllines.filecellline as fcl on fov.sourceimagefileid = fcl.fileid
-        INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
-        WHERE fov.objective = 100
-        AND fov.qcstatusid.name = 'Passed'
-        AND fcl.celllineid.name = '{cellline}'
-    '''
-
-    result = server_context.execute_sql('microscopy', sql)
-    result_df = pd.DataFrame(result['rows'])
-
+    
