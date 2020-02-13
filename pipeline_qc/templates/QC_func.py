@@ -75,6 +75,7 @@ def simple_zstack_QC(all_stacks, qc_config):
                     new_stats.update({str(ch+1)+'_std':im.std()})
                 df = df.append(new_stats,ignore_index=True)
                 df.to_csv(qc_step['save'],mode='w')
-                    
 
-        
+
+
+
