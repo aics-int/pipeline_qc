@@ -99,9 +99,13 @@ def find_center_z_plane(image):
         z.append(z_center)
     
     z = [z_center for z_center in z if ~np.isnan(z_center)]
-    z_center = int(round(np.median(z)))
-    return (z_center)
 
+    try:
+        z_center = int(round(np.median(z)))
+    except:
+        z_center = int(mip_yz.shape[0]/2)
+        print ('cannot find center, take middle slice')
+    return (z_center)
 
 #------------------------------------------------------------------------------
 
