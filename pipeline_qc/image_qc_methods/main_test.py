@@ -314,15 +314,15 @@ def batch_qc(query_df):
             intensity_dict = intensity_stats_single_channel(value)
             for intensity_key, intensity_value, in intensity_dict.items():
                 stat_dict.update({key + ' ' + intensity_key + '-intensity': intensity_value})
-        # Runs the false_clip scripts on bf and 638(cmdr)
-        if key == 'brightfield':
-            bf_false_clip_dict = detect_false_clip_bf(value)
-            for false_clip_key, false_clip_value in bf_false_clip_dict.items():
-                stat_dict.update({key + ' ' + false_clip_key: false_clip_value})
-        elif key == '638nm':
-            bf_false_clip_dict = detect_false_clip_cmdr(value)
-            for false_clip_key, false_clip_value in bf_false_clip_dict.items():
-                stat_dict.update({key + ' ' + false_clip_key: false_clip_value})
+            # Runs the false_clip scripts on bf and 638(cmdr)
+            if key == 'brightfield':
+                bf_false_clip_dict = detect_false_clip_bf(value)
+                for false_clip_key, false_clip_value in bf_false_clip_dict.items():
+                    stat_dict.update({key + ' ' + false_clip_key + '-false clip': false_clip_value})
+            elif key == '638nm':
+                bf_false_clip_dict = detect_false_clip_cmdr(value)
+                for false_clip_key, false_clip_value in bf_false_clip_dict.items():
+                    stat_dict.update({key + ' ' + false_clip_key + '-false clip': false_clip_value})
         stat_list.append(stat_dict)
 
     return pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
