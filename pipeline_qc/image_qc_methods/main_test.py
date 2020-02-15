@@ -1,10 +1,14 @@
 from lkaccess import LabKey, contexts
 import math
 from aicsimageio import AICSImage
+from aicsimageio.writers import ome_tiff_writer
 import numpy as np
 import pandas as pd
 from scipy import signal, stats
-from skimage import exposure, filters
+import argparse
+import os
+from scipy import ndimage
+from skimage import exposure, filters, morphology, measure
 
 
 def intensity_stats_single_channel(single_channel_im):
@@ -16,17 +20,21 @@ def intensity_stats_single_channel(single_channel_im):
     result.update({'max': single_channel_im.max()})
     result.update({'min': single_channel_im.min()})
     result.update({'std': single_channel_im.std()})
+    result.update({'99.5%': np.percentile(single_channel_im, 99.5)})
+    result.update({'0.5%': np.percentile(single_channel_im, 0.5)})
 
     return result
 
-def query_from_fms(cellline):
-    # Queries FMS (only using cellline right now) for image files that we would QC
+
+def query_from_fms(cell_line):
+    # Queries FMS (only using cell line right now) for image files that we would QC
 
     server_context = LabKey(contexts.PROD)
 
     sql = f'''
      SELECT fov.fovid, fov.sourceimagefileid, well.wellname.name as wellname, plate.barcode,
-        instrument.name as instrument, fcl.celllineid.name as cellline, fov.created, file.localfilepath
+        instrument.name as instrument, fcl.celllineid.name as cellline, fov.fovimagedate, file.localfilepath,
+        fov.wellid.plateid.workflow.name as workflow
         FROM microscopy.fov as fov
         INNER JOIN microscopy.well as well on fov.wellid = well.wellid
         INNER JOIN microscopy.plate as plate on well.plateid = plate.plateid
@@ -35,16 +43,16 @@ def query_from_fms(cellline):
         INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
         WHERE fov.objective = 100
         AND fov.qcstatusid.name = 'Passed'
-        AND fcl.celllineid.name = '{cellline}'
+        AND fcl.celllineid.name = '{cell_line}'
     '''
 
     result = server_context.execute_sql('microscopy', sql)
     df = pd.DataFrame(result['rows'])
-    return df[['sourceimagefileid', 'created', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
-                    'cellline']]
+    return df[['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
+                    'cellline', 'workflow']]
 
 
-def split_image_into_channels(im_path, sourceimagefileid):
+def split_image_into_channels(im_path, source_image_file_id):
     # Splits image data into all requisite channels, as 3D images (405, 488, 561, 638, bf are normal channels)
     # Uses the context table in labkey to find the channel number and then splits the aicsimage loaded file accordingly
     # This allows us to oly load an image once and then use it for as many qc steps as we want to later
@@ -55,7 +63,7 @@ def split_image_into_channels(im_path, sourceimagefileid):
     sql = f'''
       SELECT content.contenttypeid.name, content.channelnumber
         FROM processing.content as content
-        WHERE content.fileid = '{sourceimagefileid}'
+        WHERE content.fileid = '{source_image_file_id}'
     '''
 
     result = server_context.execute_sql('microscopy', sql)
@@ -298,39 +306,228 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
     return stat_dict
 
 
-def batch_qc(query_df):
+def segment_colony_area(bf, gaussian_thresh):
+    """
+    From a 2D bright field image (preferably the center slice), determine foreground vs background to segment
+    colony area coverage
+    :param bf: a 2D bright field image
+    :param gaussian_thresh: a threshold cutoff for gaussian to separate foreground from background
+    :return: a 2D segmented image
+    """
+    p2, p98 = np.percentile(bf, (2, 98))
+    rescale = exposure.rescale_intensity(bf, in_range=(p2, p98))
+    dist_trans = filters.sobel(rescale)
+    gaussian_2 = filters.gaussian(dist_trans, sigma=15)
+
+    mask = np.zeros(bf.shape, dtype=bool)
+    mask[gaussian_2 <= gaussian_thresh] = True
+
+    mask_erode = morphology.erosion(mask, selem=morphology.disk(3))
+    remove_small = filter_small_objects(mask_erode, 750)
+    dilate = morphology.dilation(remove_small, selem=morphology.disk(10))
+
+    new_mask = np.ones(bf.shape, dtype=bool)
+    new_mask[dilate == 1] = False
+    return new_mask
+
+
+def filter_small_objects(bw_img, area):
+    """
+    From a segmented image, filter out segmented objects smaller than a certain area threshold
+    :param bw_img: a 2D segmented image
+    :param area: an integer of object area threshold (objects with size smaller than that will be dropped)
+    :return: a 2D segmented, binary image with small objects dropped
+    """
+    label_objects, nb_labels = ndimage.label(bw_img)
+    sizes = np.bincount(label_objects.ravel())
+    max_area = max(sizes)
+    # Selecting objects above a certain size threshold
+    # size_mask = (sizes > area) & (sizes < max_area)
+    size_mask = (sizes > area)
+    size_mask[0] = 0
+    filtered = label_objects.copy()
+    filtered_image = size_mask[filtered]
+
+    int_img = np.zeros(filtered_image.shape)
+    int_img[filtered_image == True] = 1
+    int_img = int_img.astype(int)
+    return int_img
+
+
+def detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9):
+    """
+    From a 3D bright field image, determine if the z-stack is in an edge position
+    :param bf_z: a 3D bright field image
+    :param segment_gauss_thresh: a float to set gaussian threshold for 2D segmentation of colony area
+    :param area_cover_thresh: a float to represent the area cutoff of colony coverage to be considered as an edge
+    :return: a boolean indicating the image is an edge position (True) or not (False)
+    """
+    edge = True
+    new_edge_filled, z_center = find_center_z_plane(bf_z)
+    bf = bf_z[z_center, :, :]
+    segment_bf = segment_colony_area(bf, segment_gauss_thresh)
+
+    if (np.sum(segment_bf)) / (bf.shape[0] * bf.shape[1]) > area_cover_thresh:
+        edge = False
+
+    return {'edge fov?': edge}
+
+
+def find_center_z_plane(image):
+    mip_yz = np.amax(image, axis=2)
+    mip_gau = filters.gaussian(mip_yz, sigma=2)
+    edge_slice = filters.sobel(mip_gau)
+    contours = measure.find_contours(edge_slice, 0.005)
+    new_edge = np.zeros(edge_slice.shape)
+    for n, contour in enumerate(contours):
+        new_edge[np.round(contour[:, 0]).astype('int'), np.round(contour[:, 1]).astype('int')] = 1
+
+    # Fill empty spaces of contour to identify as 1 object
+    new_edge_filled = ndimage.morphology.binary_fill_holes(new_edge)
+
+    # Identify center of z stack by finding the center of mass of 'x' pattern
+    z = []
+    for i in range(100, mip_yz.shape[1] + 1, 100):
+        edge_slab = new_edge_filled[:, i - 100:i]
+        # print (i-100, i)
+        z_center, x_center = ndimage.measurements.center_of_mass(edge_slab)
+        z.append(z_center)
+
+    z = [z_center for z_center in z if ~np.isnan(z_center)]
+    z_center = int(round(np.median(z)))
+    return z_center
+
+
+def generate_images(image):
+    center_plane = find_center_z_plane(image)
+    # panels: top, bottom, center
+    top = image[-1, :, :]
+    bottom = image[0, :, :]
+    center = image[center_plane, :, :]
+    # panels: mip_xy, mip_xz, mip_yz
+    mip_xy = np.amax(image, axis=0)
+    mip_xz = np.amax(image, axis=1)
+    mip_yz = np.amax(image, axis=2)
+
+    return top, bottom, center, mip_xy, mip_xz, mip_yz
+
+
+def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
+
+    # Generate diretories that are needed for saving files
+    directories = ['fuse', 'mip_xy', 'mip_xz', 'mip_yz', 'top', 'bottom', 'center']
+    for directory in directories:
+        try:
+            os.mkdir(os.path.join(output_path, directory))
+        except:
+            pass
+
+    # Generates 6 images
+    top, bottom, center, mip_xy, mip_xz, mip_yz = generate_images(single_channel_im)
+    img_height = top.shape[0]
+    img_width = top.shape[1]
+    z_height = mip_xz.shape[0]
+
+    settings = (np.min(mip_xy), np.max(mip_xy))
+
+    # set display for mip_images
+    rescaled_xy = exposure.rescale_intensity(mip_xy, in_range=settings)
+    rescaled_xz = exposure.rescale_intensity(mip_xz, in_range=settings)
+    rescaled_yz = exposure.rescale_intensity(mip_yz, in_range=settings)
+    # Create fuse image combining 3 mips
+    fuse = np.zeros(shape = ((img_height + z_height), (img_width + z_height)))
+    fuse[0:z_height, 0:img_width] = rescaled_xz
+    fuse[z_height:z_height+img_height, 0:img_width] = rescaled_xy
+    fuse[z_height:z_height+img_height, img_width:img_width+z_height] = np.rot90(rescaled_yz)
+
+    # Create qc image combining fuse and center_TL
+    qc = np.zeros(((img_height + z_height), (2*img_width + z_height)))
+    qc[:, 0:img_width+z_height] = fuse
+    qc[z_height:img_height+z_height, img_width+z_height:2*img_width+z_height] = center
+
+    # Save and reformat images in a dictionary
+    new_images_dict = {'top': np.reshape(top, (1, img_height, img_width)),
+                       'bottom': np.reshape(bottom, (1, img_height, img_width)),
+                       'center': np.reshape(center, (1, img_height, img_width)),
+                       'mip_xy': np.reshape(rescaled_xy, (1, img_height, img_width)),
+                       'mip_xz': np.reshape(rescaled_xz, (1, z_height, img_width)),
+                       'mip_yz': np.reshape(rescaled_yz, (1, z_height, img_height)),
+                       'fuse': np.reshape(fuse, (1, fuse.shape[0], fuse.shape[1]))}
+
+    # Save images in output directory, with specific structure
+    file_name = str(fov_id) + '_' + channel_name
+
+    for key, image in new_images_dict.items():
+        writer = ome_tiff_writer.OmeTiffWriter(os.path.join(output_path, key,
+                                                                   file_name + '-' + key + '.tif'),
+                                                      overwrite_file=True)
+        writer.save(image.astype(np.uint16))
+
+
+def batch_qc(output_dir, cell_line):
     # Runs qc steps and collates all data into a single dataframe for easy sorting and plotting
     # Runs on multiple files, to be used with the query_fms function
-
     pd.options.mode.chained_assignment = None
+
+    # Run the query fn on specified cell line
+    query_df = query_from_fms(cell_line)
+
     stat_list = list()
-    # Step to split 6D image into separate z-stack images
+
+    # Iterates through all fovs identifies by query dataframe
     for index, row in query_df.iterrows():
+
+        # Splits 6D image into single channel images for qc algorithm processing
         channel_dict = split_image_into_channels(row['localfilepath'], row['sourceimagefileid'])
+
+        # Initializes a dictionary where all stats for an fov are saved
         stat_dict = dict()
-        # Iterates over each z-stack image and runs qc_steps, and then adds each stat generated to the stat_dict
-        for key, value in channel_dict.items():
-            # Runs the intensity metrics on all z-stack images
-            intensity_dict = intensity_stats_single_channel(value)
+
+        # Iterates over each z-stack image and runs qc_algorithms, and then adds each stat generated to the stat_dict
+        for channel_name, channel_array in channel_dict.items():
+
+            # Runs the intensity metrics on all z-stack images. Put here since run on all channels
+            intensity_dict = intensity_stats_single_channel(channel_array)
             for intensity_key, intensity_value, in intensity_dict.items():
-                stat_dict.update({key + ' ' + intensity_key + '-intensity': intensity_value})
-            # Runs the false_clip scripts on bf and 638(cmdr)
-            if key == 'brightfield':
-                bf_false_clip_dict = detect_false_clip_bf(value)
+                stat_dict.update({channel_name + ' ' + intensity_key + '-intensity': intensity_value})
+
+            # Runs all metrics to be run on brightfield (edge detection, false clip bf) and makes bf qc_images
+            if channel_name == 'brightfield':
+                bf_edge_detect = detect_edge_position(channel_array)
+                for edge_key, edge_value in bf_edge_detect.items():
+                    stat_dict.update({channel_name + ' ' + edge_key: edge_value})
+                bf_false_clip_dict = detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
-                    stat_dict.update({key + ' ' + false_clip_key + '-false clip': false_clip_value})
-            elif key == '638nm':
-                bf_false_clip_dict = detect_false_clip_cmdr(value)
+                    stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
+
+                # PUT QC_IMAGES FOR BF HERE
+                generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
+
+            # Runs all metrics to be run on 638 (false clip 638) and makes 638 qc_images
+            elif channel_name == '638nm':
+                bf_false_clip_dict = detect_false_clip_cmdr(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
-                    stat_dict.update({key + ' ' + false_clip_key + '-false clip': false_clip_value})
+                    stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
+
+                # PUT QC_IMAGES FOR 638 HERE
+                generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
+
+        # Adds stat_dict to a list of dictionaries, which corresponds to the query_df.
         stat_list.append(stat_dict)
+        print(f"Added {row['fovid']} to stat dictionary")
 
-    return pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
+    # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
+    result = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
+    result.to_csv(output_dir + '/' + cell_line + '.csv')
+
+    return result
 
 
-# Testing the code on a small subset of data
-cellline = 'AICS-7'
-query_df = query_from_fms(cellline)
-query_df_small = query_df[0:10]
-stat_df = batch_qc(query_df_small)
+parser = argparse.ArgumentParser()
+parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
+parser.add_argument('--cell_line', type=str, help="Cell-line to run qc on. E.g. 'AICS-11', 'AICS-7' ", required=True)
+
+args = parser.parse_args()
+
+batch_qc(args.output_dir, args.cell_line)
 
