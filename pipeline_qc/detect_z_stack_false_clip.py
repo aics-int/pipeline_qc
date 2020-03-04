@@ -101,8 +101,15 @@ def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
                     detect_bottom = z
                     crop_bottom = flag_bottom = False
                     break
-
-    return detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, laplace_range
+    stat_dict = dict()
+    stat_dict.update({'detect_bottom': detect_bottom})
+    stat_dict.update({'detect_top': detect_top})
+    stat_dict.update({'crop_top': crop_top})
+    stat_dict.update({'crop_bottom': crop_bottom})
+    stat_dict.update({'flag_top': flag_top})
+    stat_dict.update({'flag_bottom': flag_bottom})
+    stat_dict.update({'laplace_range': laplace_range})
+    return stat_dict
 
 
 def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
@@ -238,7 +245,16 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
             print('flag top, too short')
             flag_top = True
 
-    return real_bottom, real_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast_99_percentile, z_aggregate
+    stat_dict = dict()
+    stat_dict.update({'real_bottom': real_bottom})
+    stat_dict.update({'real_top': real_top})
+    stat_dict.update({'crop_top': crop_top})
+    stat_dict.update({'crop_bottom': crop_bottom})
+    stat_dict.update({'flag_top': flag_top})
+    stat_dict.update({'flag_bottom': flag_bottom})
+    stat_dict.update({'contrast_99_percentile': contrast_99_percentile})
+    stat_dict.update({'z_aggregate': z_aggregate})
+    return stat_dict
 
 #=======================================================================================================================
 # Validating false clip methods

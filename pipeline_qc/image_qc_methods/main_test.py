@@ -44,6 +44,11 @@ def query_from_fms(cell_line):
         WHERE fov.objective = 100
         AND fov.qcstatusid.name = 'Passed'
         AND fcl.celllineid.name = '{cell_line}'
+        AND (fov.wellid.plateid.workflow.name = 'Pipeline 4'
+        OR fov.wellid.plateid.workflow.name = 'Pipeline 4.1'
+        OR fov.wellid.plateid.workflow.name = 'Pipeline 4.2'
+        OR fov.wellid.plateid.workflow.name = 'Pipeline 4.3'
+        OR fov.wellid.plateid.workflow.name = 'Pipeline 4.4')
     '''
 
     result = server_context.execute_sql('microscopy', sql)
@@ -60,6 +65,7 @@ def split_image_into_channels(im_path, source_image_file_id):
     server_context = LabKey(contexts.PROD)
     im = AICSImage(im_path)
     np_im = im.data[0, 0, :, :, :, :]
+    im.close()
     sql = f'''
       SELECT content.contenttypeid.name, content.channelnumber
         FROM processing.content as content
@@ -75,8 +81,11 @@ def split_image_into_channels(im_path, source_image_file_id):
         for channel in ['405nm', '488nm', '561nm', '638nm', 'brightfield']:
             if row['name'] == 'Raw ' + channel:
                 channel_number = row['channelnumber']
-                exec('ch' + channel + "= np_im[channel_number, :, :, :]")
-                exec("split_channels.update({channel: ch" + channel + "})")
+                if np_im.shape[0] >= channel_number+1:
+                    exec('ch' + channel + "= np_im[channel_number, :, :, :]")
+                    exec("split_channels.update({channel: ch" + channel + "})")
+                else:
+                    pass
             else:
                 pass
 
@@ -121,8 +130,15 @@ def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
         all_peaks = signal.argrelmax(np.asarray(laplace_range))
         # Check if it is a 'good peak'
         peak_prom = signal.peak_prominences(laplace_range, all_peaks[0])[0]
-        if peak_prom[np.where(peak_prom == np.max(peak_prom))][0] > threshold[0]:
-            peak = all_peaks[0][np.where(peak_prom == np.max(peak_prom))][0]
+        if not peak_prom.all():
+            if peak_prom[np.where(peak_prom == np.max(peak_prom))][0] > threshold[0]:
+                peak = all_peaks[0][np.where(peak_prom == np.max(peak_prom))][0]
+            else:
+                print('Cannot find peak')
+                peak = None
+        else:
+            print('Cannot find peak')
+            peak = None
     else:
         peak = np.where(laplace_range == np.max(laplace_range))[0][0]
 
@@ -363,7 +379,7 @@ def detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9
     :return: a boolean indicating the image is an edge position (True) or not (False)
     """
     edge = True
-    new_edge_filled, z_center = find_center_z_plane(bf_z)
+    z_center = find_center_z_plane(bf_z)
     bf = bf_z[z_center, :, :]
     segment_bf = segment_colony_area(bf, segment_gauss_thresh)
 
@@ -377,7 +393,12 @@ def find_center_z_plane(image):
     mip_yz = np.amax(image, axis=2)
     mip_gau = filters.gaussian(mip_yz, sigma=2)
     edge_slice = filters.sobel(mip_gau)
-    contours = measure.find_contours(edge_slice, 0.005)
+    if edge_slice.shape[0] < 2:
+        # This piece of code is due to error when edge_slice doesn't make an array at least 2x2 (1xX is what is made)
+        print("Cannot find z_center plane")
+        return 0
+    else:
+        contours = measure.find_contours(edge_slice, 0.005)
     new_edge = np.zeros(edge_slice.shape)
     for n, contour in enumerate(contours):
         new_edge[np.round(contour[:, 0]).astype('int'), np.round(contour[:, 1]).astype('int')] = 1
@@ -394,7 +415,11 @@ def find_center_z_plane(image):
         z.append(z_center)
 
     z = [z_center for z_center in z if ~np.isnan(z_center)]
-    z_center = int(round(np.median(z)))
+    if np.isnan(z_center):
+        print("Cannot find z_center plane")
+        z_center = 0
+    else:
+        z_center = int(round(np.median(z)))
     return z_center
 
 
@@ -459,8 +484,8 @@ def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
 
     for key, image in new_images_dict.items():
         writer = ome_tiff_writer.OmeTiffWriter(os.path.join(output_path, key,
-                                                                   file_name + '-' + key + '.tif'),
-                                                      overwrite_file=True)
+                                                            file_name + '-' + key + '.tif'),
+                                               overwrite_file=True)
         writer.save(image.astype(np.uint16))
 
 
@@ -491,11 +516,8 @@ def batch_qc(output_dir, cell_line):
             for intensity_key, intensity_value, in intensity_dict.items():
                 stat_dict.update({channel_name + ' ' + intensity_key + '-intensity': intensity_value})
 
-            # Runs all metrics to be run on brightfield (edge detection, false clip bf) and makes bf qc_images
+            # Runs all metrics to be run on brightfield (false clip bf) and makes bf qc_images
             if channel_name == 'brightfield':
-                bf_edge_detect = detect_edge_position(channel_array)
-                for edge_key, edge_value in bf_edge_detect.items():
-                    stat_dict.update({channel_name + ' ' + edge_key: edge_value})
                 bf_false_clip_dict = detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
                     stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
@@ -503,8 +525,11 @@ def batch_qc(output_dir, cell_line):
                 # PUT QC_IMAGES FOR BF HERE
                 generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
 
-            # Runs all metrics to be run on 638 (false clip 638) and makes 638 qc_images
+            # Runs all metrics to be run on 638 (false clip 638, edge detection) and makes 638 qc_images
             elif channel_name == '638nm':
+                cmdr_edge_detect = detect_edge_position(channel_array)
+                for edge_key, edge_value in cmdr_edge_detect.items():
+                    stat_dict.update({channel_name + ' ' + edge_key: edge_value})
                 bf_false_clip_dict = detect_false_clip_cmdr(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
                     stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
@@ -514,7 +539,7 @@ def batch_qc(output_dir, cell_line):
 
         # Adds stat_dict to a list of dictionaries, which corresponds to the query_df.
         stat_list.append(stat_dict)
-        print(f"Added {row['fovid']} to stat dictionary")
+        print(f"({index}/{query_df.shape[0]}): Added {row['fovid']}  to stat dictionary")
 
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
     result = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
@@ -530,4 +555,3 @@ parser.add_argument('--cell_line', type=str, help="Cell-line to run qc on. E.g. 
 args = parser.parse_args()
 
 batch_qc(args.output_dir, args.cell_line)
-
