@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import os
 from aicsimageio import AICSImage
 from scipy import ndimage
@@ -62,8 +63,14 @@ def detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9
     :return: a boolean indicating the image is an edge position (True) or not (False) 
     """
     edge = True
-    new_edge_filled, z_center = pm.find_center_z_plane(bf_z)
-    bf = bf_z[z_center, :, :]
+    if (len(bf_z.shape) == 2) | ((len(bf_z.shape) > 2) & (bf_z.shape[0] == 1)):
+        # If the input bf image is 1 plane only
+        bf = bf_z
+    else:
+        # If the input bf image is a z-stack
+        new_edge_filled, z_center = pm.find_center_z_plane(bf_z)
+        bf = bf_z[z_center, :, :]
+
     segment_bf = segment_colony_area(bf, segment_gauss_thresh)
 
     if (np.sum(segment_bf)) / (bf.shape[0] * bf.shape[1]) > area_cover_thresh:
@@ -73,21 +80,21 @@ def detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9
 
 #===================================================================================
 # Validate edge detection method
-folder = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_4_4\3500002823\ZSD3\100X_zstack'
-all_imgs = os.listdir(folder)
-count = 0
-for img in all_imgs:
-    if (count <= 10) & (img.split('_')[3].startswith('1c')):
-        print (img)
-        image_data = AICSImage(os.path.join(folder, img))
-        image = image_data.data
-        channel_list = np.asarray(image_data.get_channel_names())
-        for channel in channel_list:
-            if channel.startswith('Bright'):
-                bf_index = np.where(channel in channel_list)[0][0]
-
-        bf_z = image[0, bf_index, :, :, :]
-        edge = detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9)
-
-        print (edge)
-        count +=1
+# folder = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_4_4\3500002823\ZSD3\100X_zstack'
+# all_imgs = os.listdir(folder)
+# count = 0
+# for img in all_imgs:
+#     if (count <= 10) & (img.split('_')[3].startswith('1c')):
+#         print (img)
+#         image_data = AICSImage(os.path.join(folder, img))
+#         image = image_data.data
+#         channel_list = np.asarray(image_data.get_channel_names())
+#         for channel in channel_list:
+#             if channel.startswith('Bright'):
+#                 bf_index = np.where(channel in channel_list)[0][0]
+#
+#         bf_z = image[0, bf_index, :, :, :]
+#         edge = detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9)
+#
+#         print (edge)
+#         count +=1
