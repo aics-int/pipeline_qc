@@ -95,12 +95,14 @@ changes_fov_intensity_dictionary = report_change_fov_intensity_parameters(transf
                                                                           logging=True)
 
 # Report changes in source and destination
-transform_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
+coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
                                                                      tform=tform,
                                                                      logging=True)
 
-# making tracking map in different areas of an FOV?
+# Report changes in nrmse in the image
+nrmse_qc, diff_nrmse = report_changes_in_nrmse(ref_img=ref, mov_img=mov, mov_transformed=mov_transformed, logging=True)
 
+# making tracking map in different areas of an FOV?
 
 # Save metrics
 # Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
@@ -439,6 +441,39 @@ def report_changes_in_coordinates_mapping(ref_mov_coor_dict, tform, logging=True
         transform_qc = True
 
     return transform_qc, diff_sum
+
+
+def report_changes_in_nrmse(ref_img, mov_img, mov_transformed, logging=True):
+    """
+    Report changes in normalized root mean-squared-error value before and after transform.
+    :param ref_img: Reference image
+    :param mov_img: Moving image before transform
+    :param mov_transformed: Moving image after transform
+    :param logging: A boolean to indicate if printing/logging statements is selected
+    :return:
+        qc: A boolean to indicate if it passed (True) or failed (False) qc
+        diff_nrmse: Difference in nrmse
+    """
+    qc = False
+
+    nrmse_before = metrics.normalized_root_mse(ref_img, mov_img)
+    nrmse_after = metrics.normalized_root_mse(ref_img, mov_transformed)
+    diff_nrmse = nrmse_after - nrmse_before
+    if diff_nrmse <= 0:
+        qc = True
+
+    if logging:
+        if diff_nrmse < 0:
+            print('transform is good - ')
+            print('nrmse is reduced by ' + str(diff_nrmse))
+        elif diff_nrmse == 0:
+            print('transform did not improve or worsen - ')
+            print('nrmse differences before and after is 0')
+        else:
+            print('transform is bad - ')
+            print('nrmse is increased by ' + str(diff_nrmse))
+
+    return qc, diff_nrmse
 
 
 def filter_big_beads(img, center=0, area=20):
