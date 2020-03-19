@@ -94,6 +94,14 @@ changes_fov_intensity_dictionary = report_change_fov_intensity_parameters(transf
                                                                           original_img=mov,
                                                                           logging=True)
 
+# Report changes in source and destination
+transform_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
+                                                                     tform=tform,
+                                                                     logging=True)
+
+# making tracking map in different areas of an FOV?
+
+
 # Save metrics
 # Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
 np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', inverse_tform, delimiter=',')
@@ -339,7 +347,7 @@ def report_similarity_matrix_parameters (tform, logging=True):
     Reports similarity matrix and its parameters
     :param tform: A transform generated from skimage.transform.estimate_transform
     :param logging: A boolean to indicate if printing/logging statements is selected
-    :return:
+    :return: A dictionary with the following keys and values:
         inverse_tform: An inverse transform to be applied to moving images
         scaling: Uniform scaling parameter
         shift_y: Shift in y
@@ -363,12 +371,24 @@ def report_similarity_matrix_parameters (tform, logging=True):
 
 
 def report_change_fov_intensity_parameters(transformed_img, original_img, logging=True):
+    """
+    Reports changes in FOV intensity after transform
+    :param transformed_img: Image after transformation
+    :param original_img: Image before transformation
+    :param logging: A boolean to indicate if printing/logging statements is selected
+    :return: A dictionary with the following keys and values:
+        median_intensity
+        min_intensity
+        max_intensity
+        1_percentile: first percentile intensity
+        995th_percentile: 99.5th percentile intensity
+    """
     change_fov_intensity_param_dict = {
         'median_intensity': np.median(transformed_img) * 65535 - np.median(original_img),
-        'change_min_intensity': np.min(transformed_img) * 65535 - np.min(original_img),
-        'change_max_intensity': np.max(transformed_img) * 65535 - np.max(original_img),
-        'change_1_percentile': np.percentile(transformed_img, 1) * 65535 - np.percentile(original_img, 1),
-        'change_995th_percentile': np.percentile(transformed_img, 99.5) * 65535 - np.percentile(original_img, 99.5)
+        'min_intensity': np.min(transformed_img) * 65535 - np.min(original_img),
+        'max_intensity': np.max(transformed_img) * 65535 - np.max(original_img),
+        '1st_percentile': np.percentile(transformed_img, 1) * 65535 - np.percentile(original_img, 1),
+        '995th_percentile': np.percentile(transformed_img, 99.5) * 65535 - np.percentile(original_img, 99.5)
     }
 
     if logging:
@@ -376,6 +396,50 @@ def report_change_fov_intensity_parameters(transformed_img, original_img, loggin
             print('change in ' + key + ': ' + str(value))
 
     return change_fov_intensity_param_dict
+
+
+def report_changes_in_coordinates_mapping(ref_mov_coor_dict, tform, logging=True):
+    """
+    Report changes in coordinates before and after transform. A good transform will reduce the difference in distances
+    between transformed_mov_beads and ref_beads than mov_beads and ref_beads. A bad transform will increase the
+    difference in distances between transformed_mov_beads and ref_beads.
+    :param ref_mov_coor_dict: A dictionary mapping the reference bead coordinates and moving bead coordinates (before transform)
+    :param tform: A skimage transform object
+    :param logging: A boolean to indicate if printing/logging statements is selected
+    :return:
+    """
+    transform_qc = False
+    mov_coors = list(ref_mov_coor_dict.values())
+    ref_coors = list(ref_mov_coor_dict.keys())
+    mov_transformed_coors = tform.inverse(mov_coors)
+
+    dist_before_list = []
+    dist_after_list = []
+    for bead in range(0, len(mov_coors)):
+        dist_before = distance.euclidean(mov_coors[bead], ref_coors[bead])
+        dist_after = distance.euclidean(mov_transformed_coors[bead], ref_coors[bead])
+        dist_before_list.append(dist_before)
+        dist_after_list.append(dist_after)
+
+    sum_diff_before = sum(dist_before_list)
+    sum_diff_after = sum(dist_after_list)
+    diff_sum = sum_diff_after - sum_diff_before
+
+    if logging:
+        if diff_sum < 0:
+            print('transform looks good - ')
+            print('transform reduced the sum of distances between bead peaks on reference and moving image by ' + str(diff_sum))
+        elif diff_sum == 0:
+            print('no difference in distances before and after transform')
+        else:
+            print('transform looks bad - ')
+            print('transform increased the sum of distances between bead peaks on reference and moving image by ' + str(diff_sum))
+
+    if diff_sum < 0:
+        transform_qc = True
+
+    return transform_qc, diff_sum
+
 
 def filter_big_beads(img, center=0, area=20):
     """
