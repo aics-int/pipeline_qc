@@ -117,10 +117,16 @@ io.imsave(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD3\350
 
 def assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict):
     """
-
-    :param updated_ref_peak_dict:
-    :param updated_mov_peak_dict:
+    Assigns beads from moving image to reference image using linear_sum_assignment to reduce the distance between
+    the same bead on the separate channels. In case where there is more beads in one channel than the other, this method
+    will throw off the extra bead that cannot be assigned to one, single bead on the other image.
+    :param updated_ref_peak_dict: A dictionary ({bead_number: (coor_y, coor_x)}) from reference beads
+    :param updated_mov_peak_dict:  A dictionary ({bead_number: (coor_y, coor_x)}) from moving beads
     :return:
+        bead_peak_intensity_dict: A full dictionary mapping the reference bead number and coordinates with the moving
+                                  ones. ({(bead_ref_number, (bead_ref_coor_y, bead_ref_coor_x)): (bead_mov_number, (bead_mov_coor_y, bead_mov_coor_x))
+        ref_mov_num_dict: A dictionary mapping the reference bead number and moving bead number
+        ref_mov_coor_dict: A dictionary mapping the reference bead coordinates and moving bead coordinates
     """
     updated_ref_peak = list(OrderedDict(updated_ref_peak_dict).items())
     updated_mov_peak = list(OrderedDict(updated_mov_peak_dict).items())
@@ -148,11 +154,13 @@ def assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict):
 
 def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
     """
-
-    :param ref_peak_dict:
-    :param mov_peak_dict:
-    :param initialize_value:
+    Verifies the beads mapped on referece image are mapped on the moving image with the minimal distance
+    :param ref_peak_dict: A dictionary of reference peaks ({peak_number: (coor_y, coor_x)})
+    :param mov_peak_dict: A dictionary of moving peaks ({peak_number: (coor_y, coor_x)})
+    :param initialize_value: An initial distance value, expected minimum distance should be less than the size of a bead
     :return:
+        src_dst_dict: A dictionary mapping the reference coordinates and moving coordinates
+                      ({(ref_coor_y, ref_coor_x): (mov_coor_y, mov_coor_x)})
     """
     src_dst_dict = {}
     for mov_peak_id, mov_coor in mov_peak_dict.items():
@@ -169,12 +177,14 @@ def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
 
 def initialize_peaks(seg, peak_list, show_img=False, img_shape=None):
     """
-
-    :param seg:
-    :param peak_list:
-    :param show_img:
-    :param img_shape:
+    Initializes the mapping of bead label (from segmentation) and the peak intensity coordinate (from finding peaks)
+    :param seg: A binary segmentation of beads
+    :param peak_list: A list of peaks ([(y, x), (y2, x2), ...])
+    :param show_img: A boolean to indicate if the user would like to show the peaks on the image
+    :param img_shape: A tuple of the size of the image (y_dim, x_dim)
     :return:
+        peak_dict: A dictionary mapping the label of the bead and the coordinates of peaks ({bead_num: (coor_y, coor_x)})
+        seg_label: A labelled image from segmentation
     """
     seg_label = measure.label(seg)
     peak_dict = {}
@@ -196,11 +206,14 @@ def initialize_peaks(seg, peak_list, show_img=False, img_shape=None):
 
 def match_peaks(ref_peak_dict, mov_peak_dict, dist_threshold=5):
     """
-
-    :param ref_peak_dict:
-    :param mov_peak_dict:
-    :param dist_threshold:
+    Matches peaks from reference peaks and moving peaks and filter reference beads that don't have a matching moving
+    beads within a distance threshold
+    :param ref_peak_dict: A dictionary of reference peaks ({bead_number: (coor_y, coor_x)})
+    :param mov_peak_dict: A dictionary of moving peaks ({bead_number: (coor_y, coor_x)})
+    :param dist_threshold: Number of pixels as distance threshold
     :return:
+        updated_ref_peak_dict: An updated dictionary after removing beads that don't have a matching peak
+        updated_mov_peak_dict: An updated dictionary after removing beads that don't have a matching peak
     """
     remove_mov_peak = []
     for mov_peak_id, mov_coor in mov_peak_dict.items():
@@ -230,10 +243,11 @@ def match_peaks(ref_peak_dict, mov_peak_dict, dist_threshold=5):
 
 def remove_peaks_in_dict(full_dict, keys):
     """
-
-    :param full_dict:
-    :param keys:
+    Removes a list of keys from a dictionary
+    :param full_dict: A dictionary
+    :param keys: A list of keys
     :return:
+        new_dict: An updated dictionary after removing the keys
     """
     new_dict = full_dict.copy()
     for key in keys:
@@ -243,12 +257,13 @@ def remove_peaks_in_dict(full_dict, keys):
 
 def remove_close_peaks(peak_dict, dist_threshold=20, show_img=False, img_shape=None):
     """
-
-    :param peak_dict:
-    :param dist_threshold:
-    :param show_img:
-    :param img_shape:
+    Removes peaks on one image that are closer to each other than a distance threshold
+    :param peak_dict: A dictionary of peaks ({peak_number: (coor_y, coor_x)})
+    :param dist_threshold: Number of pixels as distance threshold
+    :param show_img: A boolean to indicate if the user would like to show the peaks on the image
+    :param img_shape: A tuple of the size of the image (y_dim, x_dim)
     :return:
+        close_ref_peak_dict: An updated dictionary after removing peaks that are too close to each other
     """
     close_ref_peak_dict = peak_dict.copy()
     for peak_id, peak_coor in peak_dict.items():
@@ -275,11 +290,13 @@ def remove_close_peaks(peak_dict, dist_threshold=20, show_img=False, img_shape=N
 
 def remove_intensity_centroid_inconsistent_beads(label_seg, updated_peak_dict, dist_thresh=3):
     """
-
-    :param label_seg:
-    :param updated_peak_dict:
-    :param dist_thresh:
+    Removes beads that are inconsistent in where the peak intensity and centroid is
+    :param label_seg: A labelled segmentation image of beads
+    :param updated_peak_dict: A dictionary of beads and peak intensities
+    :param dist_thresh: Number of pixels as distance threshold
     :return:
+        remove_inconsistent_dict: An updated dictionary of beads and peak intensities are removing inconsistent beads
+        distances: A list of distances of coordinates of peak intensity and centroid for each bead
     """
     props = pd.DataFrame(measure.regionprops_table(label_seg, properties=['label', 'centroid'])).set_index('label')
     distances = []
@@ -340,9 +357,11 @@ def filter_big_beads(img, center=0, area=20):
 
 def watershed_bead_seg(seg):
     """
-
-    :param seg:
+    Performs watershed on a segmentation of beads to separate beads that are touching each other based on distance
+    transform and morphology
+    :param seg: A binary segmentation of beads
     :return:
+        labels: A lablled segmentation image of beads 
     """
     props = measure.regionprops(measure.label(seg))
     median_size = np.median([props[x].area for x in range(0, len(props))])
