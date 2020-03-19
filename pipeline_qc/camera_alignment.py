@@ -27,28 +27,31 @@ for z in range (0, beads_gfp.shape[0]):
         center_z = z
         max_intensity = sum_intensity
 
-
-# pre-processing data, more processing to make the two similar
+#=======================================================================================================================
+# Pre-process images
 # rescale intensity
 # Todo: Change 99.4 and 99 as a parameter in the beginning
-ref = exp.rescale_intensity(beads_gfp[center_z, :, :],
-                            out_range=np.uint8,
-                            in_range=(np.percentile(beads_gfp[center_z, :, :], 99.4), np.percentile(beads_gfp[center_z, :, :], 100))
-                            )
-mov = exp.rescale_intensity(beads_cmdr[center_z, :, :],
-                            out_range=np.uint8,
-                            in_range=(np.percentile(beads_cmdr[center_z, :, :], 99), np.percentile(beads_cmdr[center_z, :, :], 100))
-                            )
+
+ref = beads_gfp[center_z, :, :]
+mov = beads_cmdr[center_z, :, :]
+
+ref_rescaled = exp.rescale_intensity(ref,
+                                     out_range=np.uint8,
+                                     in_range=(np.percentile(beads_gfp[center_z, :, :], 99.4), np.percentile(beads_gfp[center_z, :, :], 100))
+                                     )
+mov_rescaled = exp.rescale_intensity(mov,
+                                     out_range=np.uint8,
+                                     in_range=(np.percentile(beads_cmdr[center_z, :, :], 99), np.percentile(beads_cmdr[center_z, :, :], 100))
+                                     )
 
 # smooth image
-ref_smooth = filters.gaussian(ref, sigma=1, preserve_range=True)
-mov_smooth = filters.gaussian(mov, sigma=1, preserve_range=True)
+ref_smooth = filters.gaussian(ref_rescaled, sigma=1, preserve_range=True)
+mov_smooth = filters.gaussian(mov_rescaled, sigma=1, preserve_range=True)
 
 
-#==========================================================
-# segment beads image
-# TODO: segment mov image until seg area and seg count is the same?
-# use 3d segmentation? No, big beads are over-saturated for accurate segmentation
+#=======================================================================================================================
+# Process beads (segment, filter assign)
+
 filtered, seg_mov = filter_big_beads(mov_smooth)
 filtered, seg_ref = filter_big_beads(ref_smooth)
 
@@ -73,16 +76,30 @@ updated_mov_peak_dict, mov_distances = remove_intensity_centroid_inconsistent_be
 # assign updated_ref_peak_dict with updated_mov_peak_dict
 bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict)
 
+# Throw a logging/warning message if there are too little number of beads
 if len(bead_peak_intensity_dict) > 10:
     # Add logging/error message
     print('number of beads seem low: ' + str(len(bead_peak_intensity_dict)))
 
-# Apply transform
+#=======================================================================================================================
+# Initiate transform estimation
 tform = tf.estimate_transform('similarity', np.asarray(list(ref_mov_coor_dict.keys())), np.asarray(list(ref_mov_coor_dict.values())))
-cmdr_transformed = tf.warp(beads_cmdr[center_z, :, :], inverse_map=tform._inv_matrix, order=3)
+mov_transformed = tf.warp(beads_cmdr[center_z, :, :], inverse_map=tform._inv_matrix, order=3)
 
+# Report transform parameters
+transformation_parameters_dict = report_similarity_matrix_parameters(tform=tform, logging=True)
 
-np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', tform._inv_matrix, delimiter=',')
+# Report intensity changes in FOV after transform
+changes_fov_intensity_dictionary = report_change_fov_intensity_parameters(transformed_img=mov_transformed,
+                                                                          original_img=mov,
+                                                                          logging=True)
+
+# Save metrics
+# Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
+np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', inverse_tform, delimiter=',')
+
+#=======================================================================================================================
+# Apply transform on testing images
 load_transform_array = np.loadtxt(r'C:\Users\calystay\Desktop\test_transform.csv', delimiter=',')
 
 argo_array = np.array([[1.0003, 0.0026, -0.599],
@@ -317,6 +334,49 @@ def remove_intensity_centroid_inconsistent_beads(label_seg, updated_peak_dict, d
     return remove_inconsistent_dict, distances
 
 
+def report_similarity_matrix_parameters (tform, logging=True):
+    """
+    Reports similarity matrix and its parameters
+    :param tform: A transform generated from skimage.transform.estimate_transform
+    :param logging: A boolean to indicate if printing/logging statements is selected
+    :return:
+        inverse_tform: An inverse transform to be applied to moving images
+        scaling: Uniform scaling parameter
+        shift_y: Shift in y
+        shift_x: Shift in x
+        rotate_angle: Rotation angle
+    """
+
+    similarity_matrix_param_dict = {
+        'inverse_tform': tf.SimilarityTransform(tform._inv_matrix),
+        'scaling': inverse_tform.scale,
+        'shift_y': inverse_tform.translation[0],
+        'shift_x': inverse_tform.translation[1],
+        'rotate_angle': inverse_tform.rotation
+    }
+
+    if logging:
+        for param, value in similarity_matrix_param_dict.items():
+            print(param + ': ' + str(value))
+
+    return similarity_matrix_param_dict
+
+
+def report_change_fov_intensity_parameters(transformed_img, original_img, logging=True):
+    change_fov_intensity_param_dict = {
+        'median_intensity': np.median(transformed_img) * 65535 - np.median(original_img),
+        'change_min_intensity': np.min(transformed_img) * 65535 - np.min(original_img),
+        'change_max_intensity': np.max(transformed_img) * 65535 - np.max(original_img),
+        'change_1_percentile': np.percentile(transformed_img, 1) * 65535 - np.percentile(original_img, 1),
+        'change_995th_percentile': np.percentile(transformed_img, 99.5) * 65535 - np.percentile(original_img, 99.5)
+    }
+
+    if logging:
+        for key, value in change_fov_intensity_param_dict.items():
+            print('change in ' + key + ': ' + str(value))
+
+    return change_fov_intensity_param_dict
+
 def filter_big_beads(img, center=0, area=20):
     """
     Find and filter big beads from an image with mixed beads
@@ -361,7 +421,7 @@ def watershed_bead_seg(seg):
     transform and morphology
     :param seg: A binary segmentation of beads
     :return:
-        labels: A lablled segmentation image of beads 
+        labels: A lablled segmentation image of beads
     """
     props = measure.regionprops(measure.label(seg))
     median_size = np.median([props[x].area for x in range(0, len(props))])
