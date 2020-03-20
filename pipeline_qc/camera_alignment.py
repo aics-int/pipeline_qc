@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from aicsimageio import AICSImage
-from skimage import transform as tf, exposure as exp, filters, measure, morphology, feature, io, segmentation
+from skimage import transform as tf, exposure as exp, filters, measure, morphology, feature, io, segmentation, metrics
 # import SimpleITK as sitk
 import pandas as pd
 from scipy.spatial import distance
@@ -13,7 +13,7 @@ from scipy import ndimage
 from scipy.optimize import linear_sum_assignment
 
 # read beads image
-beads = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD3\3500003332_100X_20190813_psf.czi')
+beads = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi')
 
 #Todo: Change read channel from metadata
 beads_gfp = beads.data[0, 1, :, :, :]
@@ -65,19 +65,28 @@ mov_peak_dict, mov_labelled_seg = initialize_peaks(seg=seg_mov, peak_list=mov_pe
 ref_close_peaks = remove_close_peaks(ref_peak_dict, dist_threshold=20, show_img=True, img_shape=ref.shape)
 mov_close_peaks = remove_close_peaks(mov_peak_dict, dist_threshold=20, show_img=True, img_shape=mov.shape)
 
+# remove peaks/beads that are too big
+ref_remove_overlap_peaks = remove_overlapping_beads(label_seg=ref_labelled_seg, peak_dict=ref_close_peaks, show_img=True)
+mov_remove_overlap_peaks = remove_overlapping_beads(label_seg=mov_labelled_seg, peak_dict=mov_close_peaks, show_img=True)
+
 # match peaks
-updated_ref_peak_dict, updated_mov_peak_dict = match_peaks(ref_peak_dict=ref_close_peaks, mov_peak_dict=mov_close_peaks,
+updated_ref_peak_dict, updated_mov_peak_dict = match_peaks(ref_peak_dict=ref_remove_overlap_peaks,
+                                                           mov_peak_dict=mov_remove_overlap_peaks,
                                                            dist_threshold=5)
 
 # remove inconsistent intensity vs centroid beads
-updated_ref_peak_dict, ref_distances = remove_intensity_centroid_inconsistent_beads(label_seg=ref_labelled_seg, updated_peak_dict=updated_ref_peak_dict)
-updated_mov_peak_dict, mov_distances = remove_intensity_centroid_inconsistent_beads(label_seg=mov_labelled_seg, updated_peak_dict=updated_mov_peak_dict)
+updated_ref_peak_dict, ref_distances = remove_intensity_centroid_inconsistent_beads(label_seg=ref_labelled_seg,
+                                                                                    updated_peak_dict=updated_ref_peak_dict)
+updated_mov_peak_dict, mov_distances = remove_intensity_centroid_inconsistent_beads(label_seg=mov_labelled_seg,
+                                                                                    updated_peak_dict=updated_mov_peak_dict)
 
 # assign updated_ref_peak_dict with updated_mov_peak_dict
 bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict)
 
+check_beads(ref_mov_num_dict, ref_labelled_seg, mov_labelled_seg)
+
 # Throw a logging/warning message if there are too little number of beads
-if len(bead_peak_intensity_dict) > 10:
+if len(bead_peak_intensity_dict) < 10:
     # Add logging/error message
     print('number of beads seem low: ' + str(len(bead_peak_intensity_dict)))
 
@@ -99,8 +108,8 @@ coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coo
                                                                      tform=tform,
                                                                      logging=True)
 
-# Report changes in nrmse in the image
-nrmse_qc, diff_nrmse = report_changes_in_nrmse(ref_img=ref, mov_img=mov, mov_transformed=mov_transformed, logging=True)
+# Report changes in nrmse in the image? NOT READY TO USE, seems to be intensity-dependent
+# nrmse_qc, diff_nrmse = report_changes_in_nrmse(ref_img=ref, mov_img=mov, mov_transformed=mov_transformed, logging=True)
 
 # making tracking map in different areas of an FOV?
 
@@ -177,6 +186,27 @@ def assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict):
         ref_mov_coor_dict.update({updated_ref_peak[ref_ind[num_bead]][1]: updated_mov_peak[mov_ind[num_bead]][1]})
 
     return bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict
+
+
+def check_beads(ref_mov_num_dict, ref_labelled_seg, mov_labelled_seg):
+    """
+    function to check beads visually if they match after filtering on ref and mov image
+    :param ref_mov_num_dict: A dictionary that maps reference bead number with moving bead number
+    :param ref_labelled_seg: Labelled segmentation reference image
+    :param mov_labelled_seg: Labelled segmentation moving image
+    :return:
+    """
+    show_ref = np.zeros(ref_labelled_seg.shape)
+    show_mov = np.zeros(mov_labelled_seg.shape)
+    for bead_label in list(ref_mov_num_dict.keys()):
+        show_ref[ref_labelled_seg==bead_label] = True
+    for bead_label in list(ref_mov_num_dict.values()):
+        show_mov[mov_labelled_seg==bead_label] = True
+
+    for img in [show_ref, show_mov]:
+        plt.figure()
+        plt.imshow(img)
+        plt.show()
 
 
 def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
@@ -344,7 +374,42 @@ def remove_intensity_centroid_inconsistent_beads(label_seg, updated_peak_dict, d
     return remove_inconsistent_dict, distances
 
 
-def report_similarity_matrix_parameters (tform, logging=True):
+def remove_overlapping_beads(label_seg, peak_dict, area_tolerance=0.3, show_img=False):
+    """
+    Remove overlapping beads that give possibility to inaccurate bead registration,
+    filter by size (median+area_tolerance*std)
+    :param label_seg: A labelled segmentation image of beads
+    :param peak_dict: A dictionary of bead number to peak coordinates
+    :param area_tolerance: Arbitrary float to set threshold of size
+    :param show_img: A boolean to show image
+    :return:
+        remove_overlapping_beads: An updated dictionary of bead number to peak coordinates after removing beads that
+                                  are overlapped on one another or clustered
+    """
+    props = pd.DataFrame(measure.regionprops_table(label_seg, properties=['label', 'area'])).set_index('label')
+    area_thresh = props['area'].median() + area_tolerance*props['area'].std()
+
+    beads_to_remove = []
+    for label, row in props.iterrows():
+        if label in peak_dict.keys():
+            if row['area'] > area_thresh:
+                beads_to_remove.append(label)
+
+    remove_overlapping_beads = remove_peaks_in_dict(peak_dict, beads_to_remove)
+
+    if show_img:
+        img = np.zeros(ref_labelled_seg.shape)
+        for bead in list(remove_overlapping_beads.keys()):
+            img[ref_labelled_seg==bead] = label
+
+        plt.figure()
+        plt.imshow(img)
+        plt.show()
+
+    return remove_overlapping_beads
+
+
+def report_similarity_matrix_parameters(tform, logging=True):
     """
     Reports similarity matrix and its parameters
     :param tform: A transform generated from skimage.transform.estimate_transform
@@ -356,9 +421,9 @@ def report_similarity_matrix_parameters (tform, logging=True):
         shift_x: Shift in x
         rotate_angle: Rotation angle
     """
-
+    inverse_tform = tf.SimilarityTransform(tform._inv_matrix)
     similarity_matrix_param_dict = {
-        'inverse_tform': tf.SimilarityTransform(tform._inv_matrix),
+        'inverse_tform': inverse_tform,
         'scaling': inverse_tform.scale,
         'shift_y': inverse_tform.translation[0],
         'shift_x': inverse_tform.translation[1],
@@ -458,6 +523,9 @@ def report_changes_in_nrmse(ref_img, mov_img, mov_transformed, logging=True):
 
     nrmse_before = metrics.normalized_root_mse(ref_img, mov_img)
     nrmse_after = metrics.normalized_root_mse(ref_img, mov_transformed)
+
+    print('before: ' + str(nrmse_before))
+    print('after: ' + str(nrmse_after))
     diff_nrmse = nrmse_after - nrmse_before
     if diff_nrmse <= 0:
         qc = True
