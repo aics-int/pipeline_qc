@@ -6,7 +6,6 @@ import numpy as np
 
 from aicsimageio import AICSImage
 from skimage import transform as tf, exposure as exp, filters, measure, morphology, feature, io, segmentation, metrics
-# import SimpleITK as sitk
 import pandas as pd
 from scipy.spatial import distance
 from scipy import ndimage
@@ -14,14 +13,19 @@ from scipy.optimize import linear_sum_assignment
 
 # read beads image
 beads = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi')
+bead_rescale_488_lower_thresh = 99.4
+bead_rescale_638_lower_thresh = 99
 
-#Todo: Change read channel from metadata
-beads_gfp = beads.data[0, 1, :, :, :]
-beads_cmdr = beads.data[0, 3, :, :, :]
+channels = beads.get_channel_names()
 
-center_z=0
-max_intensity=0
-for z in range (0, beads_gfp.shape[0]):
+# get gfp and cmdr channel from beads image
+beads_gfp = beads.data[0, channels.index('EGFP'), :, :, :]
+beads_cmdr = beads.data[0, channels.index('CMDRP'), :, :, :]
+
+# get center slice
+center_z = 0
+max_intensity = 0
+for z in range(0, beads_gfp.shape[0]):
     sum_intensity = np.sum(beads_gfp[z, :, :])
     if sum_intensity >= max_intensity:
         center_z = z
@@ -30,18 +34,18 @@ for z in range (0, beads_gfp.shape[0]):
 #=======================================================================================================================
 # Pre-process images
 # rescale intensity
-# Todo: Change 99.4 and 99 as a parameter in the beginning
-
 ref = beads_gfp[center_z, :, :]
 mov = beads_cmdr[center_z, :, :]
 
 ref_rescaled = exp.rescale_intensity(ref,
                                      out_range=np.uint8,
-                                     in_range=(np.percentile(beads_gfp[center_z, :, :], 99.4), np.percentile(beads_gfp[center_z, :, :], 100))
+                                     in_range=(np.percentile(beads_gfp[center_z, :, :], bead_rescale_488_lower_thresh),
+                                               np.max(beads_gfp[center_z, :, :]))
                                      )
 mov_rescaled = exp.rescale_intensity(mov,
                                      out_range=np.uint8,
-                                     in_range=(np.percentile(beads_cmdr[center_z, :, :], 99), np.percentile(beads_cmdr[center_z, :, :], 100))
+                                     in_range=(np.percentile(beads_cmdr[center_z, :, :], bead_rescale_638_lower_thresh),
+                                               np.max(beads_cmdr[center_z, :, :]))
                                      )
 
 # smooth image
@@ -209,27 +213,42 @@ def check_beads(ref_mov_num_dict, ref_labelled_seg, mov_labelled_seg):
         plt.show()
 
 
-def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
+def filter_big_beads(img, center=0, area=20):
     """
-    Verifies the beads mapped on referece image are mapped on the moving image with the minimal distance
-    :param ref_peak_dict: A dictionary of reference peaks ({peak_number: (coor_y, coor_x)})
-    :param mov_peak_dict: A dictionary of moving peaks ({peak_number: (coor_y, coor_x)})
-    :param initialize_value: An initial distance value, expected minimum distance should be less than the size of a bead
-    :return:
-        src_dst_dict: A dictionary mapping the reference coordinates and moving coordinates
-                      ({(ref_coor_y, ref_coor_x): (mov_coor_y, mov_coor_x)})
+    Find and filter big beads from an image with mixed beads
+    :param img: 3d image with big and small beads
+    :param center: center slice
+    :param area: area(px) cutoff of a big bead
+    :return: filtered: A 3d image where big beads are masked out as 0
+             seg_big_bead: A binary image showing segmentation of big beads
     """
-    src_dst_dict = {}
-    for mov_peak_id, mov_coor in mov_peak_dict.items():
-        min_dist = initialize_value
-        for ref_peak_id, ref_coor in ref_peak_dict.items():
-            dist = distance.euclidean(mov_coor, ref_coor)
-            if dist < min_dist:
-                min_dist = dist
-                map_coor = ref_coor
-        src_dst_dict.update({(mov_coor[1], mov_coor[0]): (map_coor[1], map_coor[0])})
 
-    return src_dst_dict
+    if len(img.shape) == 2:
+        img_center = img
+    elif len(img.shape) == 3:
+        img_center = img[center, :, :]
+
+    # Big beads are brighter than small beads usually
+    seg_big_bead = img_center > (np.median(img_center) + 1.25 * np.std(img_center))
+    label_big_bead = measure.label(seg_big_bead)
+
+    # Size filter the labeled big beads, that could be due to bright small beads
+    for obj in range(1, np.max(label_big_bead)):
+        size = np.sum(label_big_bead == obj)
+        if size < area:
+            seg_big_bead[label_big_bead == obj] = 0
+
+    # Save filtered beads image after removing big beads as 'filtered'
+    if len(img.shape) == 3:
+        mask = np.zeros(img.shape)
+        for z in range(0, img.shape[0]):
+            mask[z] = seg_big_bead
+        filtered = img.copy()
+        filtered[np.where(mask == 1)] = np.median(img)
+    elif len(img.shape) == 2:
+        filtered = img.copy()
+        filtered[np.where(seg_big_bead>0)] = np.median(img)
+    return filtered, seg_big_bead
 
 
 def initialize_peaks(seg, peak_list, show_img=False, img_shape=None):
@@ -296,20 +315,6 @@ def match_peaks(ref_peak_dict, mov_peak_dict, dist_threshold=5):
     updated_mov_peak_dict = remove_peaks_in_dict(full_dict=mov_peak_dict, keys=remove_mov_peak)
 
     return updated_ref_peak_dict, updated_mov_peak_dict
-
-
-def remove_peaks_in_dict(full_dict, keys):
-    """
-    Removes a list of keys from a dictionary
-    :param full_dict: A dictionary
-    :param keys: A list of keys
-    :return:
-        new_dict: An updated dictionary after removing the keys
-    """
-    new_dict = full_dict.copy()
-    for key in keys:
-        del new_dict[key]
-    return new_dict
 
 
 def remove_close_peaks(peak_dict, dist_threshold=20, show_img=False, img_shape=None):
@@ -407,6 +412,20 @@ def remove_overlapping_beads(label_seg, peak_dict, area_tolerance=0.3, show_img=
         plt.show()
 
     return remove_overlapping_beads
+
+
+def remove_peaks_in_dict(full_dict, keys):
+    """
+    Removes a list of keys from a dictionary
+    :param full_dict: A dictionary
+    :param keys: A list of keys
+    :return:
+        new_dict: An updated dictionary after removing the keys
+    """
+    new_dict = full_dict.copy()
+    for key in keys:
+        del new_dict[key]
+    return new_dict
 
 
 def report_similarity_matrix_parameters(tform, logging=True):
@@ -544,42 +563,30 @@ def report_changes_in_nrmse(ref_img, mov_img, mov_transformed, logging=True):
     return qc, diff_nrmse
 
 
-def filter_big_beads(img, center=0, area=20):
+
+
+
+def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
     """
-    Find and filter big beads from an image with mixed beads
-    :param img: 3d image with big and small beads
-    :param center: center slice
-    :param area: area(px) cutoff of a big bead
-    :return: filtered: A 3d image where big beads are masked out as 0
-             seg_big_bead: A binary image showing segmentation of big beads
+    Verifies the beads mapped on referece image are mapped on the moving image with the minimal distance
+    :param ref_peak_dict: A dictionary of reference peaks ({peak_number: (coor_y, coor_x)})
+    :param mov_peak_dict: A dictionary of moving peaks ({peak_number: (coor_y, coor_x)})
+    :param initialize_value: An initial distance value, expected minimum distance should be less than the size of a bead
+    :return:
+        src_dst_dict: A dictionary mapping the reference coordinates and moving coordinates
+                      ({(ref_coor_y, ref_coor_x): (mov_coor_y, mov_coor_x)})
     """
+    src_dst_dict = {}
+    for mov_peak_id, mov_coor in mov_peak_dict.items():
+        min_dist = initialize_value
+        for ref_peak_id, ref_coor in ref_peak_dict.items():
+            dist = distance.euclidean(mov_coor, ref_coor)
+            if dist < min_dist:
+                min_dist = dist
+                map_coor = ref_coor
+        src_dst_dict.update({(mov_coor[1], mov_coor[0]): (map_coor[1], map_coor[0])})
 
-    if len(img.shape) == 2:
-        img_center = img
-    elif len(img.shape) == 3:
-        img_center = img[center, :, :]
-
-    # Big beads are brighter than small beads usually
-    seg_big_bead = img_center > (np.median(img_center) + 1.25 * np.std(img_center))
-    label_big_bead = measure.label(seg_big_bead)
-
-    # Size filter the labeled big beads, that could be due to bright small beads
-    for obj in range(1, np.max(label_big_bead)):
-        size = np.sum(label_big_bead == obj)
-        if size < area:
-            seg_big_bead[label_big_bead == obj] = 0
-
-    # Save filtered beads image after removing big beads as 'filtered'
-    if len(img.shape) == 3:
-        mask = np.zeros(img.shape)
-        for z in range(0, img.shape[0]):
-            mask[z] = seg_big_bead
-        filtered = img.copy()
-        filtered[np.where(mask == 1)] = np.median(img)
-    elif len(img.shape) == 2:
-        filtered = img.copy()
-        filtered[np.where(seg_big_bead>0)] = np.median(img)
-    return filtered, seg_big_bead
+    return src_dst_dict
 
 
 def watershed_bead_seg(seg):
@@ -600,74 +607,3 @@ def watershed_bead_seg(seg):
     labels = segmentation.watershed(-distance, markers, mask=seg)
 
     return labels
-
-#=================================================================
-# Test method
-ref = np.zeros((100, 100))
-mov = np.zeros((100, 100))
-
-ref[25:50, 25:50] = True
-mov[27:52, 25:50] = True
-
-
-#==================================================================
-# Use ITK
-
-# set itk image objects
-ref_itk = sitk.GetImageFromArray(ref_smooth)
-ref_itk = sitk.Cast(ref_itk, sitk.sitkFloat32)
-
-mov_itk = sitk.GetImageFromArray(mov_smooth)
-mov_itk = sitk.Cast(mov_itk, sitk.sitkFloat32)
-
-# set itk optimizer
-R = sitk.ImageRegistrationMethod()
-# R.SetOptimizerAsGradientDescentLineSearch(learningRate=1.0,
-#                                            numberOfIterations=10000,
-#                                            convergenceMinimumValue=1e-5,
-#                                            convergenceWindowSize=5)
-
-#R.SetOptimizerAsRegularStepGradientDescent(5.0, .01, 50)
-R.SetOptimizerAsGradientDescent(learningRate=1.0,
-                                numberOfIterations=30,
-                                convergenceMinimumValue=1,
-                                convergenceWindowSize=20)
-R.SetInitialTransform(sitk.Similarity2DTransform(mov_itk.GetDimension()))
-R.SetInterpolator(sitk.sitkLinear)
-R.SetMetricAsCorrelation()
-# R.SetMetricAsJointHistogramMutualInformation()
-# R.SetMetricAsMattesMutualInformation(100)
-# R. SetMetricAsMeanSquares
-# R.SetMetricSamplingStrategy(R.RANDOM)
-# R.SetMetricSamplingPercentage(0.75)
-
-
-outTx = R.Execute(ref_itk, mov_itk)
-# rings image
-
-outTx.GetParameters()
-print (outTx)
-
-transform_func = sitk.ResampleImageFilter()
-transform_func.SetReferenceImage(ref_itk)
-transform_func.SetInterpolator(sitk.sitkLinear)
-transform_func.SetDefaultPixelValue(1)
-transform_func.SetTransform(outTx)
-mov_transformed = transform_func.Execute(mov_itk)
-
-new_img = sitk.GetArrayFromImage(mov_transformed)
-
-model = tf.AffineTransform()
-model.estimate(np.array(ref_itk), np.array(mov_itk))
-
-plt.figure()
-plt.imshow(ref_smooth)
-plt.show()
-
-plt.figure()
-plt.imshow(mov_smooth)
-plt.show()
-
-plt.figure()
-plt.imshow(sitk.GetArrayFromImage(ref_itk))
-plt.show()
