@@ -76,7 +76,7 @@ else:
 # assign centroid_dicts from ref to mov
 bead_centroid_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(ref_centroid_dict, mov_centroid_dict)
 
-check_beads(ref_mov_num_dict, labelled_ref, labelled_seg)
+check_beads(ref_mov_num_dict, labelled_ref, labelled_ref)
 
 # Throw a logging/warning message if there are too little number of beads
 if len(bead_centroid_dict) < 10:
@@ -101,9 +101,9 @@ changes_fov_intensity_dictionary = report_change_fov_intensity_parameters(transf
 
 # Report changes in source and destination
 # Todo: Report doesn't make sense, fix bug
-# coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
-#                                                                      tform=tform,
-#                                                                      logging=True)
+coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
+                                                                     tform=tform,
+                                                                     logging=True)
 
 # Report changes in nrmse in the image?
 # Todo: NOT READY TO USE, seems to be intensity-dependent, ranking instead?
@@ -393,8 +393,8 @@ def process_rings(ref_smooth, mov_smooth):
         filtered_label_ref: An image of labelled reference rings
         filtered_label_mov: An image of labelled moving rings
     """
-    seg_ref, label_ref = segment_rings(ref_smooth, show_seg=True)
-    seg_mov, label_mov = segment_rings(mov_smooth, show_seg=True)
+    seg_ref, label_ref = segment_rings(ref_smooth, filter=2.5, show_seg=True)
+    seg_mov, label_mov = segment_rings(mov_smooth, filter=2.5, show_seg=True)
 
     # filter center cross
     filtered_label_ref, props_ref, cross_label_ref = filter_center_cross(label_ref, show_img=True)
@@ -527,19 +527,18 @@ def report_similarity_matrix_parameters(tform, logging=True):
     :param tform: A transform generated from skimage.transform.estimate_transform
     :param logging: A boolean to indicate if printing/logging statements is selected
     :return: A dictionary with the following keys and values:
-        inverse_tform: An inverse transform to be applied to moving images
+        transform: A transform to be applied to moving images
         scaling: Uniform scaling parameter
         shift_y: Shift in y
         shift_x: Shift in x
         rotate_angle: Rotation angle
     """
-    inverse_tform = tf.SimilarityTransform(tform._inv_matrix)
     similarity_matrix_param_dict = {
-        'inverse_tform': inverse_tform,
-        'scaling': inverse_tform.scale,
-        'shift_y': inverse_tform.translation[0],
-        'shift_x': inverse_tform.translation[1],
-        'rotate_angle': inverse_tform.rotation
+        'transform': tform,
+        'scaling': tform.scale,
+        'shift_y': tform.translation[0],
+        'shift_x': tform.translation[1],
+        'rotate_angle': tform.rotation
     }
 
     if logging:
@@ -590,16 +589,20 @@ def report_changes_in_coordinates_mapping(ref_mov_coor_dict, tform, logging=True
     transform_qc = False
     mov_coors = list(ref_mov_coor_dict.values())
     ref_coors = list(ref_mov_coor_dict.keys())
-    mov_transformed_coors = tform.inverse(mov_coors)
+    mov_transformed_coors = tform(mov_coors)
 
     dist_before_list = []
     dist_after_list = []
     for bead in range(0, len(mov_coors)):
+        print(mov_coors[bead], ref_coors[bead])
+        print(mov_transformed_coors[bead], ref_coors[bead])
         dist_before = distance.euclidean(mov_coors[bead], ref_coors[bead])
         dist_after = distance.euclidean(mov_transformed_coors[bead], ref_coors[bead])
         dist_before_list.append(dist_before)
         dist_after_list.append(dist_after)
 
+    print(dist_before_list)
+    print(dist_after_list)
     sum_diff_before = sum(dist_before_list)
     sum_diff_after = sum(dist_after_list)
     diff_sum = sum_diff_after - sum_diff_before
@@ -695,16 +698,17 @@ def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
     return src_dst_dict
 
 
-def segment_rings(smooth_img, show_seg=False):
+def segment_rings(smooth_img, filter=2.5, show_seg=False):
     """
-    segment rings using threhsold_li method from skimage
+    segment rings using a cutoff at median+filter*std
     :param smooth_img: An image after smoothing
     :param show_seg: A boolean to show image
     :return:
         seg: segmentation of rings
         labelled_seg: labelled segmentation of rings
     """
-    thresh = filters.threshold_li(smooth_img)
+    # thresh = filters.threshold_li(smooth_img)
+    thresh = np.median(smooth_img) + filter*np.std(smooth_img)
     seg = np.zeros(smooth_img.shape)
     seg[smooth_img >= thresh] = True
 
