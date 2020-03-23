@@ -119,7 +119,17 @@ coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coo
 
 # Save metrics
 # Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
-np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', inverse_tform, delimiter=',')
+# np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', inverse_tform, delimiter=',')
+
+# Validate: Save beads imag (ref, before_mov, after_mov)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads\test_1_ref_gfp.tiff', beads_gfp)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads\test_1_before_cmdr.tiff', beads_cmdr)
+
+after_cmdr = np.zeros(beads_cmdr.shape)
+for z in range(0, after_cmdr.shape[0]):
+    after_cmdr[z, :, :] = tf.warp(beads_cmdr[z, :, :], inverse_map=tform, order=3)
+after_cmdr = (after_cmdr*65535).astype(np.uint16)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads\test_1_after_cmdr.tiff', after_cmdr)
 
 #=======================================================================================================================
 # Apply transform on testing images
