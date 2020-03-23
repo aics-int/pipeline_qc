@@ -100,11 +100,13 @@ changes_fov_intensity_dictionary = report_change_fov_intensity_parameters(transf
                                                                           logging=True)
 
 # Report changes in source and destination
-coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
-                                                                     tform=tform,
-                                                                     logging=True)
+# Todo: Report doesn't make sense, fix bug
+# coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
+#                                                                      tform=tform,
+#                                                                      logging=True)
 
-# Report changes in nrmse in the image? NOT READY TO USE, seems to be intensity-dependent
+# Report changes in nrmse in the image?
+# Todo: NOT READY TO USE, seems to be intensity-dependent, ranking instead?
 # nrmse_qc, diff_nrmse = report_changes_in_nrmse(ref_img=ref, mov_img=mov, mov_transformed=mov_transformed, logging=True)
 
 # making tracking map in different areas of an FOV?
@@ -122,39 +124,6 @@ for z in range(0, after_cmdr.shape[0]):
     after_cmdr[z, :, :] = tf.warp(cmdr[z, :, :], inverse_map=tform, order=3)
 after_cmdr = (after_cmdr*65535).astype(np.uint16)
 io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\rings_centroid\test_1_after_cmdr.tiff', after_cmdr)
-
-#=======================================================================================================================
-# Apply transform on testing images
-load_transform_array = np.loadtxt(r'C:\Users\calystay\Desktop\test_transform.csv', delimiter=',')
-
-argo_array = np.array([[1.0003, 0.0026, -0.599],
-                       [-0.0026, 1.0003, 0.7998],
-                       [0, 0, 1]])
-
-transformed_cmdr = np.zeros(beads_cmdr.shape)
-argo_transformed_cmdr = np.zeros(beads_cmdr.shape)
-for z in range (0, beads_cmdr.shape[0]):
-    transformed_xy = tf.warp(beads_cmdr[z, :, :], inverse_map=load_transform_array, order=3)
-    transformed_cmdr[z, :, :] = transformed_xy
-
-    transformed_xy_argo = tf.warp(beads_cmdr[z, :, :], inverse_map=argo_array, order=3)
-    argo_transformed_cmdr[z, :, :] = transformed_xy_argo
-
-transformed_cmdr = (transformed_cmdr*65535).astype(np.uint16)
-io.imsave(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD3\3500003332_100X_20190813_psf_cmdr_aligned.tif',
-          transformed_cmdr)
-
-argo_transformed_cmdr = (argo_transformed_cmdr*65535).astype(np.uint16)
-io.imsave(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD3\3500003332_100X_20190813_psf_cmdr_aligned_argo.tif',
-          argo_transformed_cmdr)
-
-before_gfp = beads_gfp.astype(np.uint16)
-io.imsave(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD3\3500003332_100X_20190813_psf_gfp.tif',
-          before_gfp)
-
-before_cmdr = beads_cmdr.astype(np.uint16)
-io.imsave(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD3\3500003332_100X_20190813_psf_cmdr.tif',
-          before_cmdr)
 
 
 def assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict):
@@ -267,6 +236,15 @@ def filter_big_beads(img, center=0, area=20):
 
 
 def filter_center_cross(label_seg, show_img=False):
+    """
+    from a labelled rings image, filter out where the center cross is (the biggest segmented object)
+    :param label_seg: A labelled image
+    :param show_img: A boolean to indicate if the user would like to show the peaks on the image
+    :return:
+        filter_label: A labelled image after filtering the center cross (center cross = 0)
+        props_df: A dataframe from regionprops_table with columns ['label', 'centroid-0', 'centroid-y', 'area']
+        cross_label: The integer label of center cross
+    """
     props = measure.regionprops_table(label_seg, properties=['label', 'area', 'centroid'])
     props_df = pd.DataFrame(props)
     cross_label = props_df.loc[(props_df['area'] == props_df['area'].max()), 'label'].values.tolist()[0]
@@ -350,10 +328,18 @@ def match_peaks(ref_peak_dict, mov_peak_dict, dist_threshold=5):
 
 def process_beads(ref_smooth, mov_smooth):
     """
-
-    :param ref_smooth:
-    :param mov_smooth:
+    Carry out the processes to generate coordinate dictionaries from beads image
+    :param ref_smooth: A reference beads image that was smoothed
+    :param mov_smooth:A moving beads image that was smoothed
     :return:
+        updated_ref_peak_dict: A dictionary of reference peak labels and coordinates ({label: (coor_y, coor_x)})
+        ref_distances: A list of distances of coordinates of reference peak intensity and centroid for each bead
+        ref_centroid_dict: A dictionary of reference centroid labels and coordinates ({label: (coor_y, coor_x)})
+        updated_mov_peak_dict: A dictionary of moving peak labels and coordinates ({label: (coor_y, coor_x)})
+        mov_distances: A list of distances of coordinates of moving peak intensity and centroid for each bead
+        mov_centroid_dict: A dictionary of moving centroid labels and coordinates ({label: (coor_y, coor_x)})
+        ref_labelled_seg: An image of labelled reference beads
+        mov_labelled_seg: An image of labelled moving beads
     """
     filtered, seg_mov = filter_big_beads(mov_smooth)
     filtered, seg_ref = filter_big_beads(ref_smooth)
@@ -397,6 +383,16 @@ def process_beads(ref_smooth, mov_smooth):
 
 
 def process_rings(ref_smooth, mov_smooth):
+    """
+    Carry out the processes to generate coordinate dictionaries from rings image
+    :param ref_smooth: A reference rings image that was smoothed
+    :param mov_smooth: A moving rings image that was smoothed
+    :return:
+        ref_centroid_dict: A dictionary of reference centroid labels and coordinates ({label: (coor_y, coor_x)})
+        mov_centroid_dict:A dictionary of moving centroid labels and coordinates ({label: (coor_y, coor_x)})
+        filtered_label_ref: An image of labelled reference rings
+        filtered_label_mov: An image of labelled moving rings
+    """
     seg_ref, label_ref = segment_rings(ref_smooth, show_seg=True)
     seg_mov, label_mov = segment_rings(mov_smooth, show_seg=True)
 
@@ -661,6 +657,13 @@ def report_changes_in_nrmse(ref_img, mov_img, mov_transformed, logging=True):
 
 
 def rings_coor_dict(props, cross_label):
+    """
+    Generate a dictionary from regionprops_table in the form of {label: (coor_y, coor_x)} for rings image
+    :param props: a dataframe containing regionprops_table output
+    :param cross_label: Integer value representing where the center cross is in the rings image
+    :return:
+        img_dict: A dictionary of label to coordinates
+    """
     img_dict = {}
     for index, row in props.iterrows():
         if row['label'] is not cross_label:
@@ -693,6 +696,14 @@ def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
 
 
 def segment_rings(smooth_img, show_seg=False):
+    """
+    segment rings using threhsold_li method from skimage
+    :param smooth_img: An image after smoothing
+    :param show_seg: A boolean to show image
+    :return:
+        seg: segmentation of rings
+        labelled_seg: labelled segmentation of rings
+    """
     thresh = filters.threshold_li(smooth_img)
     seg = np.zeros(smooth_img.shape)
     seg[smooth_img >= thresh] = True
