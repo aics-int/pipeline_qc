@@ -79,25 +79,31 @@ updated_ref_peak_dict, updated_mov_peak_dict = match_peaks(ref_peak_dict=ref_rem
                                                            dist_threshold=5)
 
 # remove inconsistent intensity vs centroid beads
-updated_ref_peak_dict, ref_distances = remove_intensity_centroid_inconsistent_beads(label_seg=ref_labelled_seg,
-                                                                                    updated_peak_dict=updated_ref_peak_dict)
-updated_mov_peak_dict, mov_distances = remove_intensity_centroid_inconsistent_beads(label_seg=mov_labelled_seg,
-                                                                                    updated_peak_dict=updated_mov_peak_dict)
+updated_ref_peak_dict, ref_distances, ref_centroid_dict = remove_intensity_centroid_inconsistent_beads(label_seg=ref_labelled_seg,
+                                                                                                       updated_peak_dict=updated_ref_peak_dict)
+updated_mov_peak_dict, mov_distances, mov_centroid_dict = remove_intensity_centroid_inconsistent_beads(label_seg=mov_labelled_seg,
+                                                                                                       updated_peak_dict=updated_mov_peak_dict)
 
 # assign updated_ref_peak_dict with updated_mov_peak_dict
-bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict)
+# bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict)
+
+# assign centroid_dicts from ref to mov
+bead_centroid_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(ref_centroid_dict, mov_centroid_dict)
 
 check_beads(ref_mov_num_dict, ref_labelled_seg, mov_labelled_seg)
 
 # Throw a logging/warning message if there are too little number of beads
-if len(bead_peak_intensity_dict) < 10:
+if len(bead_centroid_dict) < 10:
     # Add logging/error message
     print('number of beads seem low: ' + str(len(bead_peak_intensity_dict)))
 
+# Change (y, x) into (x, y) for transformation matrix reading
+rev_coor_dict = change_coor_system(ref_mov_coor_dict)
+
 #=======================================================================================================================
 # Initiate transform estimation
-tform = tf.estimate_transform('similarity', np.asarray(list(ref_mov_coor_dict.keys())), np.asarray(list(ref_mov_coor_dict.values())))
-mov_transformed = tf.warp(beads_cmdr[center_z, :, :], inverse_map=tform._inv_matrix, order=3)
+tform = tf.estimate_transform('similarity', np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values())))
+mov_transformed = tf.warp(beads_cmdr[center_z, :, :], inverse_map=tform, order=3)
 
 # Report transform parameters
 transformation_parameters_dict = report_similarity_matrix_parameters(tform=tform, logging=True)
@@ -122,14 +128,14 @@ coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coo
 # np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', inverse_tform, delimiter=',')
 
 # Validate: Save beads imag (ref, before_mov, after_mov)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads\test_1_ref_gfp.tiff', beads_gfp)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads\test_1_before_cmdr.tiff', beads_cmdr)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_ref_gfp.tiff', beads_gfp)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_before_cmdr.tiff', beads_cmdr)
 
 after_cmdr = np.zeros(beads_cmdr.shape)
 for z in range(0, after_cmdr.shape[0]):
     after_cmdr[z, :, :] = tf.warp(beads_cmdr[z, :, :], inverse_map=tform, order=3)
 after_cmdr = (after_cmdr*65535).astype(np.uint16)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads\test_1_after_cmdr.tiff', after_cmdr)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_after_cmdr.tiff', after_cmdr)
 
 #=======================================================================================================================
 # Apply transform on testing images
@@ -200,6 +206,19 @@ def assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict):
         ref_mov_coor_dict.update({updated_ref_peak[ref_ind[num_bead]][1]: updated_mov_peak[mov_ind[num_bead]][1]})
 
     return bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict
+
+
+def change_coor_system(coor_dict):
+    """
+    Changes coordinates in a dictionary from {(y1, x1):(y2, x2)} to {(x1, y1): (x2, y2)}
+    :param coor_dict: A dictionary of coordinates in the form of {(y1, x1):(y2, x2)}
+    :return:
+        An updated reversed coordinate dictionary that is {(x1, y1): (x2, y2)}
+    """
+    rev_yx_to_xy = {}
+    for coor_ref, coor_mov in coor_dict.items():
+        rev_yx_to_xy.update({(coor_ref[1], coor_ref[0]): (coor_mov[1], coor_mov[0])})
+    return rev_yx_to_xy
 
 
 def check_beads(ref_mov_num_dict, ref_labelled_seg, mov_labelled_seg):
@@ -373,8 +392,10 @@ def remove_intensity_centroid_inconsistent_beads(label_seg, updated_peak_dict, d
     props = pd.DataFrame(measure.regionprops_table(label_seg, properties=['label', 'centroid'])).set_index('label')
     distances = []
     bead_to_remove = []
+    bead_centroid_dict = {}
     for label, coor_intensity in updated_peak_dict.items():
         coor_centroid = (props.loc[label, 'centroid-0'], props.loc[label, 'centroid-1'])
+        bead_centroid_dict.update({label: coor_centroid})
         dist = distance.euclidean(coor_intensity, coor_centroid)
 
         if dist > dist_thresh:
@@ -383,10 +404,11 @@ def remove_intensity_centroid_inconsistent_beads(label_seg, updated_peak_dict, d
 
     if len(bead_to_remove) > 0:
         remove_inconsistent_dict = remove_peaks_in_dict(full_dict=updated_peak_dict, keys=bead_to_remove)
+        bead_centroid_dict = remove_peaks_in_dict(full_dict=bead_centroid_dict, keys=bead_to_remove)
     else:
         remove_inconsistent_dict = updated_peak_dict.copy()
 
-    return remove_inconsistent_dict, distances
+    return remove_inconsistent_dict, distances, bead_centroid_dict
 
 
 def remove_overlapping_beads(label_seg, peak_dict, area_tolerance=0.3, show_img=False):
