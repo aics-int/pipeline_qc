@@ -12,21 +12,25 @@ from scipy import ndimage
 from scipy.optimize import linear_sum_assignment
 
 # read beads image
-beads = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi')
-bead_rescale_488_lower_thresh = 99.4
-bead_rescale_638_lower_thresh = 99
+# img = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi')
+# image_type = 'beads'
+# bead_rescale_488_lower_thresh = 99.4
+# bead_rescale_638_lower_thresh = 99
 
-channels = beads.get_channel_names()
+# read rings image
+img = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\argo_split\argo_100x_dual_20190813-Scene-3-P3.czi')
+image_type = 'rings'
+channels = img.get_channel_names()
 
 # get gfp and cmdr channel from beads image
-beads_gfp = beads.data[0, channels.index('EGFP'), :, :, :]
-beads_cmdr = beads.data[0, channels.index('CMDRP'), :, :, :]
+gfp = img.data[0, channels.index('EGFP'), :, :, :]
+cmdr = img.data[0, channels.index('CMDRP'), :, :, :]
 
 # get center slice
 center_z = 0
 max_intensity = 0
-for z in range(0, beads_gfp.shape[0]):
-    sum_intensity = np.sum(beads_gfp[z, :, :])
+for z in range(0, gfp.shape[0]):
+    sum_intensity = np.sum(gfp[z, :, :])
     if sum_intensity >= max_intensity:
         center_z = z
         max_intensity = sum_intensity
@@ -34,63 +38,45 @@ for z in range(0, beads_gfp.shape[0]):
 #=======================================================================================================================
 # Pre-process images
 # rescale intensity
-ref = beads_gfp[center_z, :, :]
-mov = beads_cmdr[center_z, :, :]
+ref = gfp[center_z, :, :]
+mov = cmdr[center_z, :, :]
 
-ref_rescaled = exp.rescale_intensity(ref,
-                                     out_range=np.uint8,
-                                     in_range=(np.percentile(beads_gfp[center_z, :, :], bead_rescale_488_lower_thresh),
-                                               np.max(beads_gfp[center_z, :, :]))
-                                     )
-mov_rescaled = exp.rescale_intensity(mov,
-                                     out_range=np.uint8,
-                                     in_range=(np.percentile(beads_cmdr[center_z, :, :], bead_rescale_638_lower_thresh),
-                                               np.max(beads_cmdr[center_z, :, :]))
-                                     )
+if image_type == 'beads':
+    ref_rescaled = exp.rescale_intensity(ref,
+                                         out_range=np.uint8,
+                                         in_range=(np.percentile(gfp[center_z, :, :], bead_rescale_488_lower_thresh),
+                                                   np.max(gfp[center_z, :, :]))
+                                         )
+    mov_rescaled = exp.rescale_intensity(mov,
+                                         out_range=np.uint8,
+                                         in_range=(np.percentile(cmdr[center_z, :, :], bead_rescale_638_lower_thresh),
+                                                   np.max(cmdr[center_z, :, :]))
+                                         )
+
+elif image_type == 'rings':
+    ref_rescaled = exp.rescale_intensity(ref, in_range=(np.percentile(ref, 0.2), np.percentile(ref, 99.8)))
+    mov_rescaled = exp.rescale_intensity(mov, in_range=(np.percentile(mov, 0.2), np.percentile(mov, 99.8)))
+else:
+    print('invalid image type')
 
 # smooth image
 ref_smooth = filters.gaussian(ref_rescaled, sigma=1, preserve_range=True)
 mov_smooth = filters.gaussian(mov_rescaled, sigma=1, preserve_range=True)
 
-
 #=======================================================================================================================
-# Process beads (segment, filter assign)
-
-filtered, seg_mov = filter_big_beads(mov_smooth)
-filtered, seg_ref = filter_big_beads(ref_smooth)
-
-# initialize intensity-based peaks
-ref_peaks = feature.peak_local_max(ref_smooth*seg_ref, min_distance=5)
-ref_peak_dict, ref_labelled_seg = initialize_peaks(seg=seg_ref, peak_list=ref_peaks, show_img=False, img_shape=ref.shape)
-mov_peaks = feature.peak_local_max(mov_smooth*seg_mov, min_distance=5)
-mov_peak_dict, mov_labelled_seg = initialize_peaks(seg=seg_mov, peak_list=mov_peaks, show_img=False, img_shape=mov.shape)
-
-# remove_close_peaks
-ref_close_peaks = remove_close_peaks(ref_peak_dict, dist_threshold=20, show_img=True, img_shape=ref.shape)
-mov_close_peaks = remove_close_peaks(mov_peak_dict, dist_threshold=20, show_img=True, img_shape=mov.shape)
-
-# remove peaks/beads that are too big
-ref_remove_overlap_peaks = remove_overlapping_beads(label_seg=ref_labelled_seg, peak_dict=ref_close_peaks, show_img=True)
-mov_remove_overlap_peaks = remove_overlapping_beads(label_seg=mov_labelled_seg, peak_dict=mov_close_peaks, show_img=True)
-
-# match peaks
-updated_ref_peak_dict, updated_mov_peak_dict = match_peaks(ref_peak_dict=ref_remove_overlap_peaks,
-                                                           mov_peak_dict=mov_remove_overlap_peaks,
-                                                           dist_threshold=5)
-
-# remove inconsistent intensity vs centroid beads
-updated_ref_peak_dict, ref_distances, ref_centroid_dict = remove_intensity_centroid_inconsistent_beads(label_seg=ref_labelled_seg,
-                                                                                                       updated_peak_dict=updated_ref_peak_dict)
-updated_mov_peak_dict, mov_distances, mov_centroid_dict = remove_intensity_centroid_inconsistent_beads(label_seg=mov_labelled_seg,
-                                                                                                       updated_peak_dict=updated_mov_peak_dict)
-
-# assign updated_ref_peak_dict with updated_mov_peak_dict
-# bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict)
+# Process structures (segment, filter, assign)
+if image_type == 'beads':
+    updated_ref_peak_dict, ref_distances, ref_centroid_dict, updated_mov_peak_dict, mov_distances, mov_centroid_dict, \
+    labelled_ref, labelled_mov = process_beads(ref_smooth, mov_smooth)
+elif image_type == 'rings':
+    ref_centroid_dict, mov_centroid_dict, labelled_ref, labelled_mov = process_rings(ref_smooth, mov_smooth)
+else:
+    print('invalid image type')
 
 # assign centroid_dicts from ref to mov
 bead_centroid_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(ref_centroid_dict, mov_centroid_dict)
 
-check_beads(ref_mov_num_dict, ref_labelled_seg, mov_labelled_seg)
+check_beads(ref_mov_num_dict, labelled_ref, labelled_seg)
 
 # Throw a logging/warning message if there are too little number of beads
 if len(bead_centroid_dict) < 10:
@@ -103,7 +89,7 @@ rev_coor_dict = change_coor_system(ref_mov_coor_dict)
 #=======================================================================================================================
 # Initiate transform estimation
 tform = tf.estimate_transform('similarity', np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values())))
-mov_transformed = tf.warp(beads_cmdr[center_z, :, :], inverse_map=tform, order=3)
+mov_transformed = tf.warp(cmdr[center_z, :, :], inverse_map=tform, order=3)
 
 # Report transform parameters
 transformation_parameters_dict = report_similarity_matrix_parameters(tform=tform, logging=True)
@@ -128,14 +114,14 @@ coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coo
 # np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', inverse_tform, delimiter=',')
 
 # Validate: Save beads imag (ref, before_mov, after_mov)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_ref_gfp.tiff', beads_gfp)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_before_cmdr.tiff', beads_cmdr)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\rings_centroid\test_1_ref_gfp.tiff', gfp)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\rings_centroid\test_1_before_cmdr.tiff', cmdr)
 
-after_cmdr = np.zeros(beads_cmdr.shape)
+after_cmdr = np.zeros(cmdr.shape)
 for z in range(0, after_cmdr.shape[0]):
-    after_cmdr[z, :, :] = tf.warp(beads_cmdr[z, :, :], inverse_map=tform, order=3)
+    after_cmdr[z, :, :] = tf.warp(cmdr[z, :, :], inverse_map=tform, order=3)
 after_cmdr = (after_cmdr*65535).astype(np.uint16)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_after_cmdr.tiff', after_cmdr)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\rings_centroid\test_1_after_cmdr.tiff', after_cmdr)
 
 #=======================================================================================================================
 # Apply transform on testing images
@@ -280,6 +266,22 @@ def filter_big_beads(img, center=0, area=20):
     return filtered, seg_big_bead
 
 
+def filter_center_cross(label_seg, show_img=False):
+    props = measure.regionprops_table(label_seg, properties=['label', 'area', 'centroid'])
+    props_df = pd.DataFrame(props)
+    cross_label = props_df.loc[(props_df['area'] == props_df['area'].max()), 'label'].values.tolist()[0]
+
+    filter_label = label_seg.copy()
+    filter_label[label_seg==cross_label] = 0
+
+    if show_img:
+        plt.figure()
+        plt.imshow(filter_label)
+        plt.show()
+
+    return filter_label, props_df, cross_label
+
+
 def initialize_peaks(seg, peak_list, show_img=False, img_shape=None):
     """
     Initializes the mapping of bead label (from segmentation) and the peak intensity coordinate (from finding peaks)
@@ -344,6 +346,69 @@ def match_peaks(ref_peak_dict, mov_peak_dict, dist_threshold=5):
     updated_mov_peak_dict = remove_peaks_in_dict(full_dict=mov_peak_dict, keys=remove_mov_peak)
 
     return updated_ref_peak_dict, updated_mov_peak_dict
+
+
+def process_beads(ref_smooth, mov_smooth):
+    """
+
+    :param ref_smooth:
+    :param mov_smooth:
+    :return:
+    """
+    filtered, seg_mov = filter_big_beads(mov_smooth)
+    filtered, seg_ref = filter_big_beads(ref_smooth)
+
+    # initialize intensity-based peaks
+    ref_peaks = feature.peak_local_max(ref_smooth * seg_ref, min_distance=5)
+    ref_peak_dict, ref_labelled_seg = initialize_peaks(seg=seg_ref, peak_list=ref_peaks, show_img=False,
+                                                       img_shape=ref.shape)
+    mov_peaks = feature.peak_local_max(mov_smooth * seg_mov, min_distance=5)
+    mov_peak_dict, mov_labelled_seg = initialize_peaks(seg=seg_mov, peak_list=mov_peaks, show_img=False,
+                                                       img_shape=mov.shape)
+
+    # remove_close_peaks
+    ref_close_peaks = remove_close_peaks(ref_peak_dict, dist_threshold=20, show_img=True, img_shape=ref.shape)
+    mov_close_peaks = remove_close_peaks(mov_peak_dict, dist_threshold=20, show_img=True, img_shape=mov.shape)
+
+    # remove peaks/beads that are too big
+    ref_remove_overlap_peaks = remove_overlapping_beads(label_seg=ref_labelled_seg, peak_dict=ref_close_peaks,
+                                                        show_img=True)
+    mov_remove_overlap_peaks = remove_overlapping_beads(label_seg=mov_labelled_seg, peak_dict=mov_close_peaks,
+                                                        show_img=True)
+
+    # match peaks
+    updated_ref_peak_dict, updated_mov_peak_dict = match_peaks(ref_peak_dict=ref_remove_overlap_peaks,
+                                                               mov_peak_dict=mov_remove_overlap_peaks,
+                                                               dist_threshold=5)
+
+    # remove inconsistent intensity vs centroid beads
+    updated_ref_peak_dict, ref_distances, ref_centroid_dict = remove_intensity_centroid_inconsistent_beads(
+        label_seg=ref_labelled_seg,
+        updated_peak_dict=updated_ref_peak_dict)
+    updated_mov_peak_dict, mov_distances, mov_centroid_dict = remove_intensity_centroid_inconsistent_beads(
+        label_seg=mov_labelled_seg,
+        updated_peak_dict=updated_mov_peak_dict)
+
+    # assign updated_ref_peak_dict with updated_mov_peak_dict
+    # bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict)
+
+    return updated_ref_peak_dict, ref_distances, ref_centroid_dict, updated_mov_peak_dict, mov_distances, \
+           mov_centroid_dict, ref_labelled_seg, mov_labelled_seg
+
+
+def process_rings(ref_smooth, mov_smooth):
+    seg_ref, label_ref = segment_rings(ref_smooth, show_seg=True)
+    seg_mov, label_mov = segment_rings(mov_smooth, show_seg=True)
+
+    # filter center cross
+    filtered_label_ref, props_ref, cross_label_ref = filter_center_cross(label_ref, show_img=True)
+    filtered_label_mov, props_mov, cross_label_mov = filter_center_cross(label_mov, show_img=True)
+
+    # make dictionary
+    ref_centroid_dict = rings_coor_dict(props_ref, cross_label_ref)
+    mov_centroid_dict = rings_coor_dict(props_mov, cross_label_mov)
+
+    return ref_centroid_dict, mov_centroid_dict, filtered_label_ref, filtered_label_mov
 
 
 def remove_close_peaks(peak_dict, dist_threshold=20, show_img=False, img_shape=None):
@@ -595,7 +660,13 @@ def report_changes_in_nrmse(ref_img, mov_img, mov_transformed, logging=True):
     return qc, diff_nrmse
 
 
+def rings_coor_dict(props, cross_label):
+    img_dict = {}
+    for index, row in props.iterrows():
+        if row['label'] is not cross_label:
+            img_dict.update({row['label']: (row['centroid-0'], row['centroid-1'])})
 
+    return img_dict
 
 
 def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
@@ -619,6 +690,21 @@ def verify_peaks(ref_peak_dict, mov_peak_dict, initialize_value=100):
         src_dst_dict.update({(mov_coor[1], mov_coor[0]): (map_coor[1], map_coor[0])})
 
     return src_dst_dict
+
+
+def segment_rings(smooth_img, show_seg=False):
+    thresh = filters.threshold_li(smooth_img)
+    seg = np.zeros(smooth_img.shape)
+    seg[smooth_img >= thresh] = True
+
+    labelled_seg = measure.label(seg)
+
+    if show_seg:
+        plt.figure()
+        plt.imshow(seg)
+        plt.show()
+
+    return seg, labelled_seg
 
 
 def watershed_bead_seg(seg):
