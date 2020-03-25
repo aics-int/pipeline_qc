@@ -12,10 +12,10 @@ from scipy import ndimage
 from scipy.optimize import linear_sum_assignment
 
 # read beads image
-# img = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi')
-# image_type = 'beads'
-# bead_rescale_488_lower_thresh = 99.4
-# bead_rescale_638_lower_thresh = 99
+img = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi')
+image_type = 'beads'
+bead_rescale_488_lower_thresh = 99.4
+bead_rescale_638_lower_thresh = 99
 
 # read rings image
 img = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\argo_split\argo_100x_dual_20190813-Scene-3-P3.czi')
@@ -100,14 +100,14 @@ changes_fov_intensity_dictionary = report_change_fov_intensity_parameters(transf
                                                                           logging=True)
 
 # Report changes in source and destination
-# Todo: Report doesn't make sense, fix bug
 coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
-                                                                     tform=tform,
+                                                                     tform=tform, ref=ref,
                                                                      logging=True)
 
-# Report changes in nrmse in the image?
-# Todo: NOT READY TO USE, seems to be intensity-dependent, ranking instead?
-# nrmse_qc, diff_nrmse = report_changes_in_nrmse(ref_img=ref, mov_img=mov, mov_transformed=mov_transformed, logging=True)
+# Report changes in nrmse in the image (after segmentation)
+ssim_qc, diff_ssim = report_changes_in_nrmse(ref_smooth=ref_smooth, mov_smooth=mov_smooth,
+                                             mov_transformed=mov_transformed, rescale_thresh_mov=(99, 100),
+                                             image_type=image_type, logging=True)
 
 # making tracking map in different areas of an FOV?
 
@@ -116,14 +116,14 @@ coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coo
 # np.savetxt(r'C:\Users\calystay\Desktop\test_transform.csv', inverse_tform, delimiter=',')
 
 # Validate: Save beads imag (ref, before_mov, after_mov)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\rings_centroid\test_1_ref_gfp.tiff', gfp)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\rings_centroid\test_1_before_cmdr.tiff', cmdr)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_ref_gfp.tiff', gfp)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_before_cmdr.tiff', cmdr)
 
 after_cmdr = np.zeros(cmdr.shape)
 for z in range(0, after_cmdr.shape[0]):
     after_cmdr[z, :, :] = tf.warp(cmdr[z, :, :], inverse_map=tform, order=3)
 after_cmdr = (after_cmdr*65535).astype(np.uint16)
-io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\rings_centroid\test_1_after_cmdr.tiff', after_cmdr)
+io.imsave(r'\\allen\aics\microscopy\Calysta\test\camera_alignment\beads_centroid\test_1_after_cmdr.tiff', after_cmdr)
 
 
 def assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict):
@@ -496,9 +496,9 @@ def remove_overlapping_beads(label_seg, peak_dict, area_tolerance=0.3, show_img=
     remove_overlapping_beads = remove_peaks_in_dict(peak_dict, beads_to_remove)
 
     if show_img:
-        img = np.zeros(ref_labelled_seg.shape)
+        img = np.zeros(label_seg.shape)
         for bead in list(remove_overlapping_beads.keys()):
-            img[ref_labelled_seg==bead] = label
+            img[label_seg == bead] = label
 
         plt.figure()
         plt.imshow(img)
@@ -576,11 +576,12 @@ def report_change_fov_intensity_parameters(transformed_img, original_img, loggin
     return change_fov_intensity_param_dict
 
 
-def report_changes_in_coordinates_mapping(ref_mov_coor_dict, tform, logging=True):
+def report_changes_in_coordinates_mapping(ref_mov_coor_dict, tform, ref, logging=True):
     """
-    Report changes in coordinates before and after transform. A good transform will reduce the difference in distances
-    between transformed_mov_beads and ref_beads than mov_beads and ref_beads. A bad transform will increase the
-    difference in distances between transformed_mov_beads and ref_beads.
+    Report changes in beads (center of FOV) centroid coordinates before and after transform. A good transform will
+    reduce the difference in distances, or at least not increase too much (thresh=5), between transformed_mov_beads and
+    ref_beads than mov_beads and ref_beads. A bad transform will increase the difference in distances between
+    transformed_mov_beads and ref_beads.
     :param ref_mov_coor_dict: A dictionary mapping the reference bead coordinates and moving bead coordinates (before transform)
     :param tform: A skimage transform object
     :param logging: A boolean to indicate if printing/logging statements is selected
@@ -594,41 +595,53 @@ def report_changes_in_coordinates_mapping(ref_mov_coor_dict, tform, logging=True
     dist_before_list = []
     dist_after_list = []
     for bead in range(0, len(mov_coors)):
-        print(mov_coors[bead], ref_coors[bead])
-        print(mov_transformed_coors[bead], ref_coors[bead])
         dist_before = distance.euclidean(mov_coors[bead], ref_coors[bead])
         dist_after = distance.euclidean(mov_transformed_coors[bead], ref_coors[bead])
         dist_before_list.append(dist_before)
         dist_after_list.append(dist_after)
 
-    print(dist_before_list)
-    print(dist_after_list)
-    sum_diff_before = sum(dist_before_list)
-    sum_diff_after = sum(dist_after_list)
-    diff_sum = sum_diff_after - sum_diff_before
+    # filter center beads only
+    y_size = 360
+    x_size = 536
+
+    y_lim = (int(ref.shape[0] / 2 - y_size / 2), int(ref.shape[0] / 2 + y_size / 2))
+    x_lim = (int(ref.shape[1] / 2 - x_size / 2), int(ref.shape[1] / 2 + x_size / 2))
+
+    dist_before_center = []
+    dist_after_center = []
+    for bead in range(0, len(mov_coors)):
+        if (y_lim[1] > mov_coors[bead][0]) & (mov_coors[bead][0] > y_lim[0]):
+            if (x_lim[1] > mov_coors[bead][1]) & (mov_coors[bead][1] > x_lim[0]):
+                dist_before_center.append(distance.euclidean(mov_coors[bead], ref_coors[bead]))
+                dist_after_center.append(distance.euclidean(mov_transformed_coors[bead], ref_coors[bead]))
+    average_before_center = sum(dist_before_center) / len(dist_before_center)
+    average_after_center = sum(dist_after_center) / len(dist_after_center)
 
     if logging:
-        if diff_sum < 0:
+        # print('average distance in center beads before: ' + str(average_before_center))
+        # print('average distance in center beads after: ' + str(average_after_center))
+        if (average_after_center - average_before_center) < 5:
             print('transform looks good - ')
-            print('transform reduced the sum of distances between bead peaks on reference and moving image by ' + str(diff_sum))
-        elif diff_sum == 0:
+            print('diff. in distance before and after transform: ' + str(average_after_center - average_before_center))
+        elif (average_after_center - average_before_center) >= 5:
             print('no difference in distances before and after transform')
         else:
             print('transform looks bad - ')
-            print('transform increased the sum of distances between bead peaks on reference and moving image by ' + str(diff_sum))
+            print('diff. in distance before and after transform: ' + str(average_after_center - average_before_center))
 
-    if diff_sum < 0:
+    if (average_after_center - average_before_center) < 5:
         transform_qc = True
 
-    return transform_qc, diff_sum
+    return transform_qc, (average_after_center - average_before_center)
 
 
-def report_changes_in_nrmse(ref_img, mov_img, mov_transformed, logging=True):
+def report_changes_in_nrmse(ref_smooth, mov_smooth, mov_transformed, image_type, rescale_thresh_mov=None, logging=True):
     """
-    Report changes in normalized root mean-squared-error value before and after transform.
-    :param ref_img: Reference image
-    :param mov_img: Moving image before transform
+    Report changes in normalized root mean-squared-error value before and after transform, post-segmentation.
+    :param ref_img: Reference image, after smoothing
+    :param mov_img: Moving image, after smoothing, before transform
     :param mov_transformed: Moving image after transform
+    :param rescale_thresh_mov: A tuple to rescale moving image before segmentation. No need to rescale for rings image
     :param logging: A boolean to indicate if printing/logging statements is selected
     :return:
         qc: A boolean to indicate if it passed (True) or failed (False) qc
@@ -636,8 +649,21 @@ def report_changes_in_nrmse(ref_img, mov_img, mov_transformed, logging=True):
     """
     qc = False
 
-    nrmse_before = metrics.normalized_root_mse(ref_img, mov_img)
-    nrmse_after = metrics.normalized_root_mse(ref_img, mov_transformed)
+    if image_type == 'rings':
+        seg_ref, label_ref = segment_rings(ref_smooth)
+        seg_mov, label_mov = segment_rings(mov_smooth)
+        seg_transformed, label_transform = segment_rings(filters.gaussian(mov_transformed, sigma=1))
+    elif image_type == 'beads':
+        mov_transformed_rescaled = exp.rescale_intensity(mov_transformed, out_range=np.uint8,
+                                                         in_range=(np.percentile(mov_transformed, rescale_thresh_mov[0]),
+                                                                   np.percentile(mov_transformed, rescale_thresh_mov[1])
+                                                                   ))
+        filtered, seg_ref = filter_big_beads(ref_smooth)
+        filtered, seg_mov = filter_big_beads(mov_smooth)
+        filtered, seg_transformed = filter_big_beads(filters.gaussian(mov_transformed_rescaled, sigma=1))
+
+    nrmse_before = metrics.mean_squared_error(seg_ref, seg_mov)
+    nrmse_after = metrics.mean_squared_error(seg_ref, seg_transformed)
 
     print('before: ' + str(nrmse_before))
     print('after: ' + str(nrmse_after))
