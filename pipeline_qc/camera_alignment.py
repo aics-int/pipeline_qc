@@ -92,7 +92,7 @@ class Executor(object):
         """
         file_name = image_path.split('\\')[-1]
         new_name = file_name.split('.')[0] + align_mov_img_file_extension
-        return os.path.join(image_path, new_name)
+        return os.path.join(image_path.split(file_name)[0], new_name)
 
     def report_number_beads(self, bead_dict, method_logging=True):
         """
@@ -143,7 +143,7 @@ class Executor(object):
 
         return ref_rescaled, mov_rescaled
 
-    def perform_similiarty_matrix_transform(self, img, matrix, output_path, filename=None):
+    def perform_similarity_matrix_transform(self, img, matrix, output_path):
         """
         Performs a similarity matrix geometric transform on an image
         :param img: A 2D/3D image to be transformed
@@ -164,7 +164,7 @@ class Executor(object):
 
         if after_transform is not None:
             after_transform = (after_transform*65535).astype(np.uint16)
-            io.imsave(os.path.join(output_path, filename), after_transform)
+            io.imsave(output_path, after_transform)
 
     def get_ref_mov_img(self, ref_stack, mov_stack):
         """
@@ -936,15 +936,15 @@ class Executor(object):
         mse_qc, diff_mse = Executor.report_changes_in_mse(self,
                                                           ref_smooth=ref_smooth, mov_smooth=mov_smooth,
                                                           mov_transformed=mov_transformed,
-                                                          rescale_thresh_mov=(self.bead_rescale_638_lower_thresh, 100),
+                                                          rescale_thresh_mov=(self.bead_638_lower_thresh, 100),
                                                           image_type=self.image_type, method_logging=self.method_logging)
 
         # Save metrics
         # Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
         np.savetxt(Executor.append_file_name_with_ext(self, image_path=self.align_mov_img_path,
                                                       align_mov_img_file_extension=self.align_matrix_file_extension),
-                   tform, delimiter=',')
-
+                   tform.params, delimiter=',')
+        print ('here')
         if self.align_mov_img:
             Executor.perform_similarity_matrix_transform(self, img=mov_stack, matrix=tform,
                                                          output_path=Executor.append_file_name_with_ext(
