@@ -65,110 +65,44 @@ class Args(object):
         p.add_argument('--method-debug', required=False, default=True, dest='method_logging')
 
 
-
 class Executor(object):
-    def __init__(self, args):
-
-        pass
-
-    def execute(self, args):
-
-        image_path = args.image_path
-        image_type = str(args.image_type)
-        ref_channel_index = str(args.ref_channel_index)
-        mov_channel_index = str(args.mov_channel_index)
-        bead_488_lower_thresh = float(args.bead_488_lower_thresh)
-        bead_638_lower_thresh = float(args.bead_638_lower_thresh)
-        method_logging = bool(args.method_logging)
-        align_mov_img = bool(args.align_mov_img)
-        align_mov_img_path = args.align_mov_img_path
-        align_mov_img_file_extension = str(args.align_mov_img_file_extension)
-        align_matrix_file_extension = str(args.align_matrix_file_extension)
-
-        # read image
-        img = AICSImage(image_path)
-        channels = img.get_channel_names()
-
-        # split ref and move channels from image
-        ref_stack = img.data[0, channels.index(ref_channel_index), :, :, :]
-        mov_stack = img.data[0, channels.index(mov_channel_index), :, :, :]
-
-        #=======================================================================================================================
-        # Pre-process images
-        # rescale intensity
-        ref, mov = get_ref_mov_img(ref_stack=ref_stack, mov_stack=mov_stack)
-        ref_rescaled, mov_rescaled = rescale_ref_mov(ref=ref, mov=mov, ref_lower_thresh=bead_488_lower_thresh,
-                                                     mov_higher_thresh=bead_638_lower_thresh,
-                                                     image_type=image_type)
-
-        # smooth image
-        ref_smooth = filters.gaussian(ref_rescaled, sigma=1, preserve_range=True)
-        mov_smooth = filters.gaussian(mov_rescaled, sigma=1, preserve_range=True)
-
-        #=======================================================================================================================
-        # Process structures (segment, filter, assign)
-        if image_type == 'beads':
-            updated_ref_peak_dict, ref_distances, ref_centroid_dict, updated_mov_peak_dict, mov_distances, mov_centroid_dict, \
-            labelled_ref, labelled_mov = process_beads(ref_smooth, mov_smooth)
-        elif image_type == 'rings':
-            ref_centroid_dict, mov_centroid_dict, labelled_ref, labelled_mov = process_rings(ref_smooth, mov_smooth)
-        else:
-            print('invalid image type')
-
-        # assign centroid_dicts from ref to mov
-        bead_centroid_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(ref_centroid_dict, mov_centroid_dict)
-
-        debug_mode = False
-        if debug_mode:
-            check_beads(ref_mov_num_dict, labelled_ref, labelled_ref)
-
-        # Change (y, x) into (x, y) for transformation matrix reading
-        rev_coor_dict = change_coor_system(ref_mov_coor_dict)
-
-        #=======================================================================================================================
-        # Initiate transform estimation
-        tform = tf.estimate_transform('similarity', np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values())))
-        mov_transformed = tf.warp(mov, inverse_map=tform, order=3)
-
-        # Report number of beads used to estimate transform
-        bead_num_qc, num_beads = report_number_beads(bead_centroid_dict, method_logging=method_logging)
-
-        # Report transform parameters
-        transformation_parameters_dict = report_similarity_matrix_parameters(tform=tform, method_logging=method_logging)
-
-        # Report intensity changes in FOV after transform
-        changes_fov_intensity_dictionary = report_change_fov_intensity_parameters(transformed_img=mov_transformed,
-                                                                                  original_img=mov,
-                                                                                  method_logging=method_logging)
-
-        # Report changes in source and destination
-        coor_dist_qc, diff_sum_beads = report_changes_in_coordinates_mapping(ref_mov_coor_dict=ref_mov_coor_dict,
-                                                                             tform=tform, ref=ref,
-                                                                             method_logging=method_logging)
-
-        # Report changes in nrmse in the image (after segmentation)
-        mse_qc, diff_mse = report_changes_in_mse(ref_smooth=ref_smooth, mov_smooth=mov_smooth,
-                                                 mov_transformed=mov_transformed,
-                                                 rescale_thresh_mov=(bead_rescale_638_lower_thresh, 100),
-                                                 image_type=image_type, method_logging=method_logging)
-
-        # Save metrics
-        # Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
-        np.savetxt(append_file_name_with_ext(image_path=align_mov_img_path,
-                                             align_mov_img_file_extension=align_matrix_file_extension),
-                   tform, delimiter=',')
-
-        if align_mov_img:
-            perform_similarity_matrix_transform(img=mov_stack, matrix=tform,
-                                                output_path=append_file_name_with_ext(image_path=align_mov_img_path,
-                                                                                      align_mov_img_file_extension=align_mov_img_file_extension))
+    def __init__(self, image_path, image_type, ref_channel_index, mov_channel_index, bead_488_lower_thresh,
+                 bead_638_lower_thresh, method_logging, align_mov_img, align_mov_img_path, align_mov_img_file_extension,
+                 align_matrix_file_extension):
+        self.image_path = image_path
+        self.image_type = image_type
+        self.ref_channel_index = ref_channel_index
+        self.mov_channel_index = mov_channel_index
+        self.bead_488_lower_thresh = bead_488_lower_thresh
+        self.bead_638_lower_thresh = bead_638_lower_thresh
+        self.method_logging = method_logging
+        self.align_mov_img = align_mov_img
+        self.align_mov_img_path = align_mov_img_path
+        self.align_mov_img_file_extension = align_mov_img_file_extension
+        self.align_matrix_file_extension = align_matrix_file_extension
 
     def append_file_name_with_ext(self, image_path, align_mov_img_file_extension):
+        """
+        # Todo: Only works on Windows, need to change to linux-compatible in production!
+        Appends the file name with extension
+        :param image_path: Image path (windows)
+        :param align_mov_img_file_extension: String of the extension
+        :return:
+            Path to image, appended with file extension
+        """
         file_name = image_path.split('\\')[-1]
         new_name = file_name.split('.')[0] + align_mov_img_file_extension
         return os.path.join(image_path, new_name)
 
     def report_number_beads(self, bead_dict, method_logging=True):
+        """
+        Reports the number of beads used to estimate transform
+        :param bead_dict: A dictionary that each key is a bead
+        :param method_logging: A boolean to indicate if user wants print statements
+        :return:
+            bead_num_qc: Boolean indicates if number of beads passed QC (>=10) or failed (<10)
+            num_beads: An integer of number of beads used
+        """
         bead_num_qc = False
         num_beads = len(bead_dict)
         if num_beads >= 10:
@@ -177,7 +111,18 @@ class Executor(object):
             print('number of beads used to estimate transform: ' + str(num_beads))
         return bead_num_qc, num_beads
 
-    def rescale_ref_mov(self, ref, mov, ref_lower_thresh, mov_higher_thresh, image_type):
+    def rescale_ref_mov(self, ref, mov, ref_lower_thresh, mov_lower_thresh, image_type):
+        """
+        Rescales reference and moving image
+        :param ref: 2D reference image
+        :param mov: 2D moving image
+        :param ref_lower_thresh: Lower threshold to rescale on reference image
+        :param mov_lower_thresh: Lower threshold to rescale on moving image
+        :param image_type: 'beads' or 'rings'
+        :return:
+            ref_rescaled: rescaled reference image
+            mov_rescaled: rescaled moving image
+        """
         if image_type == 'beads':
             ref_rescaled = exp.rescale_intensity(ref,
                                                  out_range=np.uint8,
@@ -186,7 +131,7 @@ class Executor(object):
                                                  )
             mov_rescaled = exp.rescale_intensity(mov,
                                                  out_range=np.uint8,
-                                                 in_range=(np.percentile(mov, mov_higher_thresh),
+                                                 in_range=(np.percentile(mov, mov_lower_thresh),
                                                            np.max(mov))
                                                  )
 
@@ -199,12 +144,20 @@ class Executor(object):
         return ref_rescaled, mov_rescaled
 
     def perform_similiarty_matrix_transform(self, img, matrix, output_path, filename=None):
+        """
+        Performs a similarity matrix geometric transform on an image
+        :param img: A 2D/3D image to be transformed
+        :param matrix: Similarity matrix to be applied on the image
+        :param output_path: Output path to save the image
+        :param filename: Name of the image to save
+        :return:
+        """
         after_transform = None
         if len(img.shape) == 2:
             after_transform = tf.warp(img, inverse_map=matrix, order=3)
         elif len(img.shape) == 3:
             after_transform = np.zeros(img.shape)
-            for z in range (0, after_transform.shape[0]):
+            for z in range(0, after_transform.shape[0]):
                 after_transform[z, :, :] = tf.warp(img[z, :, :], inverse_map=matrix, order=3)
         else:
             print('dimensions invalid for img')
@@ -215,10 +168,12 @@ class Executor(object):
 
     def get_ref_mov_img(self, ref_stack, mov_stack):
         """
-
-        :param ref_stack:
-        :param mov_stack:
+        Gets reference and moving (2D) image from a stack
+        :param ref_stack: A 3D reference stack
+        :param mov_stack: A 3D moving stack
         :return:
+            ref: A 2D slice from reference stack
+            mov: A 2D slice from moving stack
         """
         ref = None
         mov = None
@@ -226,7 +181,7 @@ class Executor(object):
         if len(ref_stack.shape) == 2:
             ref = ref_stack
         elif len(ref_stack.shape) == 3:
-            ref_center_z, ref_max_intensity = get_center_slice(ref_stack)
+            ref_center_z, ref_max_intensity = Executor.get_center_slice(self, ref_stack)
             ref = ref_stack[ref_center_z, :, :]
         else:
             print('dimension of ref_stack does not fit')
@@ -245,14 +200,16 @@ class Executor(object):
 
     def get_center_slice(self, stack):
         """
-
-        :param stack:
+        Gets index of center z slice by finding the slice with max. sum intensity
+        :param stack: A 3D (or 2D) image
         :return:
+            center_z: index of center z slice
+            max_intensity: the sum of intensity of that slice
         """
         center_z = 0
         max_intensity = 0
         for z in range(0, stack.shape[0]):
-            sum_intensity = np.sum(gfp[z, :, :])
+            sum_intensity = np.sum(stack[z, :, :])
             if sum_intensity >= max_intensity:
                 center_z = z
                 max_intensity = sum_intensity
@@ -447,8 +404,8 @@ class Executor(object):
                 remove_ref_peak.append(ref_peak_id)
                 # This ref peak id is not in mov segmentation
 
-        updated_ref_peak_dict = remove_peaks_in_dict(full_dict=ref_peak_dict, keys=remove_ref_peak)
-        updated_mov_peak_dict = remove_peaks_in_dict(full_dict=mov_peak_dict, keys=remove_mov_peak)
+        updated_ref_peak_dict = Executor.remove_peaks_in_dict(self, full_dict=ref_peak_dict, keys=remove_ref_peak)
+        updated_mov_peak_dict = Executor.remove_peaks_in_dict(self, full_dict=mov_peak_dict, keys=remove_mov_peak)
 
         return updated_ref_peak_dict, updated_mov_peak_dict
 
@@ -467,39 +424,42 @@ class Executor(object):
             ref_labelled_seg: An image of labelled reference beads
             mov_labelled_seg: An image of labelled moving beads
         """
-        filtered, seg_mov = filter_big_beads(mov_smooth)
-        filtered, seg_ref = filter_big_beads(ref_smooth)
+        filtered, seg_mov = Executor.filter_big_beads(self, mov_smooth)
+        filtered, seg_ref = Executor.filter_big_beads(self, ref_smooth)
 
         # initialize intensity-based peaks
         ref_peaks = feature.peak_local_max(ref_smooth * seg_ref, min_distance=5)
-        ref_peak_dict, ref_labelled_seg = initialize_peaks(seg=seg_ref, peak_list=ref_peaks, show_img=False,
-                                                           img_shape=ref.shape)
+        ref_peak_dict, ref_labelled_seg = Executor.initialize_peaks(self, seg=seg_ref, peak_list=ref_peaks,
+                                                                    show_img=False, img_shape=seg_ref.shape)
         mov_peaks = feature.peak_local_max(mov_smooth * seg_mov, min_distance=5)
-        mov_peak_dict, mov_labelled_seg = initialize_peaks(seg=seg_mov, peak_list=mov_peaks, show_img=False,
-                                                           img_shape=mov.shape)
+        mov_peak_dict, mov_labelled_seg = Executor.initialize_peaks(self, seg=seg_mov, peak_list=mov_peaks,
+                                                                    show_img=False, img_shape=seg_mov.shape)
 
         # remove_close_peaks
-        ref_close_peaks = remove_close_peaks(ref_peak_dict, dist_threshold=20, show_img=False, img_shape=ref.shape)
-        mov_close_peaks = remove_close_peaks(mov_peak_dict, dist_threshold=20, show_img=False, img_shape=mov.shape)
+        ref_close_peaks = Executor.remove_close_peaks(self, ref_peak_dict, dist_threshold=20, show_img=False,
+                                                      img_shape=seg_ref.shape)
+        mov_close_peaks = Executor.remove_close_peaks(self, mov_peak_dict, dist_threshold=20, show_img=False,
+                                                      img_shape=seg_mov.shape)
 
         # remove peaks/beads that are too big
-        ref_remove_overlap_peaks = remove_overlapping_beads(label_seg=ref_labelled_seg, peak_dict=ref_close_peaks,
-                                                            show_img=False)
-        mov_remove_overlap_peaks = remove_overlapping_beads(label_seg=mov_labelled_seg, peak_dict=mov_close_peaks,
-                                                            show_img=False)
+        ref_remove_overlap_peaks = Executor.remove_overlapping_beads(self, label_seg=ref_labelled_seg,
+                                                                     peak_dict=ref_close_peaks,
+                                                                     show_img=False)
+        mov_remove_overlap_peaks = Executor.remove_overlapping_beads(self, label_seg=mov_labelled_seg,
+                                                                     peak_dict=mov_close_peaks,
+                                                                     show_img=False)
 
         # match peaks
-        updated_ref_peak_dict, updated_mov_peak_dict = match_peaks(ref_peak_dict=ref_remove_overlap_peaks,
-                                                                   mov_peak_dict=mov_remove_overlap_peaks,
-                                                                   dist_threshold=5)
+        updated_ref_peak_dict, updated_mov_peak_dict = Executor.match_peaks(self,
+                                                                            ref_peak_dict=ref_remove_overlap_peaks,
+                                                                            mov_peak_dict=mov_remove_overlap_peaks,
+                                                                            dist_threshold=5)
 
         # remove inconsistent intensity vs centroid beads
-        updated_ref_peak_dict, ref_distances, ref_centroid_dict = remove_intensity_centroid_inconsistent_beads(
-            label_seg=ref_labelled_seg,
-            updated_peak_dict=updated_ref_peak_dict)
-        updated_mov_peak_dict, mov_distances, mov_centroid_dict = remove_intensity_centroid_inconsistent_beads(
-            label_seg=mov_labelled_seg,
-            updated_peak_dict=updated_mov_peak_dict)
+        updated_ref_peak_dict, ref_distances, ref_centroid_dict = Executor.remove_intensity_centroid_inconsistent_beads(
+            self, label_seg=ref_labelled_seg, updated_peak_dict=updated_ref_peak_dict)
+        updated_mov_peak_dict, mov_distances, mov_centroid_dict = Executor.remove_intensity_centroid_inconsistent_beads(
+            self, label_seg=mov_labelled_seg, updated_peak_dict=updated_mov_peak_dict)
 
         # assign updated_ref_peak_dict with updated_mov_peak_dict
         # bead_peak_intensity_dict, ref_mov_num_dict, ref_mov_coor_dict = assign_ref_to_mov(updated_ref_peak_dict, updated_mov_peak_dict)
@@ -518,16 +478,16 @@ class Executor(object):
             filtered_label_ref: An image of labelled reference rings
             filtered_label_mov: An image of labelled moving rings
         """
-        seg_ref, label_ref = segment_rings(ref_smooth, filter=2.5, show_seg=True)
-        seg_mov, label_mov = segment_rings(mov_smooth, filter=2.5, show_seg=True)
+        seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, mult_factor=2.5, show_seg=True)
+        seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, mult_factor=2.5, show_seg=True)
 
         # filter center cross
-        filtered_label_ref, props_ref, cross_label_ref = filter_center_cross(label_ref, show_img=False)
-        filtered_label_mov, props_mov, cross_label_mov = filter_center_cross(label_mov, show_img=False)
+        filtered_label_ref, props_ref, cross_label_ref = Executor.filter_center_cross(self, label_ref, show_img=False)
+        filtered_label_mov, props_mov, cross_label_mov = Executor.filter_center_cross(self, label_mov, show_img=False)
 
         # make dictionary
-        ref_centroid_dict = rings_coor_dict(props_ref, cross_label_ref)
-        mov_centroid_dict = rings_coor_dict(props_mov, cross_label_mov)
+        ref_centroid_dict = Executor.rings_coor_dict(self, props_ref, cross_label_ref)
+        mov_centroid_dict = Executor.rings_coor_dict(self, props_mov, cross_label_mov)
 
         return ref_centroid_dict, mov_centroid_dict, filtered_label_ref, filtered_label_mov
 
@@ -587,8 +547,10 @@ class Executor(object):
             distances.append(dist)
 
         if len(bead_to_remove) > 0:
-            remove_inconsistent_dict = remove_peaks_in_dict(full_dict=updated_peak_dict, keys=bead_to_remove)
-            bead_centroid_dict = remove_peaks_in_dict(full_dict=bead_centroid_dict, keys=bead_to_remove)
+            remove_inconsistent_dict = Executor.remove_peaks_in_dict(self, full_dict=updated_peak_dict,
+                                                                     keys=bead_to_remove)
+            bead_centroid_dict = Executor.remove_peaks_in_dict(self,
+                                                               full_dict=bead_centroid_dict, keys=bead_to_remove)
         else:
             remove_inconsistent_dict = updated_peak_dict.copy()
 
@@ -615,7 +577,7 @@ class Executor(object):
                 if row['area'] > area_thresh:
                     beads_to_remove.append(label)
 
-        remove_overlapping_beads = remove_peaks_in_dict(peak_dict, beads_to_remove)
+        remove_overlapping_beads = Executor.remove_peaks_in_dict(self, peak_dict, beads_to_remove)
 
         if show_img:
             img = np.zeros(label_seg.shape)
@@ -627,7 +589,6 @@ class Executor(object):
             plt.show()
 
         return remove_overlapping_beads
-
 
     def remove_peaks_in_dict(self, full_dict, keys):
         """
@@ -641,7 +602,6 @@ class Executor(object):
         for key in keys:
             del new_dict[key]
         return new_dict
-
 
     def report_similarity_matrix_parameters(self, tform, method_logging=True):
         """
@@ -669,7 +629,6 @@ class Executor(object):
 
         return similarity_matrix_param_dict
 
-
     def report_change_fov_intensity_parameters(self, transformed_img, original_img, method_logging=True):
         """
         Reports changes in FOV intensity after transform
@@ -696,7 +655,6 @@ class Executor(object):
                 print('change in ' + key + ': ' + str(value))
 
         return change_fov_intensity_param_dict
-
 
     def report_changes_in_coordinates_mapping(self, ref_mov_coor_dict, tform, ref, method_logging=True):
         """
@@ -756,33 +714,35 @@ class Executor(object):
 
         return transform_qc, (average_after_center - average_before_center)
 
-
-    def report_changes_in_mse(self, ref_smooth, mov_smooth, mov_transformed, image_type, rescale_thresh_mov=None, method_logging=True):
+    def report_changes_in_mse(self, ref_smooth, mov_smooth, mov_transformed, image_type, rescale_thresh_mov=None,
+                              method_logging=True):
         """
         Report changes in normalized root mean-squared-error value before and after transform, post-segmentation.
-        :param ref_img: Reference image, after smoothing
-        :param mov_img: Moving image, after smoothing, before transform
+        :param image_type: 'rings' or 'beads
+        :param ref_smooth: Reference image, after smoothing
+        :param mov_smooth: Moving image, after smoothing, before transform
         :param mov_transformed: Moving image after transform
         :param rescale_thresh_mov: A tuple to rescale moving image before segmentation. No need to rescale for rings image
         :param method_logging: A boolean to indicate if printing/logging statements is selected
         :return:
             qc: A boolean to indicate if it passed (True) or failed (False) qc
-            diff_nrmse: Difference in nrmse
+            diff_mse: Difference in mean squared error
         """
         qc = False
 
         if image_type == 'rings':
-            seg_ref, label_ref = segment_rings(ref_smooth)
-            seg_mov, label_mov = segment_rings(mov_smooth)
-            seg_transformed, label_transform = segment_rings(filters.gaussian(mov_transformed, sigma=1))
+            seg_ref, label_ref = Executor.segment_rings(self, ref_smooth)
+            seg_mov, label_mov = Executor.segment_rings(self, mov_smooth)
+            seg_transformed, label_transform = Executor.segment_rings(self, filters.gaussian(mov_transformed, sigma=1))
         elif image_type == 'beads':
             mov_transformed_rescaled = exp.rescale_intensity(mov_transformed, out_range=np.uint8,
                                                              in_range=(np.percentile(mov_transformed, rescale_thresh_mov[0]),
                                                                        np.percentile(mov_transformed, rescale_thresh_mov[1])
                                                                        ))
-            filtered, seg_ref = filter_big_beads(ref_smooth)
-            filtered, seg_mov = filter_big_beads(mov_smooth)
-            filtered, seg_transformed = filter_big_beads(filters.gaussian(mov_transformed_rescaled, sigma=1))
+            filtered, seg_ref = Executor.filter_big_beads(self, ref_smooth)
+            filtered, seg_mov = Executor.filter_big_beads(self, mov_smooth)
+            filtered, seg_transformed = Executor.filter_big_beads(self,
+                                                                  filters.gaussian(mov_transformed_rescaled, sigma=1))
 
         mse_before = metrics.mean_squared_error(seg_ref, seg_mov)
         mse_after = metrics.mean_squared_error(seg_ref, seg_transformed)
@@ -796,16 +756,15 @@ class Executor(object):
         if method_logging:
             if diff_mse < 0:
                 print('transform is good - ')
-                print('nrmse is reduced by ' + str(diff_mse))
+                print('mse is reduced by ' + str(diff_mse))
             elif diff_mse == 0:
                 print('transform did not improve or worsen - ')
-                print('nrmse differences before and after is 0')
+                print('mse differences before and after is 0')
             else:
                 print('transform is bad - ')
-                print('nrmse is increased by ' + str(diff_mse))
+                print('mse is increased by ' + str(diff_mse))
 
         return qc, diff_mse
-
 
     def rings_coor_dict(self, props, cross_label):
         """
@@ -821,7 +780,6 @@ class Executor(object):
                 img_dict.update({row['label']: (row['centroid-0'], row['centroid-1'])})
 
         return img_dict
-
 
     def verify_peaks(self, ref_peak_dict, mov_peak_dict, initialize_value=100):
         """
@@ -845,10 +803,10 @@ class Executor(object):
 
         return src_dst_dict
 
-
-    def segment_rings(self, smooth_img, filter=2.5, show_seg=False):
+    def segment_rings(self, smooth_img, mult_factor=2.5, show_seg=False):
         """
         segment rings using a cutoff at median+filter*std
+        :param mult_factor: A float to adjust threshold to segment (multiplication factor to standard deviation)
         :param smooth_img: An image after smoothing
         :param show_seg: A boolean to show image
         :return:
@@ -856,7 +814,7 @@ class Executor(object):
             labelled_seg: labelled segmentation of rings
         """
         # thresh = filters.threshold_li(smooth_img)
-        thresh = np.median(smooth_img) + filter*np.std(smooth_img)
+        thresh = np.median(smooth_img) + mult_factor*np.std(smooth_img)
         seg = np.zeros(smooth_img.shape)
         seg[smooth_img >= thresh] = True
 
@@ -883,20 +841,133 @@ class Executor(object):
         radius = math.sqrt(median_size/math.pi)
 
         distance = ndimage.distance_transform_edt(seg)
-        local_maxi = feature.peak_local_max(distance, indices=False, footprint=morphology.disk(radius), labels=measure.label(seg))
+        local_maxi = feature.peak_local_max(distance, indices=False, footprint=morphology.disk(radius),
+                                            labels=measure.label(seg))
         markers = ndimage.label(local_maxi)[0]
         labels = segmentation.watershed(-distance, markers, mask=seg)
 
         return labels
 
+    def execute(self):
+
+        # image_path = args.image_path
+        # image_type = str(args.image_type)
+        # ref_channel_index = str(args.ref_channel_index)
+        # mov_channel_index = str(args.mov_channel_index)
+        # bead_488_lower_thresh = float(args.bead_488_lower_thresh)
+        # bead_638_lower_thresh = float(args.bead_638_lower_thresh)
+        # method_logging = bool(args.method_logging)
+        # align_mov_img = bool(args.align_mov_img)
+        # align_mov_img_path = args.align_mov_img_path
+        # align_mov_img_file_extension = str(args.align_mov_img_file_extension)
+        # align_matrix_file_extension = str(args.align_matrix_file_extension)
+
+        # read image
+        img = AICSImage(self.image_path)
+        channels = img.get_channel_names()
+
+        # split ref and move channels from image
+        ref_stack = img.data[0, channels.index(self.ref_channel_index), :, :, :]
+        mov_stack = img.data[0, channels.index(self.mov_channel_index), :, :, :]
+
+        #=======================================================================================================================
+        # Pre-process images
+        # rescale intensity
+        ref, mov = Executor.get_ref_mov_img(self, ref_stack=ref_stack, mov_stack=mov_stack)
+        ref_rescaled, mov_rescaled = Executor.rescale_ref_mov(self, ref=ref, mov=mov,
+                                                              ref_lower_thresh=self.bead_488_lower_thresh,
+                                                              mov_lower_thresh=self.bead_638_lower_thresh,
+                                                              image_type=self.image_type)
+
+        # smooth image
+        ref_smooth = filters.gaussian(ref_rescaled, sigma=1, preserve_range=True)
+        mov_smooth = filters.gaussian(mov_rescaled, sigma=1, preserve_range=True)
+
+        #=======================================================================================================================
+        # Process structures (segment, filter, assign)
+        if self.image_type == 'beads':
+            updated_ref_peak_dict, ref_distances, ref_centroid_dict, updated_mov_peak_dict, mov_distances, mov_centroid_dict, \
+            labelled_ref, labelled_mov = Executor.process_beads(self, ref_smooth, mov_smooth)
+        elif self.image_type == 'rings':
+            ref_centroid_dict, mov_centroid_dict, labelled_ref, labelled_mov = Executor.process_rings(self,
+                                                                                                      ref_smooth,
+                                                                                                      mov_smooth)
+        else:
+            print('invalid image type')
+
+        # assign centroid_dicts from ref to mov
+        bead_centroid_dict, ref_mov_num_dict, ref_mov_coor_dict = Executor.assign_ref_to_mov(self, ref_centroid_dict,
+                                                                                             mov_centroid_dict)
+
+        debug_mode = False
+        if debug_mode:
+            Executor.check_beads(self, ref_mov_num_dict, labelled_ref, labelled_ref)
+
+        # Change (y, x) into (x, y) for transformation matrix reading
+        rev_coor_dict = Executor.change_coor_system(self, ref_mov_coor_dict)
+
+        #=======================================================================================================================
+        # Initiate transform estimation
+        tform = tf.estimate_transform('similarity',
+                                      np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values())))
+        mov_transformed = tf.warp(mov, inverse_map=tform, order=3)
+
+        # Report number of beads used to estimate transform
+        bead_num_qc, num_beads = Executor.report_number_beads(self, bead_centroid_dict,
+                                                              method_logging=self.method_logging)
+
+        # Report transform parameters
+        transformation_parameters_dict = Executor.report_similarity_matrix_parameters(self, tform=tform,
+                                                                                      method_logging=self.method_logging)
+
+        # Report intensity changes in FOV after transform
+        changes_fov_intensity_dictionary = Executor.report_change_fov_intensity_parameters(self,
+                                                                                           transformed_img=mov_transformed,
+                                                                                           original_img=mov,
+                                                                                           method_logging=self.method_logging)
+
+        # Report changes in source and destination
+        coor_dist_qc, diff_sum_beads = Executor.report_changes_in_coordinates_mapping(self,
+                                                                                      ref_mov_coor_dict=ref_mov_coor_dict,
+                                                                                      tform=tform, ref=ref,
+                                                                                      method_logging=self.method_logging)
+
+        # Report changes in nrmse in the image (after segmentation)
+        mse_qc, diff_mse = Executor.report_changes_in_mse(self,
+                                                          ref_smooth=ref_smooth, mov_smooth=mov_smooth,
+                                                          mov_transformed=mov_transformed,
+                                                          rescale_thresh_mov=(self.bead_rescale_638_lower_thresh, 100),
+                                                          image_type=self.image_type, method_logging=self.method_logging)
+
+        # Save metrics
+        # Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
+        np.savetxt(Executor.append_file_name_with_ext(self, image_path=self.align_mov_img_path,
+                                                      align_mov_img_file_extension=self.align_matrix_file_extension),
+                   tform, delimiter=',')
+
+        if self.align_mov_img:
+            Executor.perform_similarity_matrix_transform(self, img=mov_stack, matrix=tform,
+                                                         output_path=Executor.append_file_name_with_ext(
+                                                             self, image_path=self.align_mov_img_path,
+                                                             align_mov_img_file_extension=self.align_mov_img_file_extension))
 
 def main():
     dbg = False
     try:
-        args = Args()
+        # args = Args()
         # dbg = args.debug
-        exe = Executor(args)
-        exe.execute(args)
+        exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi',
+                       image_type='rings',
+                       ref_channel_index='EGFP',
+                       mov_channel_index='CMDRP',
+                       bead_488_lower_thresh=99.4,
+                       bead_638_lower_thresh=99,
+                       method_logging=True,
+                       align_mov_img=True,
+                       align_mov_img_path=r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi',
+                       align_mov_img_file_extension='_aligned.tif',
+                       align_matrix_file_extension='_sim_matrix.txt')
+        exe.execute()
 
     except Exception as e:
         log.error("===============")
