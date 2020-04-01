@@ -1,5 +1,4 @@
 from lkaccess import LabKey, contexts
-import math
 from aicsimageio import AICSImage
 from aicsimageio.writers import ome_tiff_writer
 import numpy as np
@@ -9,7 +8,7 @@ import argparse
 import os
 from scipy import ndimage
 from skimage import exposure, filters, morphology, measure
-
+import math
 
 def intensity_stats_single_channel(single_channel_im):
     # Intensity stat function
@@ -17,6 +16,7 @@ def intensity_stats_single_channel(single_channel_im):
 
     result = dict()
     result.update({'mean': single_channel_im.mean()})
+    result.update({'mean': single_channel_im.median()})
     result.update({'max': single_channel_im.max()})
     result.update({'min': single_channel_im.min()})
     result.update({'std': single_channel_im.std()})
@@ -26,9 +26,25 @@ def intensity_stats_single_channel(single_channel_im):
     return result
 
 
-def query_from_fms(cell_line):
+def query_fovs_from_fms(workflows = [], cell_lines = [], plates = [], fovids = []):
     # Queries FMS (only using cell line right now) for image files that we would QC
-
+    # Inputs all need to be lists of strings
+    if not workflows:
+        workflow_query = ''
+    else:
+        workflow_query = f"AND fov.wellid.plateid.workflow.name IN {str(workflows).replace('[','(').replace(']',')')}"
+    if not cell_lines:
+        cell_line_query = ""
+    else:
+        cell_line_query = f"AND fcl.celllineid.name IN {str(cell_lines).replace('[','(').replace(']',')')}"
+    if not plates:
+        plate_query = ""
+    else:
+        plate_query = f"AND plate.barcode IN {str(plates).replace('[','(').replace(']',')')}"
+    if not fovids:
+        fovid_query = ""
+    else:
+        fovid_query = f"AND fov.fovid IN {str(fovids).replace('[','(').replace(']',')')}"
     server_context = LabKey(contexts.PROD)
 
     sql = f'''
@@ -43,13 +59,81 @@ def query_from_fms(cell_line):
         INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
         WHERE fov.objective = 100
         AND fov.qcstatusid.name = 'Passed'
-        AND fcl.celllineid.name = '{cell_line}'
+        {workflow_query}
+        {cell_line_query}
+        {plate_query} 
+        {fovid_query}
     '''
 
     result = server_context.execute_sql('microscopy', sql)
     df = pd.DataFrame(result['rows'])
-    return df[['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
+    if df.empty:
+        print("Query from FMS returned no fovids")
+        return pd.DataFrame()
+    else:
+        return df[['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
                     'cellline', 'workflow']]
+
+
+def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_5', 'PIPELINE_4_6', 'PIPELINE_4_7', 'PIPELINE_5.2', 'PIPELINE_6', 'PIPELINE_7', 'RnD_Sandbox']):
+    # Querying the filesystem for plates, and creating a list of all filepaths needing to be processed
+    #  plate is a string, workflows is a list of strings
+    #
+
+    prod_dir = '/allen/aics/microscopy/'
+    pipeline_dirs = ['PIPELINE_4_4', 'PIPELINE_4_5', 'PIPELINE_4_6', 'PIPELINE_4_7', 'PIPELINE_5.2', 'PIPELINE_6', 'PIPELINE_7']
+    data_dirs = ['RnD_Sandbox']
+    paths = list()
+    for dir in pipeline_dirs:
+        if dir not in workflows:
+            pass
+        else:
+            for subdir in os.listdir(prod_dir + 'PRODUCTION/' + dir):
+                if subdir in plates:
+                    paths.append({dir:prod_dir + 'PRODUCTION/' + dir + '/' + subdir})
+                else:
+                    pass
+
+    for rnd_dir in data_dirs:
+        if dir not in workflows:
+            pass
+        else:
+            for rnd_subdir in os.listdir(prod_dir + 'Data/' + rnd_dir):
+                if rnd_subdir in plates:
+                    paths.append({'RnD':prod_dir + 'Data/' + rnd_dir + '/' + rnd_subdir})
+
+    supported_folders = ['100X_zstack', '100XB_zstack']
+    image_metadata_list = list()
+    for row in paths:
+        for workflow, path in row.items():
+            for instrument in os.listdir(path):
+                for folder in os.listdir(path + '/' + instrument):
+                    if folder in supported_folders:
+                        image_dir = path + '/' + instrument + '/' + folder
+                        for image in os.listdir(image_dir):
+                            if image.endswith('czi'):
+                                image_metadata_dict = dict()
+                                image_metadata_dict.update({'workflow': workflow})
+                                image_metadata_dict.update({'barcode': path[-10:]})
+                                image_metadata_dict.update({'instrument': instrument})
+                                image_metadata_dict.update({'localfilepath': image_dir + '/' + image})
+                                image_metadata_list.append(image_metadata_dict)
+                            else:
+                                pass
+
+    return pd.DataFrame(image_metadata_list)
+
+
+def query_fovs(workflows=[], cell_lines=[], plates=[], fovids=[], only_from_fms=True):
+    # Script that can query multiple parameters and join those tables into one query dataframe
+    # workflows, cell_lines, plates, and fovs are all lists of strings
+    # options: only_from_fms means you can only query fms. If false, will call the filesystem query as well
+    df = query_fovs_from_fms(workflows, cell_lines, plates, fovids)
+    if only_from_fms == False:
+        df_2 = query_fovs_from_filesystem(plates)
+        df = pd.concat([df, df_2], axis=0, ignore_index=True)
+
+    return df
 
 
 def split_image_into_channels(im_path, source_image_file_id):
@@ -60,14 +144,39 @@ def split_image_into_channels(im_path, source_image_file_id):
     server_context = LabKey(contexts.PROD)
     im = AICSImage(im_path)
     np_im = im.data[0, 0, :, :, :, :]
-    sql = f'''
-      SELECT content.contenttypeid.name, content.channelnumber
-        FROM processing.content as content
-        WHERE content.fileid = '{source_image_file_id}'
-    '''
+    if source_image_file_id == 'nan':
+        df = pd.DataFrame()
+    else:
+        sql = f'''
+          SELECT content.contenttypeid.name, content.channelnumber
+            FROM processing.content as content
+            WHERE content.fileid = '{source_image_file_id}'
+        '''
+        result = server_context.execute_sql('microscopy', sql)
+        df = pd.DataFrame(result['rows'])
 
-    result = server_context.execute_sql('microscopy', sql)
-    df = pd.DataFrame(result['rows'])
+    if df.empty:
+        channels = im.get_channel_names()
+        channel_info_list = list()
+        for channel in channels:
+            channel_info_dict = dict()
+            if channel in ['Bright_2']:
+                channel_info_dict.update({'name': 'Raw brightfield'})
+                channel_info_dict.update({'channelnumber':channels.index(channel)})
+            elif channel in ['EGFP']:
+                channel_info_dict.update({'name': 'Raw 488nm'})
+                channel_info_dict.update({'channelnumber':channels.index(channel)})
+            elif channel in ['CMDRP']:
+                channel_info_dict.update({'name': 'Raw 638nm'})
+                channel_info_dict.update({'channelnumber': channels.index(channel)})
+            elif channel in ['H3342']:
+                channel_info_dict.update({'name': 'Raw 405nm'})
+                channel_info_dict.update({'channelnumber':channels.index(channel)})
+            elif channel in ['TaRFP']:
+                channel_info_dict.update({'name': 'Raw 561nm'})
+                channel_info_dict.update({'channelnumber':channels.index(channel)})
+            channel_info_list.append(channel_info_dict)
+        df = pd.DataFrame(channel_info_list)
 
     split_channels = dict()
 
@@ -123,6 +232,8 @@ def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
         peak_prom = signal.peak_prominences(laplace_range, all_peaks[0])[0]
         if peak_prom[np.where(peak_prom == np.max(peak_prom))][0] > threshold[0]:
             peak = all_peaks[0][np.where(peak_prom == np.max(peak_prom))][0]
+        else:
+            peak = np.where(laplace_range == np.max(laplace_range))[0][0]
     else:
         peak = np.where(laplace_range == np.max(laplace_range))[0][0]
 
@@ -363,7 +474,7 @@ def detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9
     :return: a boolean indicating the image is an edge position (True) or not (False)
     """
     edge = True
-    new_edge_filled, z_center = find_center_z_plane(bf_z)
+    z_center = find_center_z_plane(bf_z)
     bf = bf_z[z_center, :, :]
     segment_bf = segment_colony_area(bf, segment_gauss_thresh)
 
@@ -464,13 +575,13 @@ def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
         writer.save(image.astype(np.uint16))
 
 
-def batch_qc(output_dir, cell_line):
+def batch_qc(output_dir, workflows=[], cell_lines=[], plates=[], fovids=[], only_from_fms=True, image_gen=False):
     # Runs qc steps and collates all data into a single dataframe for easy sorting and plotting
     # Runs on multiple files, to be used with the query_fms function
     pd.options.mode.chained_assignment = None
 
     # Run the query fn on specified cell line
-    query_df = query_from_fms(cell_line)
+    query_df = query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
 
     stat_list = list()
 
@@ -478,7 +589,7 @@ def batch_qc(output_dir, cell_line):
     for index, row in query_df.iterrows():
 
         # Splits 6D image into single channel images for qc algorithm processing
-        channel_dict = split_image_into_channels(row['localfilepath'], row['sourceimagefileid'])
+        channel_dict = split_image_into_channels(row['localfilepath'], str(row['sourceimagefileid']))
 
         # Initializes a dictionary where all stats for an fov are saved
         stat_dict = dict()
@@ -501,7 +612,8 @@ def batch_qc(output_dir, cell_line):
                     stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
 
                 # PUT QC_IMAGES FOR BF HERE
-                generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
+                if image_gen:
+                    generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
 
             # Runs all metrics to be run on 638 (false clip 638) and makes 638 qc_images
             elif channel_name == '638nm':
@@ -510,24 +622,29 @@ def batch_qc(output_dir, cell_line):
                     stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
 
                 # PUT QC_IMAGES FOR 638 HERE
-                generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
+                if image_gen:
+                    generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
 
         # Adds stat_dict to a list of dictionaries, which corresponds to the query_df.
         stat_list.append(stat_dict)
-        print(f"Added {row['fovid']} to stat dictionary")
+        print(f"Added {str(row['fovid'])} to stat dictionary")
 
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
     result = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
-    result.to_csv(output_dir + '/' + cell_line + '.csv')
+    result.to_csv(output_dir + '/fov_qc_metrics.csv')
 
     return result
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
-parser.add_argument('--cell_line', type=str, help="Cell-line to run qc on. E.g. 'AICS-11', 'AICS-7' ", required=True)
+parser.add_argument('--workflows', type=str, help="Array of workflows to run qc on. E.g. ['PIPELINE4', 'PIPELINE4.4'] ",default = '[]', required=False)
+parser.add_argument('--cell_lines', type=str, help="Array of Cell-lines to run qc on. E.g. ['AICS-11', 'AICS-7'] ", required=False)
+parser.add_argument('--plates', type=str, help="Array of plates to run qc on. E.g. ['3500003813', '3500003642'] ", required=False)
+parser.add_argument('--fovids', type=str, help="Array of fovids to run qc on. E.g. ['123', '6'] ", required=False)
+parser.add_argument('--only_fms', type=str, help="Boolean to say whether to only run query on data in fms (default is True)", default=True, required=False)
 
 args = parser.parse_args()
 
-batch_qc(args.output_dir, args.cell_line)
+batch_qc(args.output_dir, args.workflows, args.cell_lines)
 
