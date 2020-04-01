@@ -227,7 +227,7 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
             slope, y_int, r, p, err = stats.linregress(x=list(range(real_top, real_top + 5)),
                                                        y=contrast_99_percentile[real_top:real_top + 5])
             # Set criteria with slope and r-value to determine if the top is cropped
-            if slope <= -0.005:
+            if slope <= -0.015:
                 real_top = real_top
                 crop_top = False
             elif (slope <= 0) & (math.fabs(r) > 0.8):
@@ -238,6 +238,15 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
             print('flag top, too short')
             flag_top = True
 
+    if real_top is None:
+        top_range = np.linspace(len(z_aggregate)-5, len(z_aggregate)-1, 5)
+        slope, y_int, r, p, err = stats.linregress(x=top_range,
+                                                   y=np.take(contrast_99_percentile, indices=top_range.astype(int)))
+
+        # print(slope)
+        if (slope > -0.01) & (slope <= 0) & (math.fabs(r) > 0.8):
+            real_top = real_top
+            crop_top = False
     return real_bottom, real_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast_99_percentile, z_aggregate
 
 #=======================================================================================================================
