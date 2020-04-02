@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import os
 from aicsimageio import AICSImage
 from scipy import interpolate, ndimage, optimize
 from scipy.optimize import curve_fit
@@ -269,7 +270,7 @@ def report_metric(homogeneity_map, roll_off_range):
 
 def generate_images(image):
     """
-    This function generates 6 images from a zstack
+    This function generates 6 images from a zstackmicr
     :param image: an image with shape(T,C,Z,Y,X)
     :return: 6 images: highest_z, lowest_z, center_z, mip_xy, mip_xz, mip_yz
     """
@@ -296,13 +297,13 @@ def create_display_setting(rows, control_column, folder_path):
     :return:
     """
     display_dict = {}
-    images = os.listdir(plate_path)
+    images = os.listdir(folder_path)
     for row in rows:
         print (row)
         display_settings = []
         for img_file in images:
             if img_file.endswith(row + control_column + '.czi'):
-                image = AICSImage(os.path.join(plate_path, img_file), max_workers=1)
+                image = AICSImage(os.path.join(folder_path, img_file), max_workers=1)
                 print (img_file)
                 image_EGFP = image.data[0, 1, :, :, :]
                 mip_xy = np.amax(image_EGFP, axis=0)
@@ -341,4 +342,4 @@ def find_center_z_plane(image):
     z = [z_center for z_center in z if ~np.isnan(z_center)]
     z_center = int(round(np.median(z)))
 
-    return (new_edge_filled, z_center)
+    return new_edge_filled, z_center

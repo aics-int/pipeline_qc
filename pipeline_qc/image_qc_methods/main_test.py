@@ -485,12 +485,17 @@ def detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9
 
 
 def find_center_z_plane(image):
+    """
+
+    :param image:
+    :return:
+    """
     mip_yz = np.amax(image, axis=2)
     mip_gau = filters.gaussian(mip_yz, sigma=2)
     edge_slice = filters.sobel(mip_gau)
     contours = measure.find_contours(edge_slice, 0.005)
     new_edge = np.zeros(edge_slice.shape)
-    for n, contour in enumerate(contours):
+    for n, contour in enumerate (contours):
         new_edge[np.round(contour[:, 0]).astype('int'), np.round(contour[:, 1]).astype('int')] = 1
 
     # Fill empty spaces of contour to identify as 1 object
@@ -498,19 +503,21 @@ def find_center_z_plane(image):
 
     # Identify center of z stack by finding the center of mass of 'x' pattern
     z = []
-    for i in range(100, mip_yz.shape[1] + 1, 100):
-        edge_slab = new_edge_filled[:, i - 100:i]
-        # print (i-100, i)
+    for i in range (100, mip_yz.shape[1]+1, 100):
+        edge_slab= new_edge_filled[:, i-100:i]
+        #print (i-100, i)
         z_center, x_center = ndimage.measurements.center_of_mass(edge_slab)
         z.append(z_center)
 
     z = [z_center for z_center in z if ~np.isnan(z_center)]
     z_center = int(round(np.median(z)))
-    return z_center
+
+    return new_edge_filled, z_center
+
 
 
 def generate_images(image):
-    center_plane = find_center_z_plane(image)
+    new_edge_filled, center_plane = find_center_z_plane(image)
     # panels: top, bottom, center
     top = image[-1, :, :]
     bottom = image[0, :, :]
