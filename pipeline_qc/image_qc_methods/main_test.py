@@ -643,15 +643,15 @@ def batch_qc(output_dir, workflows=[], cell_lines=[], plates=[], fovids=[], only
     return result
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
-parser.add_argument('--workflows', type=str, help="Array of workflows to run qc on. E.g. ['PIPELINE4', 'PIPELINE4.4'] ",default = '[]', required=False)
-parser.add_argument('--cell_lines', type=str, help="Array of Cell-lines to run qc on. E.g. ['AICS-11', 'AICS-7'] ", required=False)
-parser.add_argument('--plates', type=str, help="Array of plates to run qc on. E.g. ['3500003813', '3500003642'] ", required=False)
-parser.add_argument('--fovids', type=str, help="Array of fovids to run qc on. E.g. ['123', '6'] ", required=False)
-parser.add_argument('--only_fms', type=str, help="Boolean to say whether to only run query on data in fms (default is True)", default=True, required=False)
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
+    parser.add_argument('--cell_line', type=str, help="Cell-line to run qc on. E.g. 'AICS-11', 'AICS-7' ", required=True)
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-batch_qc(args.output_dir, args.workflows, args.cell_lines)
+    batch_qc(args.output_dir, args.cell_line)
 
+
+if __name__ == '__main__':
+    main()
