@@ -45,8 +45,10 @@ def process_single_fov(index, row, json_dir, output_dir, image_gen=False):
             # PUT QC_IMAGES FOR 638 HERE
             if image_gen:
                 file_processing_methods.generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
+
         with open(f"{json_dir}/{row['fovid']}.json", "w") as write_out:
             json.dump(stat_dict, write_out)
+        file_processing_methods.insert_qc_data_labkey(row['fovid'], stat_dict)
         return stat_dict
 
 

@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import os
 from skimage import exposure
+from labkey.utils import create_server_context
 
 
 def split_image_into_channels(im_path, source_image_file_id):
@@ -128,3 +129,21 @@ def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
                                                       overwrite_file=True)
         writer.save(image.astype(np.uint16))
 
+
+def insert_qc_data_labkey(fovid, stat_dict):
+    context = create_server_context(
+        'stg-aics.corp.alleninstitute.org',
+        'AICS/Microscopy',
+        'labkey',
+        use_ssl=False
+    )
+    lk = LabKey(server_context=context)
+
+
+    new_row = {key:str(value) for (key, value) in stat_dict.items()}
+    new_row['FovId'] = fovid
+    lk.insert_rows(
+        schema_name='lists',
+        query_name='FOV QC Metrics',
+        rows=[new_row]
+    )
