@@ -522,12 +522,15 @@ def batch_qc(output_dir, cell_line):
 
     return result
 
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
+    parser.add_argument('--cell_line', type=str, help="Cell-line to run qc on. E.g. 'AICS-11', 'AICS-7' ", required=True)
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
-parser.add_argument('--cell_line', type=str, help="Cell-line to run qc on. E.g. 'AICS-11', 'AICS-7' ", required=True)
+    args = parser.parse_args()
 
-args = parser.parse_args()
+    batch_qc(args.output_dir, args.cell_line)
 
-batch_qc(args.output_dir, args.cell_line)
 
+if __name__ == '__main__':
+    main()

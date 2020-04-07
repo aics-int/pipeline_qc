@@ -64,6 +64,12 @@ setup(name=PACKAGE_NAME,
           # -- E.g.
           # 'numpy>=1.15.1',
           # 'requests'
+          'lkaccess',
+          'aicsimageio',
+          'numpy',
+          'scipy',
+          'scikit-image',
+          'pandas'
       ],
 
       # For test setup. This will allow JUnit XML output for Jenkins
