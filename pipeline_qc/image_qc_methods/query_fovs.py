@@ -3,7 +3,7 @@ import os
 import pandas as pd
 
 
-def query_fovs_from_fms(workflows = [], cell_lines = [], plates = [], fovids = []):
+def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovids = None):
     # Queries FMS (only using cell line right now) for image files that we would QC
     # Inputs all need to be lists of strings
 
@@ -109,7 +109,7 @@ def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_
     return pd.DataFrame(image_metadata_list)
 
 
-def query_fovs(workflows=[], cell_lines=[], plates=[], fovids=[], only_from_fms=True):
+def query_fovs(workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True):
     # Script that can query multiple parameters and join those tables into one query dataframe
     # workflows, cell_lines, plates, and fovs are all lists of strings
     # options: only_from_fms means you can only query fms. If false, will call the filesystem query as well
