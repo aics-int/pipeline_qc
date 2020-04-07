@@ -56,7 +56,8 @@ setup(name=PACKAGE_NAME,
       packages=find_packages(exclude=['tests', '*.tests', '*.tests.*']),
       entry_points={
           "console_scripts": [
-              "my_example={}.bin.my_example:main".format(PACKAGE_NAME)
+              "my_example={}.bin.my_example:main".format(PACKAGE_NAME),
+              "batch_fov_qc={}.bin.batch_fov_qc:main".format(PACKAGE_NAME)
           ]
       },
       install_requires=[
