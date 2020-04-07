@@ -74,6 +74,8 @@ def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
         peak_prom = signal.peak_prominences(laplace_range, all_peaks[0])[0]
         if peak_prom[np.where(peak_prom == np.max(peak_prom))][0] > threshold[0]:
             peak = all_peaks[0][np.where(peak_prom == np.max(peak_prom))][0]
+        else:
+            peak = np.where(laplace_range == np.max(laplace_range))[0][0]
     else:
         peak = np.where(laplace_range == np.max(laplace_range))[0][0]
 
@@ -102,7 +104,15 @@ def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
                     crop_bottom = flag_bottom = False
                     break
 
-    return detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, laplace_range
+    stat_dict = dict()
+    stat_dict.update({'detect_bottom': detect_bottom})
+    stat_dict.update({'detect_top': detect_top})
+    stat_dict.update({'crop_top': crop_top})
+    stat_dict.update({'crop_bottom': crop_bottom})
+    stat_dict.update({'flag_top': flag_top})
+    stat_dict.update({'flag_bottom': flag_bottom})
+    stat_dict.update({'laplace_range': laplace_range})
+    return stat_dict
 
 
 def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
@@ -128,6 +138,7 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
     real_bottom = None
     flag_bottom = False
     flag_top = False
+    peak_info = ''
 
     # Rescale image
     cmdr = exposure.rescale_intensity(cmdr, in_range='image')
@@ -159,6 +170,7 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
         for index in all_peaks:
             refined_z.append(z_aggregate[index])
         top_peak = bottom_peak = all_peaks[np.where(refined_z==np.max(refined_z))][0]
+        peak_info = 'more than 2 peaks'
         print('more than 2 peaks')
     elif len(all_peaks) == 1:
         # Set bottom peak and top peak as the same peak
@@ -169,6 +181,7 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
         bottom_peak = 0
         top_peak = 0
         print('cannot find peak')
+        peak_info = 'cannot find peak'
 
     # From bottom and top peak, find the z plane at contrast threshold to the bottom and top of z-stack
     bottom_range = contrast_99_percentile[0: bottom_peak]
@@ -227,7 +240,7 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
             slope, y_int, r, p, err = stats.linregress(x=list(range(real_top, real_top + 5)),
                                                        y=contrast_99_percentile[real_top:real_top + 5])
             # Set criteria with slope and r-value to determine if the top is cropped
-            if slope <= -0.005:
+            if slope <= -0.015:
                 real_top = real_top
                 crop_top = False
             elif (slope <= 0) & (math.fabs(r) > 0.8):
@@ -238,7 +251,27 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
             print('flag top, too short')
             flag_top = True
 
-    return real_bottom, real_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast_99_percentile, z_aggregate
+    if real_top is None:
+        top_range = np.linspace(len(z_aggregate)-5, len(z_aggregate)-1, 5)
+        slope, y_int, r, p, err = stats.linregress(x=top_range,
+                                                   y=np.take(contrast_99_percentile, indices=top_range.astype(int)))
+
+        # print(slope)
+        if (slope > -0.01) & (slope <= 0) & (math.fabs(r) > 0.8):
+            real_top = real_top
+            crop_top = False
+
+    stat_dict = dict()
+    stat_dict.update({'real_bottom': real_bottom})
+    stat_dict.update({'real_top': real_top})
+    stat_dict.update({'crop_top': crop_top})
+    stat_dict.update({'crop_bottom': crop_bottom})
+    stat_dict.update({'flag_top': flag_top})
+    stat_dict.update({'flag_bottom': flag_bottom})
+    stat_dict.update({'contrast_99_percentile': contrast_99_percentile})
+    stat_dict.update({'z_aggregate': z_aggregate})
+    stat_dict.update({'peak_info': peak_info})
+    return stat_dict
 
 #=======================================================================================================================
 # Validating false clip methods
@@ -265,8 +298,9 @@ for index, row in df.iterrows():
 
     cmdr = image[0, cmdr_index, :, :, :]
 
-    detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity = detect_false_clip_cmdr(
-        cmdr, contrast_threshold=(0.2, 0.19))
+    # detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity =
+
+    stat_dict = detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19))
 
     # Plot to compare
     # plt_save_path = os.path.join(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\test_5',
@@ -275,12 +309,12 @@ for index, row in df.iterrows():
     #                   output_path=plt_save_path)
 
     row = {'full_path': os.path.join(path, img),
-           'detect_bottom': detect_bottom,
-           'detect_top': detect_top,
-           'crop_bottom': crop_bottom,
-           'crop_top': crop_top,
-           'flag_bottom': flag_bottom,
-           'flag_top': flag_top}
+           'detect_bottom': stat_dict['detect_bottom]'],
+           'detect_top': stat_dict['detect_top'],
+           'crop_bottom': stat_dict['crop_bottom'],
+           'crop_top': stat_dict['crop_top'],
+           'flag_bottom': stat_dict['flag_bottom'],
+           'flag_top': stat_dict['flag_top']}
 
     df_out = df_out.append(row, ignore_index=True)
 df_out.to_csv(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip_out_3.csv')
