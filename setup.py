@@ -57,7 +57,7 @@ setup(name=PACKAGE_NAME,
       entry_points={
           "console_scripts": [
               "my_example={}.bin.my_example:main".format(PACKAGE_NAME),
-              "batch_fov_qc={}.bin.batch_fov_qc:main".format(PACKAGE_NAME)
+              "fov_qc_cli={}.bin.fov_qc_cli:main".format(PACKAGE_NAME)
           ]
       },
       install_requires=[
