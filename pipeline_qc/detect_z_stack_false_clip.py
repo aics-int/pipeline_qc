@@ -274,47 +274,47 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
     return stat_dict
 
 #=======================================================================================================================
-# Validating false clip methods
-
-csv = r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip.csv'
-df = pd.read_csv(csv, names=['file_name'])
-df_out = pd.DataFrame()
-
-for index, row in df.iterrows():
-    plate = row['file_name'].split('_')[0]
-    plate_path = os.path.join(r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_4_4', plate)
-
-    for root, directories, files in os.walk(plate_path):
-        for file in files:
-            if file == (row['file_name'].split('.ome')[0] + '.czi'):
-                path = root
-                img = file
-
-    image_data = AICSImage(os.path.join(path, img))
-    image = image_data.data
-
-    channel_names = np.asarray(image_data.get_channel_names())
-    cmdr_index = np.where(channel_names == 'CMDRP')[0][0]
-
-    cmdr = image[0, cmdr_index, :, :, :]
-
-    # detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity =
-
-    stat_dict = detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19))
-
-    # Plot to compare
-    # plt_save_path = os.path.join(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\test_5',
-    #                              img.split('.czi')[0] + '_plot.png')
-    # plot_profile_clip(detect_bottom=detect_bottom, detect_top=detect_top, profiles=[contrast, intensity],
-    #                   output_path=plt_save_path)
-
-    row = {'full_path': os.path.join(path, img),
-           'detect_bottom': stat_dict['detect_bottom]'],
-           'detect_top': stat_dict['detect_top'],
-           'crop_bottom': stat_dict['crop_bottom'],
-           'crop_top': stat_dict['crop_top'],
-           'flag_bottom': stat_dict['flag_bottom'],
-           'flag_top': stat_dict['flag_top']}
-
-    df_out = df_out.append(row, ignore_index=True)
-df_out.to_csv(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip_out_3.csv')
+# # Validating false clip methods
+#
+# csv = r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip.csv'
+# df = pd.read_csv(csv, names=['file_name'])
+# df_out = pd.DataFrame()
+#
+# for index, row in df.iterrows():
+#     plate = row['file_name'].split('_')[0]
+#     plate_path = os.path.join(r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_4_4', plate)
+#
+#     for root, directories, files in os.walk(plate_path):
+#         for file in files:
+#             if file == (row['file_name'].split('.ome')[0] + '.czi'):
+#                 path = root
+#                 img = file
+#
+#     image_data = AICSImage(os.path.join(path, img))
+#     image = image_data.data
+#
+#     channel_names = np.asarray(image_data.get_channel_names())
+#     cmdr_index = np.where(channel_names == 'CMDRP')[0][0]
+#
+#     cmdr = image[0, cmdr_index, :, :, :]
+#
+#     # detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity =
+#
+#     stat_dict = detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19))
+#
+#     # Plot to compare
+#     # plt_save_path = os.path.join(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\test_5',
+#     #                              img.split('.czi')[0] + '_plot.png')
+#     # plot_profile_clip(detect_bottom=detect_bottom, detect_top=detect_top, profiles=[contrast, intensity],
+#     #                   output_path=plt_save_path)
+#
+#     row = {'full_path': os.path.join(path, img),
+#            'detect_bottom': stat_dict['detect_bottom]'],
+#            'detect_top': stat_dict['detect_top'],
+#            'crop_bottom': stat_dict['crop_bottom'],
+#            'crop_top': stat_dict['crop_top'],
+#            'flag_bottom': stat_dict['flag_bottom'],
+#            'flag_top': stat_dict['flag_top']}
+#
+#     df_out = df_out.append(row, ignore_index=True)
+# df_out.to_csv(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip_out_3.csv')
