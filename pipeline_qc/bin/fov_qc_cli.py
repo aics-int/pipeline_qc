@@ -83,7 +83,7 @@ def main():
         batch_fov_qc.batch_qc(
             output_dir=args.output_dir,
             json_dir=args.json_dir,
-            workflows=args.args.workflows,
+            workflows=args.workflows,
             cell_lines=args.cell_lines,
             plates=args.plates,
             fovids=args.fovids,
