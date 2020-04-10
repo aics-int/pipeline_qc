@@ -8,7 +8,7 @@ def intensity_stats_single_channel(single_channel_im):
 
     result = dict()
     result.update({'mean': single_channel_im.mean()})
-    result.update({'median': single_channel_im.median()})
+    result.update({'median': np.median(single_channel_im)})
     result.update({'max': single_channel_im.max()})
     result.update({'min': single_channel_im.min()})
     result.update({'std': single_channel_im.std()})
