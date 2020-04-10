@@ -63,7 +63,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
 
     # Spawn local cluster to speed up image read
-    with dask_utils.cluster_and_client as (cluster, client):
+    with dask_utils.cluster_and_client() as (cluster, client):
 
         # Collect all stats
         stat_list = [process_single_fov(row, json_dir, output_dir, False) for i, row in tqdm(query_df.iterrows())]
