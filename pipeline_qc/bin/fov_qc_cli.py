@@ -50,17 +50,17 @@ class Args(argparse.Namespace):
         p.add_argument('--json_dir', type=str,
                        help='directory which json files for individual fovs',
                        default='/allen/aics/microscopy/Aditya/image_qc_outputs/json_logs', required=False)
-        p.add_argument('--workflows', type=str,
-                       help="Array of workflows to run qc on. E.g. ['[PIPELINE 4]', '[PIPELINE 4.4'] ",
+        p.add_argument('--workflows', nargs='+',
+                       help="Array of workflows to run qc on. E.g. --workflows '[PIPELINE 4]' '[PIPELINE 4.4'] ",
                        default=None, required=False)
-        p.add_argument('--cell_lines', type=str,
-                       help="Array of Cell-lines to run qc on. E.g. ['AICS-11', 'AICS-7'] ",
+        p.add_argument('--cell_lines', nargs='+',
+                       help="Array of Cell-lines to run qc on. E.g. --cell_lines 'AICS-11' 'AICS-7' ",
                        default=None, required=False)
-        p.add_argument('--plates', type=str,
-                       help="Array of plates to run qc on. E.g. ['3500003813', '3500003642'] ",
+        p.add_argument('--plates', nargs='+',
+                       help="Array of plates to run qc on. E.g. --plates '3500003813' '3500003642' ",
                        default=None, required=False)
-        p.add_argument('--fovids', type=str,
-                       help="Array of fovids to run qc on. E.g. ['123', '6'] ",
+        p.add_argument('--fovids', nargs='+',
+                       help="Array of fovids to run qc on. E.g. --fovs '123' '6' ",
                        default=None, required=False)
         p.add_argument('--only_from_fms', type=str,
                        help="Boolean to say whether to only run query on data in fms (default is True)",

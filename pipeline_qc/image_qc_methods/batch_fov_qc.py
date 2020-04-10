@@ -63,6 +63,13 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
 
     # Run the query fn on specified cell line
     query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
+    print(f'''
+    __________________________________________
+
+    {len(query_df)} fovs were found to process.
+    
+    __________________________________________
+    ''')
 
     # Spawn local cluster to speed up image read
     with dask_utils.cluster_and_client() as (cluster, client):
@@ -83,10 +90,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
     parser.add_argument('--json_dir', type=str, help='directory which json files for individual fovs', default = '/allen/aics/microscopy/Aditya/image_qc_outputs/json_logs', required=False)
-    parser.add_argument('--workflows', type=str, help="Array of workflows to run qc on. E.g. ['PIPELINE4', 'PIPELINE4.4'] ",default = None, required=False)
-    parser.add_argument('--cell_lines', type=str, help="Array of Cell-lines to run qc on. E.g. ['AICS-11', 'AICS-7'] ", default = None, required=False)
-    parser.add_argument('--plates', type=str, help="Array of plates to run qc on. E.g. ['3500003813', '3500003642'] ", default = None, required=False)
-    parser.add_argument('--fovids', type=str, help="Array of fovids to run qc on. E.g. ['123', '6'] ", default = None, required=False)
+    parser.add_argument('--workflows', type=str, help="Array of workflows to run qc on. E.g. ['PIPELINE4' 'PIPELINE4.4'] ",default = None, required=False)
+    parser.add_argument('--cell_lines', type=str, help="Array of Cell-lines to run qc on. E.g. 'AICS-11' 'AICS-7' ", default = None, required=False)
+    parser.add_argument('--plates', type=str, help="Array of plates to run qc on. E.g. '3500003813' '3500003642' ", default = None, required=False)
+    parser.add_argument('--fovids', type=str, help="Array of fovids to run qc on. E.g. '123' '6' ", default = None, required=False)
     parser.add_argument('--only_from_fms', type=str, help="Boolean to say whether to only run query on data in fms (default is True)", default=True, required=False)
 
     args = parser.parse_args()
