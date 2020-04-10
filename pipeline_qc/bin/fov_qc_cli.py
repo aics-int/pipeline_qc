@@ -31,10 +31,10 @@ class Args(argparse.Namespace):
         # Arguments that could be passed in through the command line
         self.output_dir = '/allen/aics/microscopy/Aditya/image_qc_outputs'
         self.json_dir = '/allen/aics/microscopy/Aditya/image_qc_outputs/json_logs'
-        self.workflows = None,
-        self.cell_lines = None,
-        self.plates = None,
-        self.fovids = None,
+        self.workflows = None
+        self.cell_lines = None
+        self.plates = None
+        self.fovids = None
         self.only_from_fms = True
         #
         self.__parse()
