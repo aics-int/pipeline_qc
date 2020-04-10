@@ -77,7 +77,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
         process_single_fov,
         # Create lists of equal length for each input to process_single_fov
         # Creates two lists, one of index, and one of query_df's contents
-        *zip(*list(query_df)),
+        *zip(*list(query_df.iterrows)),
         #  Creates lists the same lemngth as query_df for json_dir, output_dir, and image_gen, all with the same value
         [json_dir] * len(query_df),
         [output_dir] * len(query_df),
