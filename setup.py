@@ -1,5 +1,4 @@
-from setuptools import setup, find_packages
-
+from setuptools import find_packages, setup
 
 PACKAGE_NAME = 'pipeline_qc'
 
@@ -65,13 +64,12 @@ setup(name=PACKAGE_NAME,
           # -- E.g.
           # 'numpy>=1.15.1',
           # 'requests'
-          'dask',
-          'dask_jobqueue',
           'lkaccess',
           'aicsimageio',
           'numpy',
           'scipy',
           'scikit-image',
+          'tqdm',
           'pandas'
       ],
 
