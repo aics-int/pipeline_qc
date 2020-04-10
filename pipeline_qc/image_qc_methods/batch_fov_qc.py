@@ -6,6 +6,7 @@ from aicsimageio import dask_utils
 from pipeline_qc import detect_edge, detect_z_stack_false_clip
 from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
                                           query_fovs)
+from tqdm import tqdm
 
 
 def process_single_fov(row, json_dir, output_dir, image_gen=False):
