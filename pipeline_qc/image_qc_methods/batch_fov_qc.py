@@ -64,7 +64,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     slurm_cluster = SLURMCluster(
         cores=1,
         memory="4GB",
-        queue="aics-cpu-general",
+        queue="aics_cpu_general",
         walltime="10:00:00",
         local_directory={},
         log_directory={},
