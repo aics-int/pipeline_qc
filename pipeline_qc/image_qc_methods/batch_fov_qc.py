@@ -7,7 +7,7 @@ from dask.distributed import Client
 import argparse
 
 
-def process_single_fov(index, row, json_dir, output_dir, image_gen=False):
+def process_single_fov(row, json_dir, output_dir, image_gen=False):
 
     # Splits 6D image into single channel images for qc algorithm processing
     channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
