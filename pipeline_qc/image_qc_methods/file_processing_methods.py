@@ -130,15 +130,23 @@ def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
         writer.save(image.astype(np.uint16))
 
 
-def insert_qc_data_labkey(fovid, stat_dict):
-    context = create_server_context(
-        'stg-aics.corp.alleninstitute.org',
-        'AICS/Microscopy',
-        'labkey',
-        use_ssl=False
-    )
-    lk = LabKey(server_context=context)
+def insert_qc_data_labkey(fovid, stat_dict, env):
+    if env == 'prod':
+        context = create_server_context(
+            'aics.corp.alleninstitute.org',
+            'AICS/Microscopy',
+            'labkey',
+            use_ssl=False
+        )
+    elif env == 'stg':
+        context = create_server_context(
+            'stg-aics.corp.alleninstitute.org',
+            'AICS/Microscopy',
+            'labkey',
+            use_ssl=False
+        )
 
+    lk = LabKey(server_context=context)
 
     new_row = {key:str(value) for (key, value) in stat_dict.items()}
     new_row['FovId'] = fovid

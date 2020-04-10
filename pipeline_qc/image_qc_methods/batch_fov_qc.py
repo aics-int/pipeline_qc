@@ -9,7 +9,7 @@ from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
 from tqdm import tqdm
 
 
-def process_single_fov(row, json_dir, output_dir, image_gen=False):
+def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
 
     # Splits 6D image into single channel images for qc algorithm processing
     channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
@@ -49,13 +49,14 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False):
             if image_gen:
                 file_processing_methods.generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
 
-        with open(f"{json_dir}/{row['fovid']}.json", "w") as write_out:
-            json.dump(stat_dict, write_out)
-        file_processing_methods.insert_qc_data_labkey(row['fovid'], stat_dict)
+        # TODO: Need to figure out how to make numpy array json serializable in dict
+        # with open(f"{json_dir}/{row['fovid']}.json", "w") as write_out:
+        #     json.dump(stat_dict, write_out)
+        file_processing_methods.insert_qc_data_labkey(row['fovid'], stat_dict, env)
         return stat_dict
 
 
-def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False):
+def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg'):
     # Runs qc steps and collates all data into a single dataframe for easy sorting and plotting
     # Runs on multiple files, to be used with the query_fms function
     pd.options.mode.chained_assignment = None
@@ -69,6 +70,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
         # Collect all stats
         stat_list = [process_single_fov(row, json_dir, output_dir, False) for i, row in tqdm(query_df.iterrows())]
 
+        image_gen * len(query_df),
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
     result = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
     result.to_csv(output_dir + '/fov_qc_metrics.csv')

@@ -36,6 +36,7 @@ class Args(argparse.Namespace):
         self.plates = None
         self.fovids = None
         self.only_from_fms = True
+        self.env = 'stg'
         #
         self.__parse()
 
@@ -64,6 +65,9 @@ class Args(argparse.Namespace):
         p.add_argument('--only_from_fms', type=str,
                        help="Boolean to say whether to only run query on data in fms (default is True)",
                             default=True, required=False)
+        p.add_argument('--env', type=str,
+                       help="Environment that data will be stored to('prod, 'stg', default is 'stg')",
+                       default='stg', required=False)
         p.add_argument('--debug',
                        help='Enable debug mode',
                        default=False, required=False, action='store_true')
