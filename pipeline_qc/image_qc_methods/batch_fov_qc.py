@@ -66,8 +66,8 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
         memory="4GB",
         queue="aics_cpu_general",
         walltime="10:00:00",
-        local_directory={},
-        log_directory={},
+        local_directory='/allen/aics/microscopy/Aditya/dask_logs',
+        log_directory='/allen/aics/microscopy/Aditya/dask_logs',
     )
     slurm_cluster.scale_up(80)
 
@@ -77,11 +77,11 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
         process_single_fov,
         # Create lists of equal length for each input to process_single_fov
         # Creates two lists, one of index, and one of query_df's contents
-        [*zip(*list(query_df.iterrows)),
+        *zip(*list(query_df.iterrows)),
         #  Creates lists the same lemngth as query_df for json_dir, output_dir, and image_gen, all with the same value
         [json_dir] * len(query_df),
         [output_dir] * len(query_df),
-        [False] * len(query_df)]
+        [False] * len(query_df)
     )
 
     stat_list = client.gather(futures)

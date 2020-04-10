@@ -43,7 +43,6 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         {plate_query} 
         {fovid_query}
     '''
-
     result = server_context.execute_sql('microscopy', sql)
     df = pd.DataFrame(result['rows'])
     if df.empty:
