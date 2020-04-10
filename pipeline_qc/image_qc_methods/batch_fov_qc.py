@@ -1,10 +1,11 @@
-import pandas as pd
-from pipeline_qc import detect_edge, detect_z_stack_false_clip
-from pipeline_qc.image_qc_methods import query_fovs, file_processing_methods, intensity
-import json
-from dask_jobqueue import SLURMCluster
-from dask.distributed import Client
 import argparse
+import json
+
+import pandas as pd
+from aicsimageio import dask_utils
+from pipeline_qc import detect_edge, detect_z_stack_false_clip
+from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
+                                          query_fovs)
 
 
 def process_single_fov(row, json_dir, output_dir, image_gen=False):
@@ -61,30 +62,11 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     # Run the query fn on specified cell line
     query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
 
-    slurm_cluster = SLURMCluster(
-        cores=1,
-        memory="4GB",
-        queue="aics_cpu_general",
-        walltime="10:00:00",
-        local_directory='/allen/aics/microscopy/Aditya/dask_logs',
-        log_directory='/allen/aics/microscopy/Aditya/dask_logs',
-    )
-    slurm_cluster.scale_up(80)
+    # Spawn local cluster to speed up image read
+    with dask_utils.cluster_and_client as (cluster, client):
 
-    client = Client(slurm_cluster)
-
-    futures = client.map(
-        process_single_fov,
-        # Create lists of equal length for each input to process_single_fov
-        # Creates two lists, one of index, and one of query_df's contents
-        [row for index, row in query_df.iterrows()],
-        #  Creates lists the same lemngth as query_df for json_dir, output_dir, and image_gen, all with the same value
-        [json_dir] * len(query_df),
-        [output_dir] * len(query_df),
-        [False] * len(query_df)
-    )
-
-    stat_list = client.gather(futures)
+        # Collect all stats
+        stat_list = [process_single_fov(row, json_dir, output_dir, False) for i, row in tqdm(query_df.iterrows())]
 
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
     result = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
