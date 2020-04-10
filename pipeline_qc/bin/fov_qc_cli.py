@@ -27,13 +27,14 @@ logging.basicConfig(level=logging.INFO,
 class Args(argparse.Namespace):
 
     def __init__(self):
+        super().__init__()
         # Arguments that could be passed in through the command line
         self.output_dir = '/allen/aics/microscopy/Aditya/image_qc_outputs'
         self.json_dir = '/allen/aics/microscopy/Aditya/image_qc_outputs/json_logs'
-        self.workflows = None,
-        self.cell_lines = None,
-        self.plates = None,
-        self.fovids = None,
+        self.workflows = None
+        self.cell_lines = None
+        self.plates = None
+        self.fovids = None
         self.only_from_fms = True
         #
         self.__parse()
@@ -42,7 +43,6 @@ class Args(argparse.Namespace):
         p = argparse.ArgumentParser(prog='FOV QC',
                                     description='Generates FOV QC metrics for a series of fovs. Can filter based on '
                                                 'workflow, cell line, plate, or specific fovids')
-        p = argparse.ArgumentParser()
         p.add_argument('--output_dir', type=str,
                        help='directory which all files should be saved',
                        default='/allen/aics/microscopy/Aditya/image_qc_outputs', required=True)
@@ -64,7 +64,7 @@ class Args(argparse.Namespace):
         p.add_argument('--only_from_fms', type=str,
                        help="Boolean to say whether to only run query on data in fms (default is True)",
                             default=True, required=False)
-        p.add_argument('--debug', type=bool,
+        p.add_argument('--debug',
                        help='Enable debug mode',
                        default=False, required=False, action='store_true')
 
@@ -74,16 +74,16 @@ class Args(argparse.Namespace):
 ###############################################################################
 
 def main():
-    try:
-        args = Args()
-        dbg = args.debug
+    args = Args()
+    dbg = args.debug
 
+    try:
         # Do your work here - preferably in a class or function,
         # passing in your args. E.g.
         batch_fov_qc.batch_qc(
             output_dir=args.output_dir,
             json_dir=args.json_dir,
-            workflows=args.args.workflows,
+            workflows=args.workflows,
             cell_lines=args.cell_lines,
             plates=args.plates,
             fovids=args.fovids,

@@ -65,6 +65,8 @@ setup(name=PACKAGE_NAME,
           # -- E.g.
           # 'numpy>=1.15.1',
           # 'requests'
+          'dask',
+          'dask_jobqueue',
           'lkaccess',
           'aicsimageio',
           'numpy',
