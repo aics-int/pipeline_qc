@@ -56,7 +56,7 @@ def split_image_into_channels(im_path, source_image_file_id):
     for index, row in df.iterrows():
         for channel in ['405nm', '488nm', '561nm', '638nm', 'brightfield']:
             if row['name'] == 'Raw ' + channel:
-                if np_im.shape[0] >= row['channelnumber']:
+                if np_im.shape[0] > row['channelnumber']:
                     channel_number = row['channelnumber']
                     exec('ch' + channel + "= np_im[channel_number, :, :, :]")
                     exec("split_channels.update({channel: ch" + channel + "})")
