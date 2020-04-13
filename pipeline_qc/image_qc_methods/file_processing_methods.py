@@ -151,7 +151,7 @@ def insert_qc_data_labkey(fovid, stat_dict, env):
 
     lk = LabKey(server_context=context)
 
-    new_row = {key:str(value) for (key, value) in stat_dict.items()}
+    new_row = {key:(str(value) if value else None) for (key, value) in stat_dict.items()}
     new_row['FovId'] = fovid
     lk.insert_rows(
         schema_name='lists',

@@ -11,6 +11,8 @@ from tqdm import tqdm
 
 def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
 
+    print(f"Processing fovid:{str(row['fovid'])}")
+
     # Splits 6D image into single channel images for qc algorithm processing
     channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
                                                                      str(row['sourceimagefileid']))
@@ -55,6 +57,8 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
 
     # Save metrics for fov in labkey
     file_processing_methods.insert_qc_data_labkey(row['fovid'], stat_dict, env)
+
+    print(f"Finished processing fovid:{str(row['fovid'])}")
 
     return stat_dict
 
