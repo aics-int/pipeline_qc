@@ -1,5 +1,6 @@
 import argparse
 import pickle
+import os
 
 import pandas as pd
 from aicsimageio import dask_utils
@@ -12,6 +13,11 @@ from tqdm import tqdm
 def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
 
     print(f"Processing fovid:{str(row['fovid'])}")
+
+    # Doesn't run the code if a picke for the fovid identified already exists
+    if os.path.isfile(f"{json_dir}/{row['fovid']}.pickle"):
+        with open(f"{json_dir}/{row['fovid']}.pickle", 'rb') as handle:
+            return pickle.load(handle)
 
     # Splits 6D image into single channel images for qc algorithm processing
     channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
