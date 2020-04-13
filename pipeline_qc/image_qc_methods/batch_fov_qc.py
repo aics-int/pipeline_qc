@@ -1,5 +1,5 @@
 import argparse
-import json
+import pickle
 
 import pandas as pd
 from aicsimageio import dask_utils
@@ -49,11 +49,14 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
             if image_gen:
                 file_processing_methods.generate_qc_images(channel_array, output_dir, row['fovid'], channel_name)
 
-        # TODO: Need to figure out how to make numpy array json serializable in dict
-        # with open(f"{json_dir}/{row['fovid']}.json", "w") as write_out:
-        #     json.dump(stat_dict, write_out)
-        file_processing_methods.insert_qc_data_labkey(row['fovid'], stat_dict, env)
-        return stat_dict
+    # TODO: Need to figure out how to make numpy array json serializable in dict (changed to pickle)
+    with open(f"{json_dir}/{row['fovid']}.pickle", "wb") as write_out:
+        pickle.dump(stat_dict, write_out, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # Save metrics for fov in labkey
+    file_processing_methods.insert_qc_data_labkey(row['fovid'], stat_dict, env)
+
+    return stat_dict
 
 
 def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg'):
