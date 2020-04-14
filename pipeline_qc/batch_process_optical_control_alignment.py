@@ -17,90 +17,121 @@ lk = lkaccess.LabKey(host="aics.corp.alleninstitute.org")
 
 # Filter from FOV table, specify columns in dataframe
 my_results = lk.select_rows_as_list(
-    schema_name = 'microscopy',
-    query_name='FOV-Well cell line  & Solution',
-    view_name = 'Drug Perturbation Project',
-    filter_array = [
-        ('WorkflowId/Name', 'Pipeline 4.4', 'eq'),
-        ('FileId/Filename', '.ome', 'contains'),
-        ('FileId/Filename', '100X', 'contains'),
-        ('FOVId/SourceImageFileId/CelllineId/Name', '61', 'contains'),
-        ('FOVId/FOVImageDate', '2019-07-15', 'datelt'),
-        ('FOVId/FOVImageDate', '2019-01-19', 'dategt'),
-        ('FOVId/QCStatusId/Name', 'Passed', 'eq'),
+    schema_name='microscopy',
+    query_name='FOV',
+    view_name='FOV -handoff',
+    filter_array=[
+        ('Objective', '100', 'eq'),
+        ('SourceImageFileId/Filename', '100X', 'contains'),
+        ('WellId/PlateId/Workflow/Name', '4.4', 'contains'),
+        ('QCStatusId/Name', 'Passed', 'eq'),
+        ('WellId/PlateId/PlateTypeId/Name', 'Production - Imaging', 'eq'),
+        ('SourceImageFileId/CellLineId/Name', 'AICS-13', 'contains'),
+        #('SourceImageFileId/Filename', '_aligned_cropped', 'contains')
     ],
-    columns = [
+    columns=[
         'FOVId',
-        'FOVId/InstrumentId',
-        'FOVId/QCStatusId',
-        'FOVId/SourceImageFileId/CellLineId/Name',
-        'FOVId/SourceImageFileId/CellPopulationId/Clone',
-        'FileId',
-        'FileId/Filename',
-        'PlateId',
-        'PlateId/PlateStatusId',
-        'PlateId/PlateTypeId',
-        'PlateLayoutId',
-        'SolutionLotId/Concentration',
-        'SolutionLotId/SolutionId/Name',
-        'WellName',
-        'WindowsReadPath',
-        'WorkflowId',
-        'FOVId/InstrumentId/Name',  # Specify InstrumentId name for system
-        'PlateId/BarCode',             # Specify PlateId name to get actual barcode
-        'WorkflowId/Name',          # Specify WorkflowId name to get pipeline
+        'FOVImageDate',
+        'InstrumentId',
+        'InstrumentId/Name',
+        'Objective',
+        'QCStatusId/Name',
+        'SourceImageFileId',
+        'SourceImageFileId/CellLineId/Name',
+        'SourceImageFileId/CellPopulationId/Clone',
+        'SourceImageFileId/Filename',
+        'WellId',
+        'WellId/PlateId',
+        'WellId/PlateId/PlateTypeId/Name',
+        'WellId/PlateId/Workflow/Name',
+        'WellId/WellName/Name',
+        'WellId/PlateId/BarCode',
+        'SourceImageFileId/LocalFilePath'
     ]
 )
 df = pd.DataFrame(my_results)
-
+df = pd.read_csv(r'\\allen\aics\microscopy\Calysta\projects\training_4_4_h2b\csvs\pipeline_alignv2_test.csv')
 # Add imaging date to read path
 for index, row in df.iterrows():
-    file_name = row['FileId/Filename']
+    file_name = row['SourceImageFileId/Filename']
     imaging_date = file_name.split('_')[2][0:8]
     df.loc[index, 'ImagingDate'] = imaging_date
 
-df_date_zsd = df[['ImagingDate', 'FOVId/InstrumentId/Name']]
+df_date_zsd = df[['ImagingDate', 'InstrumentId/Name']]
 df_date_zsd = df_date_zsd.drop_duplicates()
-df_date_zsd = df_date_zsd.drop(index=3336) # Todo: Fix this entry on Labkey, date == 20193115
+# df_date_zsd = df_date_zsd.drop(index=5) # Todo: Fix this entry on Labkey, date == 20193115
 
 bead_production_path = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl'
 ring_production_path = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER'
 
+#df_date_zsd = pd.DataFrame(columns=['ImagingDate', 'InstrumentId/Name'])
+#df_date_zsd = df_date_zsd.append({'ImagingDate': '20190809', 'InstrumentId/Name': 'ZSD-1'}, ignore_index=True)
+#df_date_zsd = df_date_zsd.append({'ImagingDate': '20190813', 'InstrumentId/Name': 'ZSD-1'}, ignore_index=True)
+#df_date_zsd = df_date_zsd.append({'ImagingDate': '20191112', 'InstrumentId/Name': 'ZSD-1'}, ignore_index=True)
+#df_date_zsd = df_date_zsd.append({'ImagingDate': '20191118', 'InstrumentId/Name': 'ZSD-3'}, ignore_index=True)
+
 for index, row in df_date_zsd.iterrows():
     file_path = None
-    system = row['FOVId/InstrumentId/Name'][-1]
+    system = row['InstrumentId/Name'][-1]
     date = row['ImagingDate']
-
+    print('processing ZSD' + system + ' on ' + date)
     # Optical Control Plate path
     optical_control_plate_path = os.path.join(bead_production_path, 'ZSD' + str(system) + '_' + date)
-    print('reading: '+ optical_control_plate_path)
-    plate_files = os.listdir(optical_control_plate_path)
-    count=0
-    for file in plate_files:
-        if file.endswith('psf.czi'):
-            filepath = os.path.join(optical_control_plate_path, file)
-            image_type = 'beads'
-            count += 1
-        if count > 1:
-            print('Error: multiple psf.czi files')
+    optical_control_plate_exists = os.path.isdir(optical_control_plate_path)
+
+    count = 0
+    if optical_control_plate_exists:
+        sim_matrix = False
+        for file in os.listdir(optical_control_plate_path):
+            if file.endswith('sim_matrix.txt'):
+                sim_matrix = True
+                count = 1
+                filepath = None
+
+        if not sim_matrix:
+            print('reading: '+ optical_control_plate_path)
+            plate_files = os.listdir(optical_control_plate_path)
+
+            for file in plate_files:
+                if file.endswith('psf.czi'):
+                    filepath = os.path.join(optical_control_plate_path, file)
+                    image_type = 'beads'
+                    count += 1
+                if count > 1:
+                    print('Error: multiple psf.czi files')
 
     if count == 0:
         print('No psf.czi found')
         # Find corresponding argolight image
-        argo_system_path = os.path.join(ring_production_path, 'ZSD' + str(system))
-        all_argo_imgs = os.listdir(argo_system_path)
-        for argo_img in all_argo_imgs:
-            if argo_img.endswith(str(date) + '.czi'):
-                filepath = os.path.join(ring_production_path, 'ZSD' + str(system), argo_img)
-                image_type = 'rings'
-                count += 1
-            if count > 1:
-                print('Error: multiple argo files')
-            if count == 0:
-                print('Error: no argo img found')
+        argo_system_path = os.path.join(ring_production_path, 'ZSD' + str(system), 'split_scenes', str(date))
+
+        # check if directory exists
+        print('finding ' + argo_system_path)
+        if os.path.isdir(argo_system_path):
+            sim_matrix = False
+            all_argo_imgs = os.listdir(argo_system_path)
+            for argo_img in all_argo_imgs:
+                if argo_img.endswith('sim_matrix.txt'):
+                    sim_matrix = True
+                    count = 1
+                    filepath = None
+
+            if not sim_matrix:
+                for argo_img in all_argo_imgs:
+                    if argo_img.endswith('P3.czi'):
+                        filepath = os.path.join(argo_system_path, argo_img)
+                        image_type = 'rings'
+                        count += 1
+                if count > 1:
+                    print('Error: multiple argo files')
+                if count == 0:
+                    print('Error: no argo img found')
+        else:
+            print('Error: no argo folder found')
+            filepath = None
 
     if filepath is not None:
-        print ('aligning: ' + filepath)
+        print('aligning: ' + filepath)
         exe = camera_alignment.Executor(image_path=filepath,
                                         image_type=image_type,
                                         ref_channel_index='EGFP',

@@ -951,6 +951,8 @@ class Executor(object):
                                                              self, image_path=self.align_mov_img_path,
                                                              align_mov_img_file_extension=self.align_mov_img_file_extension))
 
+        return transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, coor_dist_qc, diff_sum_beads, mse_qc, diff_mse
+
 def main():
     dbg = False
     try:
