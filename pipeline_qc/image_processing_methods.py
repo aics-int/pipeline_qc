@@ -340,6 +340,10 @@ def find_center_z_plane(image):
         z.append(z_center)
 
     z = [z_center for z_center in z if ~np.isnan(z_center)]
-    z_center = int(round(np.median(z)))
+    # Added logic to deal with empty list as z
+    if not z:
+        z_center = 0
+    else:
+        z_center = int(round(np.median(z)))
 
     return new_edge_filled, z_center

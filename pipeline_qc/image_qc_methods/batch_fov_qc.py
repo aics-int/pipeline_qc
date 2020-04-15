@@ -16,6 +16,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
 
     # Doesn't run the code if a picke for the fovid identified already exists
     if os.path.isfile(f"{json_dir}/{row['fovid']}.pickle"):
+        print(f"Fovid:{str(row['fovid'])} has already been processed")
         with open(f"{json_dir}/{row['fovid']}.pickle", 'rb') as handle:
             return pickle.load(handle)
 
