@@ -6,7 +6,7 @@ import pandas as pd
 
 LK_ENV = 'stg-aics'
 INPUT_CSV = '/allen/aics/microscopy/Data/alignV2/align_info.csv'
-FOLDER = '/allen/aics/microscopy/Calysta/test/h2b_aligned'
+FOLDER = '/allen/aics/microscopy/Data/alignV2/AICS-61'
 
 fms = FileManagementSystem(host=LK_ENV)
 df = pd.read_csv(INPUT_CSV)
