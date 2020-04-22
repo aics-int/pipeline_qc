@@ -11,6 +11,10 @@ FOLDER = '/allen/aics/microscopy/Data/alignV2/AICS-61'
 fms = FileManagementSystem(host=LK_ENV)
 df = pd.read_csv(INPUT_CSV)
 
+# Example row in the INPUT_CSV
+# | change_median_intensity | coor_dist_qc | date    | diff_mse | dist_sum_diff | folder        | image_type | instrument | mse_qc | qc  | num_beads | num_beads_qc | rotate_angle | scaling    | shift_x   | shift_y    |
+# | -1.306519255            | 1	           | 20190813| 7.46E-05	| 0.143271547   | ZSD3_20190813	| beads	     | ZSD3	      | 0      |pass | 32        |  1           | -0.002435847 | 0.999571786|1.228227663|-0.465022644|
+
 # alignment_reference
 df['date'] = df['date'].astype(str)
 
