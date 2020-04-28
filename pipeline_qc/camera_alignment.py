@@ -60,26 +60,27 @@ class Args(object):
                        dest='align_mov_img_file_extension')
         p.add_argument('--align-matrix-file-extension', required=True, default='_sim_matrix.txt',
                        dest='align_matrix_file_extension')
-        p.add_argument('--low-thresh-488', required=False, default=99.4, dest='bead_488_lower_thresh')
-        p.add_argument('--low-thresh-638', required=False, default=99, dest='bead_638_lower_thresh')
+        p.add_argument('--thresh_488', required=False, default=99.4, dest='thresh_488')
+        p.add_argument('--thresh_638', required=False, default=99, dest='thresh_638')
         p.add_argument('--method-debug', required=False, default=True, dest='method_logging')
 
 
 class Executor(object):
-    def __init__(self, image_path, image_type, ref_channel_index, mov_channel_index, bead_488_lower_thresh,
-                 bead_638_lower_thresh, method_logging, align_mov_img, align_mov_img_path, align_mov_img_file_extension,
-                 align_matrix_file_extension):
+    def __init__(self, image_path, image_type, ref_channel_index, mov_channel_index, thresh_488,
+                 thresh_638, method_logging, align_mov_img, align_mov_img_path, align_mov_img_file_extension,
+                 align_matrix_file_extension, crop_center):
         self.image_path = image_path
         self.image_type = image_type
         self.ref_channel_index = ref_channel_index
         self.mov_channel_index = mov_channel_index
-        self.bead_488_lower_thresh = bead_488_lower_thresh
-        self.bead_638_lower_thresh = bead_638_lower_thresh
+        self.thresh_488 = thresh_488
+        self.thresh_638 = thresh_638
         self.method_logging = method_logging
         self.align_mov_img = align_mov_img
         self.align_mov_img_path = align_mov_img_path
         self.align_mov_img_file_extension = align_mov_img_file_extension
         self.align_matrix_file_extension = align_matrix_file_extension
+        self.crop_center = crop_center
 
     def append_file_name_with_ext(self, image_path, align_mov_img_file_extension):
         """
@@ -111,7 +112,7 @@ class Executor(object):
             print('number of beads used to estimate transform: ' + str(num_beads))
         return bead_num_qc, num_beads
 
-    def rescale_ref_mov(self, ref, mov, ref_lower_thresh, mov_lower_thresh, image_type):
+    def rescale_ref_mov(self, ref, mov, ref_thresh, mov_thresh, image_type):
         """
         Rescales reference and moving image
         :param ref: 2D reference image
@@ -126,21 +127,28 @@ class Executor(object):
         if image_type == 'beads':
             ref_rescaled = exp.rescale_intensity(ref,
                                                  out_range=np.uint8,
-                                                 in_range=(np.percentile(ref, ref_lower_thresh),
-                                                           np.max(ref))
+                                                 in_range=(np.percentile(ref, ref_thresh[0]),
+                                                           np.percentile(ref, ref_thresh[1]))
                                                  )
             mov_rescaled = exp.rescale_intensity(mov,
                                                  out_range=np.uint8,
-                                                 in_range=(np.percentile(mov, mov_lower_thresh),
-                                                           np.max(mov))
+                                                 in_range=(np.percentile(mov, mov_thresh[0]),
+                                                           np.percentile(mov, mov_thresh[1]))
                                                  )
 
         elif image_type == 'rings':
-            ref_rescaled = exp.rescale_intensity(ref, in_range=(np.percentile(ref, 0.2), np.percentile(ref, 99.8)))
-            mov_rescaled = exp.rescale_intensity(mov, in_range=(np.percentile(mov, 0.2), np.percentile(mov, 99.8)))
+            ref_rescaled = exp.rescale_intensity(ref, in_range=(np.percentile(ref, ref_thresh[0]),
+                                                                np.percentile(ref, ref_thresh[1])))
+            mov_rescaled = exp.rescale_intensity(mov, in_range=(np.percentile(mov, mov_thresh[0]),
+                                                                np.percentile(mov, mov_thresh[1])))
         else:
             print('invalid image type')
-
+        plt.figure()
+        plt.imshow(ref_rescaled)
+        plt.show()
+        plt.figure()
+        plt.imshow(mov_rescaled)
+        plt.show()
         return ref_rescaled, mov_rescaled
 
     def perform_similarity_matrix_transform(self, img, matrix, output_path):
@@ -166,7 +174,7 @@ class Executor(object):
             after_transform = (after_transform*65535).astype(np.uint16)
             io.imsave(output_path, after_transform)
 
-    def get_ref_mov_img(self, ref_stack, mov_stack):
+    def get_ref_mov_img(self, ref_stack, mov_stack, crop_center=None):
         """
         Gets reference and moving (2D) image from a stack
         :param ref_stack: A 3D reference stack
@@ -196,6 +204,14 @@ class Executor(object):
         else:
             print('dimension of mov_stack does not fit')
 
+        if self.crop_center is not None:
+            ref = ref[self.crop_center[0]:(ref.shape[0] - self.crop_center[1]),
+                  self.crop_center[0]:(ref.shape[1] - self.crop_center[1])]
+            mov = mov[self.crop_center[0]:(mov.shape[0] - self.crop_center[1]),
+                  self.crop_center[0]:(mov.shape[1] - self.crop_center[1])]
+
+        print(ref.shape)
+        print(mov.shape)
         return ref, mov
 
     def get_center_slice(self, stack):
@@ -480,6 +496,9 @@ class Executor(object):
         """
         seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, mult_factor=2.5, show_seg=True)
         seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, mult_factor=2.5, show_seg=True)
+        plt.figure()
+        plt.imshow(seg_mov)
+        plt.show()
 
         # filter center cross
         filtered_label_ref, props_ref, cross_label_ref = Executor.filter_center_cross(self, label_ref, show_img=False)
@@ -602,6 +621,16 @@ class Executor(object):
         for key in keys:
             del new_dict[key]
         return new_dict
+
+    def remove_small_objects(self, label_img, filter_px_size=100):
+        filtered_seg = np.zeros(label_img.shape)
+        for obj in range(1, np.max(label_img)+1):
+            obj_size = np.sum(label_img == obj)
+            if obj_size > filter_px_size:
+                filtered_seg[label_img == obj] = True
+        filtered_label = measure.label(filtered_seg)
+
+        return filtered_seg, filtered_label
 
     def report_similarity_matrix_parameters(self, tform, method_logging=True):
         """
@@ -820,12 +849,12 @@ class Executor(object):
 
         labelled_seg = measure.label(seg)
 
+        filtered_seg, filtered_label = Executor.remove_small_objects(self, labelled_seg, filter_px_size=50)
         if show_seg:
             plt.figure()
-            plt.imshow(seg)
+            plt.imshow(filtered_seg)
             plt.show()
-
-        return seg, labelled_seg
+        return filtered_seg, filtered_label
 
 
     def watershed_bead_seg(self, seg):
@@ -867,16 +896,16 @@ class Executor(object):
         channels = img.get_channel_names()
 
         # split ref and move channels from image
-        ref_stack = img.data[0, channels.index(self.ref_channel_index), :, :, :]
-        mov_stack = img.data[0, channels.index(self.mov_channel_index), :, :, :]
+        ref_stack = img.data[0, 0, channels.index(self.ref_channel_index), :, :, :]
+        mov_stack = img.data[0, 0, channels.index(self.mov_channel_index), :, :, :]
 
         #=======================================================================================================================
         # Pre-process images
         # rescale intensity
         ref, mov = Executor.get_ref_mov_img(self, ref_stack=ref_stack, mov_stack=mov_stack)
         ref_rescaled, mov_rescaled = Executor.rescale_ref_mov(self, ref=ref, mov=mov,
-                                                              ref_lower_thresh=self.bead_488_lower_thresh,
-                                                              mov_lower_thresh=self.bead_638_lower_thresh,
+                                                              ref_thresh=self.thresh_488,
+                                                              mov_thresh=self.thresh_638,
                                                               image_type=self.image_type)
 
         # smooth image
@@ -936,7 +965,7 @@ class Executor(object):
         mse_qc, diff_mse = Executor.report_changes_in_mse(self,
                                                           ref_smooth=ref_smooth, mov_smooth=mov_smooth,
                                                           mov_transformed=mov_transformed,
-                                                          rescale_thresh_mov=(self.bead_638_lower_thresh, 100),
+                                                          rescale_thresh_mov=self.thresh_638,
                                                           image_type=self.image_type, method_logging=self.method_logging)
 
         # Save metrics
@@ -958,15 +987,25 @@ def main():
     try:
         # args = Args()
         # dbg = args.debug
-        exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi',
+        exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
                        image_type='rings',
-                       ref_channel_index='EGFP',
-                       mov_channel_index='CMDRP',
-                       bead_488_lower_thresh=99.4,
-                       bead_638_lower_thresh=99,
+                       ref_channel_index='488/TL 50um Dual',
+                       mov_channel_index='640/405 50um Dual',
+                       # for beads
+                       # thresh_488=(99.4, 100)
+                       # thresh_638=(99, 100)
+                       # crop_center=None
+                       # for zsd rings
+                       # thresh_488=(0.2, 99.8)
+                       # thresh_638=(0.2, 99.8)
+                       # crop_center=None
+                       # for 3i rings
+                       thresh_488=(0.2, 99.8),
+                       thresh_638=(0.2, 99.8),
+                       crop_center=(60, 60),
                        method_logging=True,
                        align_mov_img=True,
-                       align_mov_img_path=r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi',
+                       align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
                        align_mov_img_file_extension='_aligned.tif',
                        align_matrix_file_extension='_sim_matrix.txt')
         exe.execute()
