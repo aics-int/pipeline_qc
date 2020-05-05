@@ -108,28 +108,33 @@ def create_mips(plate_folder):
                     for ch in im.get_channel_names():
                         if ch[:2] == 'TL':
                             ch_tl_index = im.get_channel_names().index(ch)
-                        for channel in ['405', '488', '640']:
-                            if ch[:3] == channel:
-                                exec(f'ch_{channel}_index = im.get_channel_names().index(ch)')
+                        elif ch[:3] == '405':
+                            ch_405_index = im.get_channel_names().index(ch)
+                        elif ch[:3] == '488':
+                            ch_488_index = im.get_channel_names().index(ch)
+                        elif ch[:3] == '640':
+                            ch_640_index = im.get_channel_names().index(ch)
 
                     full_array = im.get_image_data()
                     xy_mips = []
                     yz_mips = []
-                    for ch_dict in [{'405':'cyan'}, {'488':'white'}, {'640':'magenta'}]:
-                        index = exec(f'ch_{list(ch_dict.keys())[0]}_index')
-                        xy,yz = single_channel_processing(full_array,
-                                                          index,
-                                                          list(ch_dict.values())[0])
-                        xy_mips.append(xy)
-                        yz_mips.append(yz)
 
-                    # for i in range(full_array.shape[2]):
-                    #     if channel_color[i] == 'exclude':
-                    #         pass
-                    #     else:
-                    #         xy, yz = single_channel_processing(full_array, i, channel_color[i])
-                    #         xy_mips.append(xy)
-                    #         yz_mips.append(yz)
+                    xy,yz = single_channel_processing(full_array,
+                                                      ch_405_index,
+                                                      'cyan')
+                    xy_mips.append(xy)
+                    yz_mips.append(yz)
+
+                    xy,yz = single_channel_processing(full_array,
+                                                      ch_488_index,
+                                                      'white')
+                    xy_mips.append(xy)
+                    yz_mips.append(yz)
+                    xy,yz = single_channel_processing(full_array,
+                                                      ch_640_index,
+                                                      'magenta')
+                    xy_mips.append(xy)
+                    yz_mips.append(yz)
 
                     bools, center_tl_index = find_center_z_plane(full_array[0, 0, ch_tl_index, :, :, :])
                     if center_tl_index == 0:
