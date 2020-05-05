@@ -5,8 +5,47 @@ import os
 from aicsimageio import AICSImage
 from scipy import interpolate, ndimage, optimize
 from scipy.optimize import curve_fit
-from skimage import filters, measure
-import xml.etree.ElementTree as ET
+from skimage import filters, measure, exposure
+
+
+# Uses the auto-contrast algorithm from Fiji to apply thresholds to images to get rid of noise
+def auto_contrast_fn(im_array):
+
+    im_array_n = (im_array/im_array.max() * 255).astype('uint8')
+    im_flat = im_array_n.flatten()
+    t = im_flat > 0
+    im_flat[t] = 1
+    pixel_count = im_flat.sum()
+    limit = pixel_count/10
+    threshold = pixel_count/5000
+    hist = np.histogram(im_array_n, np.array([i for i in range(257)]))
+
+    low_thresh = None
+    high_thresh = None
+
+    for i in range(hist[0].size):
+        if hist[0][i] >= limit:
+            pos = im_array_n == i
+            im_array_n[pos] = 0
+        elif limit > hist[0][i] > threshold:
+            if low_thresh is None:
+                low_thresh = i
+            else:
+                pass
+        else:
+            pass
+
+    for i in range(hist[0].size):
+        if limit < hist[0][hist[0].size-i-1] < threshold:
+            pos = im_array_n == i
+            im_array_n[pos] = 0
+        elif hist[0][hist[0].size-i-1] >= threshold:
+            high_thresh = hist[0].size-i-1
+            break
+        else:
+            pass
+
+    return exposure.rescale_intensity(im_array_n, in_range=(low_thresh, high_thresh))
 
 
 def get_img_info(img, data):
