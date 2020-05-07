@@ -29,7 +29,9 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
 
     # Iterates over each z-stack image and runs qc_algorithms, and then adds each stat generated to the stat_dict
     for channel_name, channel_array in channel_dict.items():
-
+        if channel_array.shape[0] == 1:
+            print('This FOV is not a multi-dimensional image, skipping...')
+            return
         # Runs the intensity metrics on all z-stack images. Put here since run on all channels
         intensity_dict = intensity.intensity_stats_single_channel(channel_array)
         for intensity_key, intensity_value, in intensity_dict.items():

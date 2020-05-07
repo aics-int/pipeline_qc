@@ -4,9 +4,10 @@ from sklearn.linear_model import LinearRegression
 import shutil
 
 df = pd.read_csv('/allen/aics/microscopy/Aditya/image_qc_outputs/20200410_metrics/fov_qc_metrics.csv')
-aics61 = df[df['cellline'] == 'AICS-61']
-aics61_4 = aics61[aics61['workflow'] == "['Pipeline 4.4']"]
-aics61_4_aligned = aics61_4[aics61_4['localfilepath'].str.contains('aligned_cropped')]
+aics61 = df[df['cellline'] == 'AICS-53']
+aics61_4 = aics61[aics61['workflow'] == "['Pipeline 4.2']"]
+# aics61_4_aligned = aics61_4[aics61_4['localfilepath'].str.contains('aligned_cropped')]
+aics61_4_aligned = aics61_4
 
 for index, row in aics61_4_aligned.iterrows():
     file_name = row['localfilepath'].replace('-', '_').lower().split('/')[-1]
@@ -98,12 +99,12 @@ for index, row in aics61_4_aligned.iterrows():
             else:
                 aics61_4_aligned.at[index, f'{wavelength} raw_pass'] = False
 
-        if np.absolute(row[f'{wavelength} barcode_z-score']) >= 2.58:
+        if row[f'{wavelength} barcode_z-score'] <= -2.58:
             aics61_4_aligned.at[index, f'{wavelength} barcode_pass'] = False
         else:
             aics61_4_aligned.at[index, f'{wavelength} barcode_pass'] = True
 
-        if np.absolute(row[f'{wavelength} cellline_z-score']) >= 2.58:
+        if row[f'{wavelength} cellline_z-score'] <= -2.58:
             aics61_4_aligned.at[index, f'{wavelength} cellline_pass'] = False
         else:
             aics61_4_aligned.at[index, f'{wavelength} cellline_pass'] = True
