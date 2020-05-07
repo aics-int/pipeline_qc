@@ -253,13 +253,20 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
 
     if real_top is None:
         top_range = np.linspace(len(z_aggregate)-5, len(z_aggregate)-1, 5)
-        slope, y_int, r, p, err = stats.linregress(x=top_range,
+        for index in top_range:
+            #Calysta, I added this in because there were erors popping up when there were negative top_range values
+            if index < 0:
+                real_top = []
+                crop_top = True
+                break
+            else:
+                slope, y_int, r, p, err = stats.linregress(x=top_range,
                                                    y=np.take(contrast_99_percentile, indices=top_range.astype(int)))
 
-        # print(slope)
-        if (slope > -0.01) & (slope <= 0) & (math.fabs(r) > 0.8):
-            real_top = real_top
-            crop_top = False
+            # print(slope)
+            if (slope > -0.01) & (slope <= 0) & (math.fabs(r) > 0.8):
+                real_top = real_top
+                crop_top = False
 
     stat_dict = dict()
     stat_dict.update({'real_bottom': real_bottom})
