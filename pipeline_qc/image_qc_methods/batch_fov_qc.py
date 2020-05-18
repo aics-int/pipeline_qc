@@ -1,4 +1,3 @@
-import argparse
 import pickle
 import os
 
@@ -31,7 +30,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
     for channel_name, channel_array in channel_dict.items():
         if channel_array.shape[0] == 1:
             print('This FOV is not a multi-dimensional image, skipping...')
-            return
+            return dict()
         # Runs the intensity metrics on all z-stack images. Put here since run on all channels
         intensity_dict = intensity.intensity_stats_single_channel(channel_array)
         for intensity_key, intensity_value, in intensity_dict.items():
@@ -91,39 +90,15 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     with dask_utils.cluster_and_client() as (cluster, client):
 
         # Collect all stats
-        stat_list = [process_single_fov(row, json_dir, output_dir, False) for i, row in tqdm(query_df.iterrows())]
+        stat_list = [process_single_fov(row, json_dir, output_dir, image_gen, env) for i, row in tqdm(query_df.iterrows())]
 
         image_gen * len(query_df),
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
-    result = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
+    result_list = list()
+    for i in stat_list:
+        result_list.append(type(i))
+    result = pd.concat([query_df, pd.DataFrame(result_list)], axis=1)
     result.to_csv(output_dir + '/fov_qc_metrics.csv')
 
     return result
 
-
-def main():
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--output_dir', type=str, help='directory which all files should be saved', required=True)
-    parser.add_argument('--json_dir', type=str, help='directory which json files for individual fovs', default = '/allen/aics/microscopy/Aditya/image_qc_outputs/json_logs', required=False)
-    parser.add_argument('--workflows', type=str, help="Array of workflows to run qc on. E.g. ['PIPELINE4' 'PIPELINE4.4'] ",default = None, required=False)
-    parser.add_argument('--cell_lines', type=str, help="Array of Cell-lines to run qc on. E.g. 'AICS-11' 'AICS-7' ", default = None, required=False)
-    parser.add_argument('--plates', type=str, help="Array of plates to run qc on. E.g. '3500003813' '3500003642' ", default = None, required=False)
-    parser.add_argument('--fovids', type=str, help="Array of fovids to run qc on. E.g. '123' '6' ", default = None, required=False)
-    parser.add_argument('--only_from_fms', type=str, help="Boolean to say whether to only run query on data in fms (default is True)", default=True, required=False)
-
-    args = parser.parse_args()
-
-    batch_qc(
-        output_dir=args.output_dir,
-        json_dir=args.json_dir,
-        workflows=args.workflows,
-        cell_lines=args.cell_lines,
-        plates=args.plates,
-        fovids=args.fovids,
-        only_from_fms=args.only_from_fms
-    )
-
-
-if __name__ == '__main__':
-    main()
