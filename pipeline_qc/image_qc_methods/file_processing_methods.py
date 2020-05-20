@@ -67,6 +67,7 @@ def split_image_into_channels(im_path, source_image_file_id):
 
     return split_channels
 
+
 def generate_images(image):
     new_edge_filled, center_plane = image_processing_methods.find_center_z_plane(image)
     # panels: top, bottom, center
