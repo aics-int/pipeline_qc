@@ -117,6 +117,8 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     # Scale cluster
     cluster.scale(128)
 
+    print(f"Dask dashboard available at: {cluster.dashboard_link}")
+
     # Map fov processing in parallel to cluster
     with DistributedHandler(cluster.scheduler_address) as handler:
         stat_list = handler.batched_map(
