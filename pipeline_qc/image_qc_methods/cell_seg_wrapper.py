@@ -2,7 +2,7 @@ import numpy as np
 import os
 from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from aicsimageio.writers import ome_tiff_writer
-from model_zoo_3d_segmentation.zoo import SegModel, SuperModel
+from model_zoo_3d_segmentation.zoo import SuperModel
 
 MODEL = "DNA_MEM_instance_LF_integration_two_camera"
 
@@ -48,8 +48,9 @@ def batch_cell_segmentations(workflows=None, cell_lines=None, plates=None, fovid
             print(f'Running Segmentation on fov:{row["fovid"]}')
             im = create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
             comb_seg = single_seg_run(im)
-            if save_to_fms == True:
+            # if save_to_fms == True:
                 # UPLOAD TO FMS GOES HERE
+
             if save_to_isilon == True:
                 with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{row["fovid"]}.ome.tif') as writer:
                     writer.save(comb_seg)

@@ -40,7 +40,7 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         AND fov.qcstatusid.name = 'Passed'
         {workflow_query}
         {cell_line_query}
-        {plate_query} 
+        {plate_query}
         {fovid_query}
     '''
     result = server_context.execute_sql('microscopy', sql)
