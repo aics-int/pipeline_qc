@@ -56,7 +56,7 @@ setup(name=PACKAGE_NAME,
       entry_points={
           "console_scripts": [
               "my_example={}.bin.my_example:main".format(PACKAGE_NAME),
-              "fov_qc_cli={}.bin.fov_qc_cli:main".format(PACKAGE_NAME), 
+              "fov_qc_cli={}.bin.fov_qc_cli:main".format(PACKAGE_NAME),
               "cardio_mip_qc_cli={}.bin.cardio_mip_qc_cli:main".format(PACKAGE_NAME)
           ]
       },
@@ -67,6 +67,10 @@ setup(name=PACKAGE_NAME,
           # 'requests'
           'lkaccess',
           'aicsimageio',
+          'aics_dask_utils==0.2.0',
+          'bokeh',
+          'dask',
+          'dask_jobqueue',
           'numpy',
           'scipy',
           'scikit-image',
