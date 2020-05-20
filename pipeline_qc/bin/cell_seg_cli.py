@@ -8,7 +8,8 @@ import logging
 import sys
 import traceback
 
-from pipeline_qc.image_qc_methods import cell_seg_wrapper
+from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationWrapper
+from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader, FileManagementSystem
 
 ###############################################################################
 
@@ -23,6 +24,23 @@ logging.basicConfig(level=logging.INFO,
 
 ###############################################################################
 
+CONFIG = {
+    "prod":{
+        "fms_host": "aics",
+        "fms_port": 80,
+        "fms_timeout_in_seconds": 300
+    },
+    "stg":{
+        "fms_host": "stg-aics",
+        "fms_port": 80,
+        "fms_timeout_in_seconds": 300
+    },
+    "dev":{
+        "fms_host": "dev-aics-ssl-001.corp.alleninstitute.org",
+        "fms_port": 8080,
+        "fms_timeout_in_seconds": 300
+    }
+}
 
 class Args(argparse.Namespace):
 
@@ -37,8 +55,8 @@ class Args(argparse.Namespace):
         self.fovids = None
         self.only_from_fms = True
         self.save_to_fms = False
-        self.save_to_isilon = True
-        # self.env = 'stg'
+        self.save_to_isilon = False
+        self.env = 'stg'
         self.__parse()
 
     def __parse(self):
@@ -63,15 +81,15 @@ class Args(argparse.Namespace):
         p.add_argument('--only_from_fms', type=str,
                        help="Boolean to say whether to only run query on data in fms (default is True)",
                             default=True, required=False)
-        p.add_argument('--save_to_fms', type=str,
-                       help="Boolean to say whether to save segmentations in fms (default is False)",
-                            default=False, required=False)
-        p.add_argument('--save_to_isilon', type=str,
-                       help="Boolean to say whether to save segmentations on the isilon (default is True)",
-                            default=True, required=False)
-        # p.add_argument('--env', type=str,
-        #                help="Environment that data will be stored to('prod, 'stg', default is 'stg')",
-        #                default='stg', required=False)
+        p.add_argument('--save_to_fms',
+                       help="Save segmentations in fms (default is False)",
+                       default=False, required=False, action='store_true')
+        p.add_argument('--save_to_isilon',
+                       help="Save segmentations on the isilon (default is False)",
+                       default=False, required=False, action='store_true')
+        p.add_argument('--env', type=str,
+                       help="Environment that data will be stored to('prod, 'stg', 'dev' (default is 'stg')",
+                       default='stg', required=False)
         p.add_argument('--debug',
                        help='Enable debug mode',
                        default=False, required=False, action='store_true')
@@ -81,14 +99,24 @@ class Args(argparse.Namespace):
 
 ###############################################################################
 
+
+def get_app_root(env: str) -> CellSegmentationWrapper:
+    """
+    Build dependency tree and return application root
+    """
+    conf = CONFIG[env]
+    fms = FileManagementSystem(host=conf["fms_host"], port=conf["fms_port"])
+    uploader = CellSegmentationUploader(fms_client=fms, fms_timeout=conf["fms_timeout_in_seconds"])
+    return CellSegmentationWrapper(uploader)
+
+
 def main():
     args = Args()
     dbg = args.debug
-
+    print(args.save_to_fms)
     try:
-        # Do your work here - preferably in a class or function,
-        # passing in your args. E.g.
-        cell_seg_wrapper.batch_cell_segmentations(
+        cell_seg: CellSegmentationWrapper = get_app_root(args.env)
+        cell_seg.batch_cell_segmentations(
             output_dir=args.output_dir,
             workflows=args.workflows,
             cell_lines=args.cell_lines,
