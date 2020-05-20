@@ -234,30 +234,28 @@ def _update_metadata(file_id: str, cell_ids: typing.List[int], fms: FileManageme
 def generate_cells(segmentation_file_path: str, segmentation_file_metadata: dict,
                    lk_conn: LabKey, update_metadata: bool = False) -> dict:
     """
-    Generate Labkey Cell table entries from a file containing nucleus and membrane segmentations and contours,
-    and its respective metadata as a separate parameter.
+    Generate Labkey Cell table entries from a file (+ its metadata) containing nucleus and membrane segmentations
+    and contours
 
     Assumptions:
-     - Metadata for each object has necessary information
-     - Nucleus and membrane have the same metadata, e.g. are from the same file
      - Input file contains 4 channels:
         [0] Nucleus segmentation
         [1] Membrane segmentation
         [2] Nucleus contour
-        [3] Membrance contour respectively
+        [3] Membrane contour
+     - Metadata for input file contains all necessary information
 
     Steps:
      - Open input file
-     - Calculate the centroids of the membranes
-     - For each nucleus membrane combo, generate a cell object
-     - Insert those objects into Labkey
+     - Parse info for each cell membrane in the input file, including bounding box dimensions and whether or not the
+        cell makes contact with the edge of the FOV.
+     - For each cell, generate a cell object in LabKey
 
     Returns:
         Mapping of cellid --> cell row information that is returned from Labkey.
         Note that all of the key names for the row information are lowercase because
         they are returned from postgres not Labkey.
     """
-    # Metadata checks
     log.info("Checking metadata for relevant information")
     _check_metadata_blocks(segmentation_file_metadata)
 
