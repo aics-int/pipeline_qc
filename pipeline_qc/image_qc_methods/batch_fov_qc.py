@@ -94,10 +94,8 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
 
         image_gen * len(query_df),
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
-    result_list = list()
-    for i in stat_list:
-        result_list.append(type(i))
-    result = pd.concat([query_df, pd.DataFrame(result_list)], axis=1)
+
+    result = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
     result.to_csv(output_dir + '/fov_qc_metrics.csv')
 
     return result

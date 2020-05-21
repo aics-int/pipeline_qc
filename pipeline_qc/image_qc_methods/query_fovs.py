@@ -29,13 +29,14 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
     sql = f'''
      SELECT fov.fovid, fov.sourceimagefileid, well.wellname.name as wellname, plate.barcode,
         instrument.name as instrument, fcl.celllineid.name as cellline, fov.fovimagedate, file.localfilepath,
-        fov.wellid.plateid.workflow.name as workflow
+        fov.wellid.plateid.workflow.name as workflow, welljn.imagingmodeid.name as imaging_mode
         FROM microscopy.fov as fov
         INNER JOIN microscopy.well as well on fov.wellid = well.wellid
         INNER JOIN microscopy.plate as plate on well.plateid = plate.plateid
         INNER JOIN microscopy.instrument as instrument on fov.instrumentid = instrument.instrumentid
         INNER JOIN celllines.filecellline as fcl on fov.sourceimagefileid = fcl.fileid
         INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
+        INNER JOIN microscopy.wellimagingmodejunction as welljn on well.wellid = welljn.wellid
         WHERE fov.objective = 100
         AND fov.qcstatusid.name = 'Passed'
         {workflow_query}

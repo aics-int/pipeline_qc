@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 import shutil
 
-df = pd.read_csv('/allen/aics/microscopy/Aditya/image_qc_outputs/20200410_metrics/fov_qc_metrics.csv')
+df = pd.read_csv('/allen/aics/microscopy/Aditya/image_qc_outputs/20200519_metrics/fov_qc_metrics.csv')
 aics61 = df[df['cellline'] == 'AICS-53']
 aics61_4 = aics61[aics61['workflow'] == "['Pipeline 4.2']"]
 # aics61_4_aligned = aics61_4[aics61_4['localfilepath'].str.contains('aligned_cropped')]
@@ -17,17 +17,22 @@ for index, row in aics61_4_aligned.iterrows():
             aics61_4_aligned.at[index, 'Scene'] = prefixes[prefixes.index('scene') + 1]
         if prefix[0] == 'p':
             aics61_4_aligned.at[index, 'Position'] = prefix[1:]
-        # if (len(prefix)==2):
-        #     if (prefix[1] in ['e', 'r', 'c']):
-        #         df.at[index, 'Mode'] = 'C'
-        #         if prefix[1] == 'e':
-        #             df.at[index, 'Colony Position'] = 'Edge'
-        #         elif prefix[1] == 'r':
-        #             df.at[index, 'Colony Position'] = 'Ridge'
-        #         elif prefix[1] == 'c':
-        #             df.at[index, 'Colony Position'] = 'Center'
-        # else:
-        #     df.at[index, 'Mode'] = 'A'
+    for prefix in prefixes:
+        if (len(prefix)==2):
+            if (prefix[1] in ['e', 'r', 'c']):
+                # df.at[index, 'Mode'] = 'C'
+                if prefix[1] == 'e':
+                    df.at[index, 'Colony Position'] = 'Edge'
+                    break
+                elif prefix[1] == 'r':
+                    df.at[index, 'Colony Position'] = 'Ridge'
+                    break
+                elif prefix[1] == 'c':
+                    df.at[index, 'Colony Position'] = 'Center'
+                    break
+        else:
+            # df.at[index, 'Mode'] = 'A'
+            df.at[index, 'Colony Position'] = 'Center'
 
 for wavelength in ['405nm', '488nm', '561nm', '638nm']:
     if f'{wavelength} median-intensity' not in aics61_4_aligned.columns:
