@@ -62,15 +62,18 @@ class CellSegmentationWrapper:
             else:
                 print(f'Running Segmentation on fov:{row["fovid"]}')
                 im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
-                comb_seg = im
-                comb_seg = single_seg_run(im)
+                if im.shape[0] ==4:
+                    comb_seg = self.single_seg_run(im)
+                else:
+                    print(f'FOV:{row["fovid"]} does not have nucleus or cellular color channels')
+                    break
 
-                file_name = f'{row["fovid"]}_temp_cellSegCombined.ome.tiff' # TODO: figure out file name
+                file_name = f'{row["fovid"]}_cellSegCombined.ome.tiff' # TODO: figure out file name (name changed)
 
                 if save_to_fms == True:
-                    print("Uploading output file to FMS") 
+                    print("Uploading output file to FMS")
 
-                    with TemporaryDirectory() as tmp_dir:                       
+                    with TemporaryDirectory() as tmp_dir:
                         local_file_path = f'{tmp_dir}/{file_name}'
                         with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
                             writer.save(comb_seg)
