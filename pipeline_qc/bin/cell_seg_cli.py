@@ -26,12 +26,12 @@ logging.basicConfig(level=logging.INFO,
 
 CONFIG = {
     "prod":{
-        "fms_host": "aics",
+        "fms_host": "aics.corp.alleninstitute.org",
         "fms_port": 80,
         "fms_timeout_in_seconds": 300
     },
     "stg":{
-        "fms_host": "stg-aics",
+        "fms_host": "stg-aics.corp.alleninstitute.org",
         "fms_port": 80,
         "fms_timeout_in_seconds": 300
     },
@@ -113,7 +113,7 @@ def get_app_root(env: str) -> CellSegmentationWrapper:
 def main():
     args = Args()
     dbg = args.debug
-    print(args.save_to_fms)
+
     try:
         cell_seg: CellSegmentationWrapper = get_app_root(args.env)
         cell_seg.batch_cell_segmentations(
