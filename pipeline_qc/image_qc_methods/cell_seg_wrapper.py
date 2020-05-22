@@ -62,7 +62,7 @@ class CellSegmentationWrapper:
             else:
                 print(f'Running Segmentation on fov:{row["fovid"]}')
                 im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
-                if im.shape[0] ==4:
+                if im.shape[0] ==3:
                     comb_seg = self.single_seg_run(im)
                 else:
                     print(f'FOV:{row["fovid"]} does not have nucleus or cellular color channels')
