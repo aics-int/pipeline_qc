@@ -7,7 +7,7 @@ from datetime import datetime
 from aicsimageio.writers import ome_tiff_writer
 from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from model_zoo_3d_segmentation.zoo import SegModel, SuperModel
-from .cell_seg_uploader import CellSegmentationUploader
+from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader
 
 # Constants
 MODEL = "DNA_MEM_instance_LF_integration_two_camera"
@@ -47,6 +47,7 @@ class CellSegmentationWrapper:
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
                                         only_from_fms=only_from_fms)
 
+
         print(f'''
         __________________________________________
 
@@ -61,7 +62,7 @@ class CellSegmentationWrapper:
                 print(f'FOV:{row["fovid"]} has already been segmented')
             else:
                 print(f'Running Segmentation on fov:{row["fovid"]}')
-                im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
+                im = self._create_segmentable_image(row['alignedfilepath'], row['alignedimagefileid'])
                 if im.shape[0] ==3:
                     comb_seg = self.single_seg_run(im)
                 else:
@@ -77,7 +78,7 @@ class CellSegmentationWrapper:
                         local_file_path = f'{tmp_dir}/{file_name}'
                         with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
                             writer.save(comb_seg)
-                        self._uploader.upload_combined_segmentation(local_file_path, row["sourceimagefileid"])
+                        self._uploader.upload_combined_segmentation(local_file_path, row["alignedimagefileid"])
 
                 if save_to_isilon == True:
                     print("Saving output file to Isilon")
