@@ -69,8 +69,8 @@ class CellSegmentationWrapper:
                     print(f'FOV:{row["fovid"]} does not have nucleus or cellular color channels')
                     break
 
-                file_name = f'{row["fovid"]}_cellSegCombined.ome.tiff' # TODO: figure out file name (name changed)
-
+                file_name = f'{row["fovid"]}_cellSegCombined.ome.tiff'
+ 
                 if save_to_fms == True:
                     print("Uploading output file to FMS")
 
