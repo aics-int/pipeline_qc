@@ -35,11 +35,6 @@ RESOURCE_FOLDER = pathlib.Path(__file__).absolute().parent / 'resources'
 ##################################################
 
 @pytest.fixture(scope='module')
-def lk_conn() -> LabKey:
-    return LabKey(server_context=lkaccess.contexts.STAGE)
-
-
-@pytest.fixture(scope='module')
 def membrane_image_path():
     return str(RESOURCE_FOLDER / '3500001234_100X_20170825_1-Scene-20-P21-E06.ome_segmentation.tiff')
 
@@ -47,6 +42,13 @@ def membrane_image_path():
 @pytest.fixture(scope='module')
 def image_data(membrane_image_path):
     return CG._get_image_data(membrane_image_path)
+
+
+@pytest.fixture(scope='module')
+def image_data_no_cells(membrane_image_path):
+    image_data = CG._get_image_data(membrane_image_path)
+    image_data[:, :, :] = 0
+    return image_data
 
 
 @pytest.fixture(scope='module')
@@ -203,10 +205,17 @@ def test_make_cells(regionprops, fov):
         assert cell.source_membrane_file_id == MEMB_FILE_ID
 
 
-def test_no_cells(image_data, fov):
-    # Zero out array
-    image_data[:, :, :] = 0
+def test_cells_fov_edge(image_data, fov):
     region_props = CG._get_region_properties(image_data)
+    cells = CG._make_cells(FOV_ID, region_props, PIXEL_UNIT_ID, ORIGIN_ID, fov, ALGORITHM_ID,
+                           RUN_ID, MEMB_FILE_ID, FOV_WIDTH, FOV_HEIGHT)
+    cells_with_fovedge_false = [cell for cell in cells if cell.fov_edge is False]
+    assert len(cells) == 17  # These values are somewhat arbitrary, only based on current resource file being used
+    assert len(cells_with_fovedge_false) == 3
+
+
+def test_no_cells(image_data_no_cells, fov):
+    region_props = CG._get_region_properties(image_data_no_cells)
     cells = CG._make_cells(FOV_ID, region_props, PIXEL_UNIT_ID, ORIGIN_ID, fov, ALGORITHM_ID,
                            RUN_ID, MEMB_FILE_ID, FOV_WIDTH, FOV_HEIGHT)
 
