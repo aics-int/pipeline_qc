@@ -80,8 +80,7 @@ setup(name=PACKAGE_NAME,
           'pandas',
           'labkey',
           'matplotlib',
-          'aicsfiles',
-          'hpctools'
+          'aicsfiles'
       ],
 
       # For test setup. This will allow JUnit XML output for Jenkins
