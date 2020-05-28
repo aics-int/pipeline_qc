@@ -1,12 +1,16 @@
 import pickle
 import os
+from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
-from aicsimageio import dask_utils
+from aics_dask_utils import DistributedHandler
+from dask_jobqueue import SLURMCluster
+import dask.config
+from dask_jobqueue import SLURMCluster
 from pipeline_qc import detect_edge, detect_z_stack_false_clip
 from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
                                           query_fovs)
-from tqdm import tqdm
 
 
 def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
@@ -82,17 +86,50 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     __________________________________________
 
     {len(query_df)} fovs were found to process.
-    
+
     __________________________________________
     ''')
 
-    # Spawn local cluster to speed up image read
-    with dask_utils.cluster_and_client() as (cluster, client):
+    # Create or get log dir
+    # Do not include ms
+    log_dir_name = datetime.now().isoformat().split(".")[0]
+    log_dir = Path(f".dask_logs/{log_dir_name}").expanduser()
+    # Log dir settings
+    log_dir.mkdir(parents=True, exist_ok=True)
 
-        # Collect all stats
-        stat_list = [process_single_fov(row, json_dir, output_dir, image_gen, env) for i, row in tqdm(query_df.iterrows())]
+    # Configure dask config
+    dask.config.set(
+        {
+            "scheduler.work-stealing": False,
+        }
+    )
 
-        image_gen * len(query_df),
+    # Create cluster
+    cluster = SLURMCluster(
+        cores=1,
+        memory="24GB",
+        queue="aics_cpu_general",
+        walltime="10:00:00",
+        local_directory=str(log_dir),
+        log_directory=str(log_dir),
+    )
+
+    # Scale cluster
+    cluster.scale(128)
+
+    print(f"Dask dashboard available at: {cluster.dashboard_link}")
+
+    # Map fov processing in parallel to cluster
+    with DistributedHandler(cluster.scheduler_address) as handler:
+        stat_list = handler.batched_map(
+            process_single_fov,
+            [row for i, row in query_df.iterrows()],
+            [json_dir for i in range(len(query_df))],
+            [output_dir for i in range(len(query_df))],
+            [image_gen for i in range(len(query_df))],
+            [env for i in range(len(query_df))],
+        )
+
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
     result_list = list()
     for i in stat_list:
@@ -101,4 +138,3 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     result.to_csv(output_dir + '/fov_qc_metrics.csv')
 
     return result
-

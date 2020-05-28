@@ -55,10 +55,10 @@ setup(name=PACKAGE_NAME,
       packages=find_packages(exclude=['tests', '*.tests', '*.tests.*']),
       entry_points={
           "console_scripts": [
-              "my_example={}.bin.my_example:main".format(PACKAGE_NAME),
               "fov_qc_cli={}.bin.fov_qc_cli:main".format(PACKAGE_NAME), 
               "cardio_mip_qc_cli={}.bin.cardio_mip_qc_cli:main".format(PACKAGE_NAME),
-              "cell_seg_cli={}.bin.cell_seg_cli:main".format(PACKAGE_NAME)
+              "cell_seg_cli={}.bin.cell_seg_cli:main".format(PACKAGE_NAME),
+              "labkey_cell_generation={}.bin.labkey_cell_generation:main".format(PACKAGE_NAME)
           ]
       },
       install_requires=[
@@ -68,6 +68,11 @@ setup(name=PACKAGE_NAME,
           # 'requests'
           'lkaccess',
           'aicsimageio',
+          'aics_dask_utils==0.2.0',
+          'bokeh',
+          'dask',
+          'dask_jobqueue',
+          'aicsfiles',
           'numpy',
           'scipy',
           'scikit-image',
