@@ -60,7 +60,9 @@ class CellSegmentationWrapper:
 
         for index, row in query_df.iterrows():
 
-            if os.path.isfile(f'{output_dir}/{row["fovid"]}.ome.tif'):
+            file_name = f'{row["fovid"]}_cellSegCombined.ome.tiff'
+
+            if os.path.isfile(f'{output_dir}/{file_name}'):
                 print(f'FOV:{row["fovid"]} has already been segmented')
             else:
                 print(f'Running Segmentation on fov:{row["fovid"]}')
@@ -70,9 +72,7 @@ class CellSegmentationWrapper:
                 else:
                     print(f'FOV:{row["fovid"]} does not have nucleus or cellular color channels')
                     break
-
-                file_name = f'{row["fovid"]}_cellSegCombined.ome.tiff'
- 
+                
                 if save_to_fms == True:
                     print("Uploading output file to FMS")
 
