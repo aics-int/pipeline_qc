@@ -37,7 +37,7 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         INNER JOIN celllines.filecellline as fcl on fov.sourceimagefileid = fcl.fileid
         INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
         WHERE fov.objective = 100
-        AND file.localfilepath NOT LIKE '%aligned_cropped%'
+        AND file.filename NOT LIKE '%aligned_cropped%'
         {workflow_query}
         {cell_line_query}
         {plate_query}
