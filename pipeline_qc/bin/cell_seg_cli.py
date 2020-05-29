@@ -7,6 +7,7 @@ import argparse
 import logging
 import sys
 import traceback
+import lkaccess.contexts
 
 from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationWrapper
 from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader, FileManagementSystem
@@ -28,17 +29,20 @@ CONFIG = {
     "prod":{
         "fms_host": "aics.corp.alleninstitute.org",
         "fms_port": 80,
-        "fms_timeout_in_seconds": 300
+        "fms_timeout_in_seconds": 300,
+        "labkey_context": lkaccess.contexts.PROD
     },
     "stg":{
         "fms_host": "stg-aics.corp.alleninstitute.org",
         "fms_port": 80,
-        "fms_timeout_in_seconds": 300
+        "fms_timeout_in_seconds": 300,
+        "labkey_context": lkaccess.contexts.STAGE
     },
     "dev":{
         "fms_host": "dev-aics-ssl-001.corp.alleninstitute.org",
         "fms_port": 8080,
-        "fms_timeout_in_seconds": 300
+        "fms_timeout_in_seconds": 300,
+        "labkey_context": lkaccess.contexts.DEV
     }
 }
 
@@ -107,7 +111,7 @@ def get_app_root(env: str) -> CellSegmentationWrapper:
     conf = CONFIG[env]
     fms = FileManagementSystem(host=conf["fms_host"], port=conf["fms_port"])
     uploader = CellSegmentationUploader(fms_client=fms, fms_timeout=conf["fms_timeout_in_seconds"])
-    return CellSegmentationWrapper(uploader)
+    return CellSegmentationWrapper(uploader, conf["labkey_context"])
 
 
 def main():

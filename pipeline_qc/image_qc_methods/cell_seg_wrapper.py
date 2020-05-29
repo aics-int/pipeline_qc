@@ -8,6 +8,7 @@ from aicsimageio.writers import ome_tiff_writer
 from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from model_zoo_3d_segmentation.zoo import SegModel, SuperModel
 from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader
+from labkey.utils import ServerContext
 
 # Constants
 MODEL = "DNA_MEM_instance_LF_integration_two_camera"
@@ -19,10 +20,11 @@ class CellSegmentationWrapper:
     and performs additional query and upload tasks for microscopy pipeline usage
     """
 
-    def __init__(self, uploader: CellSegmentationUploader):
+    def __init__(self, uploader: CellSegmentationUploader, labkey_context: ServerContext):
         if not uploader:
             raise AttributeError("uploader")
         self._uploader = uploader
+        self._labkey_context = labkey_context
 
     def single_seg_run(self, image):
         sm = SuperModel(MODEL)
