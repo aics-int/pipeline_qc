@@ -59,18 +59,17 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
     df = pd.merge(df, df2, how='left', on='fovid')
 
     for i in range(len(df)):
-        if pd.isna(df.iloc[i, df.columns.get_loc('alignedfilepath')]):
-            df.at[i, 'alignedimagefileid'] = df.iloc[i, df.columns.get_loc('sourceimagefileid')]
-            df.at[i, 'alignedfilepath'] = df.iloc[i, df.columns.get_loc('localfilepath')]
+        if not pd.isna(df.iloc[i, df.columns.get_loc('alignedfilepath')]):
+            df.at[i, 'sourceimagefileid'] = df.iloc[i, df.columns.get_loc('alignedimagefileid')]
+            df.at[i, 'localfilepath'] = df.iloc[i, df.columns.get_loc('alignedfilepath')]
 
     if df.empty:
         print("Query from FMS returned no fovids")
         return pd.DataFrame(columns=['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath',
-                                     'wellname', 'barcode', 'cellline', 'workflow',
-                                     'alignedimagefileid', 'alignedfilepath'])
+                                     'wellname', 'barcode', 'cellline', 'workflow'])
     else:
         return df[['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
-                    'cellline', 'workflow', 'alignedimagefileid', 'alignedfilepath']]
+                    'cellline', 'workflow']]
 
 
 def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_5', 'PIPELINE_4_6', 'PIPELINE_4_7', 'PIPELINE_5.2', 'PIPELINE_6', 'PIPELINE_7', 'RnD_Sandbox']):

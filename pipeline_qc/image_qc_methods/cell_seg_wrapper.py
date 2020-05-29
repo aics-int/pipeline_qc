@@ -62,7 +62,7 @@ class CellSegmentationWrapper:
                 print(f'FOV:{row["fovid"]} has already been segmented')
             else:
                 print(f'Running Segmentation on fov:{row["fovid"]}')
-                im = self._create_segmentable_image(row['alignedfilepath'], row['alignedimagefileid'])
+                im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
                 if im.shape[0] ==3:
                     comb_seg = self.single_seg_run(im)
                 else:
