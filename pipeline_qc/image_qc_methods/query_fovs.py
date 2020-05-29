@@ -128,34 +128,6 @@ def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_
     return pd.DataFrame(image_metadata_list)
 
 
-def query_fovs_cell_seg(workflows=None, cell_lines=None, plates=None, fovids=None, labkey_context: ServerContext = contexts.PROD):
-    # Queries FMS (only using cell line right now) for image files that we would QC
-    # Inputs all need to be lists of strings
-
-    # This logic allows us to optionally leave any inout blank and still be able to
-    if not workflows:
-        workflow_query = ''
-    else:
-        workflow_query = f"AND fov.wellid.plateid.workflow.name IN {str(workflows).replace('[','(').replace(']',')')}"
-    if not cell_lines:
-        cell_line_query = ""
-    else:
-        cell_line_query = f"AND fcl.celllineid.name IN {str(cell_lines).replace('[','(').replace(']',')')}"
-    if not plates:
-        plate_query = ""
-    else:
-        plate_query = f"AND plate.barcode IN {str(plates).replace('[','(').replace(']',')')}"
-    if not fovids:
-        fovid_query = ""
-    else:
-        fovid_query = f"AND fov.fovid IN {str(fovids).replace('[','(').replace(']',')')}"
-    
-    labkey_client = LabKey(labkey_context)
-
-
-
-    return
-
 def query_fovs(workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, labkey_context: ServerContext = contexts.PROD):
     # Script that can query multiple parameters and join those tables into one query dataframe
     # workflows, cell_lines, plates, and fovs are all lists of strings
