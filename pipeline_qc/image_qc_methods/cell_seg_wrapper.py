@@ -80,7 +80,7 @@ class CellSegmentationWrapper:
                         local_file_path = f'{tmp_dir}/{file_name}'
                         with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
                             writer.save(comb_seg)
-                        self._uploader.upload_combined_segmentation(local_file_path, row["alignedimagefileid"])
+                        self._uploader.upload_combined_segmentation(local_file_path, row["sourceimagefileid"])
 
                 if save_to_isilon == True:
                     print("Saving output file to Isilon")
