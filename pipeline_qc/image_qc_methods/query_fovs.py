@@ -1,9 +1,10 @@
 from lkaccess import LabKey, contexts
+from labkey.utils import ServerContext
 import os
 import pandas as pd
 
 
-def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovids = None):
+def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovids = None, labkey_context: ServerContext = contexts.PROD):
     # Queries FMS (only using cell line right now) for image files that we would QC
     # Inputs all need to be lists of strings
 
@@ -24,7 +25,8 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         fovid_query = ""
     else:
         fovid_query = f"AND fov.fovid IN {str(fovids).replace('[','(').replace(']',')')}"
-    server_context = LabKey(contexts.PROD)
+
+    labkey_client = LabKey(labkey_context)
 
     sql = f'''
      SELECT fov.fovid, fov.sourceimagefileid, well.wellname.name as wellname, plate.barcode,
@@ -37,14 +39,32 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         INNER JOIN celllines.filecellline as fcl on fov.sourceimagefileid = fcl.fileid
         INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
         WHERE fov.objective = 100
-        AND fov.qcstatusid.name = 'Passed'
+        AND file.filename NOT LIKE '%aligned_cropped%'
         {workflow_query}
         {cell_line_query}
-        {plate_query} 
+        {plate_query}
         {fovid_query}
     '''
-    result = server_context.execute_sql('microscopy', sql)
+    result = labkey_client.execute_sql('microscopy', sql)
     df = pd.DataFrame(result['rows'])
+
+    sql2 = f'''
+      SELECT filefov.fovid, file.localfilepath as alignedfilepath, filefov.fileid as alignedimagefileid
+         FROM microscopy.filefovpath as filefov
+         INNER JOIN fms.file as file on filefov.fileid = file.fileid
+         WHERE filefov.fileid.filename LIKE '%alignV2%'
+    '''
+
+    result2 = labkey_client.execute_sql('microscopy', sql2)
+    df2 = pd.DataFrame(result2['rows'])
+
+    df = pd.merge(df, df2, how='left', on='fovid')
+
+    for i in range(len(df)):
+        if not pd.isna(df.iloc[i, df.columns.get_loc('alignedfilepath')]):
+            df.at[i, 'sourceimagefileid'] = df.iloc[i, df.columns.get_loc('alignedimagefileid')]
+            df.at[i, 'localfilepath'] = df.iloc[i, df.columns.get_loc('alignedfilepath')]
+
     if df.empty:
         print("Query from FMS returned no fovids")
         return pd.DataFrame(columns=['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath',
@@ -108,11 +128,11 @@ def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_
     return pd.DataFrame(image_metadata_list)
 
 
-def query_fovs(workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True):
+def query_fovs(workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, labkey_context: ServerContext = contexts.PROD):
     # Script that can query multiple parameters and join those tables into one query dataframe
     # workflows, cell_lines, plates, and fovs are all lists of strings
     # options: only_from_fms means you can only query fms. If false, will call the filesystem query as well
-    df = query_fovs_from_fms(workflows, cell_lines, plates, fovids)
+    df = query_fovs_from_fms(workflows, cell_lines, plates, fovids, labkey_context=labkey_context)
     if only_from_fms == False:
         df_2 = query_fovs_from_filesystem(plates)
         df = pd.concat([df, df_2], axis=0, ignore_index=True)
