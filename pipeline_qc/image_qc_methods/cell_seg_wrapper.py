@@ -59,8 +59,14 @@ class CellSegmentationWrapper:
         ''')
 
         for index, row in query_df.iterrows():
-
-            file_name = f'{row["fovid"]}_cellSegCombined.ome.tiff'
+            # File name now is: {barcode}-{obj}-{date}-{colony pos(optional)}-CellNucSegCombined-{scene}-{pos}-{well}.tiff
+            file_prefix = row['localfilepath'].split('/')[-1]
+            if 'alignV2' in file_prefix:
+                file_name = file_prefix.replace('alignV2', 'CellNucSegCombined')
+            else:
+                if 'Scene' in file_prefix:
+                    str_i = file_prefix.find('Scene')
+                    file_name = file_prefix[:str_i] + 'CellNucSegCombined' + file_prefix[str_i:]
 
             if os.path.isfile(f'{output_dir}/{file_name}'):
                 print(f'FOV:{row["fovid"]} has already been segmented')
