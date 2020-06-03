@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 channel = '405'
 
 # Read images (flat field, black reference, argolight)
-ff_f_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD1_20180925\3500002315_100X_20180925_' + channel + '.czi')
+ff_f_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\dye_titration\405.czi')
 ff_f = ff_f_data.data[0, 0, 0, :, :]
 br_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\data_set\100X_20191108_BR-left_t25.czi')
 br = br_data.data[0, 0, 0, :, :]
@@ -25,8 +25,8 @@ ff_smooth = filters.gaussian(image=ff_f, sigma=1, preserve_range=True)
 ff_norm = ff_smooth/np.max(ff_smooth)
 
 # Plot profiles for flat field images
-plot_profile(ff_f, px_crop=0, fit=False)  # Intensity profile of raw dye ff image
-plot_profile(norm_img=ff_norm, px_crop=0, fit=False)  # Intensity profile of normalized dye ff
+positive_profile, negative_profile, roll_off_pos, roll_off_neg = plot_profile(ff_f, channel=channel, px_crop=0, fit=False)  # Intensity profile of raw dye ff image
+positive_profile, negative_profile, roll_off_pos, roll_off_neg = plot_profile(norm_img=ff_norm, channel=channel, px_crop=0, fit=False)  # Intensity profile of normalized dye ff
 
 # ======================================================================================================================
 # Generate simulated homogeneity map with dye ff (sample across the image)
@@ -212,7 +212,7 @@ def get_img_info (img, data):
             }
 
 
-def plot_profile(norm_img, px_crop=0, plot=True, fit=False):
+def plot_profile(norm_img, channel, px_crop=0, plot=True, fit=False):
     """
 
     :param norm_img: A normalized image (intensity ranges from 0-1)
