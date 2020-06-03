@@ -68,7 +68,7 @@ setup(name=PACKAGE_NAME,
           # 'requests'
           'lkaccess',
           'aicsimageio',
-          'aics_dask_utils==0.2.0',
+          'aics_dask_utils',
           'bokeh',
           'dask',
           'dask_jobqueue',

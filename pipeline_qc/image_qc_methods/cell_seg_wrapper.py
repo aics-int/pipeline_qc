@@ -47,7 +47,7 @@ class CellSegmentationWrapper:
                                  only_from_fms=True, save_to_fms=False, save_to_isilon=False,
                                  output_dir = '/allen/aics/microscopy/Aditya/cell_segmentations'):
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
-                                        only_from_fms=only_from_fms)
+                                        only_from_fms=only_from_fms, labkey_context=self._labkey_context)
 
 
         print(f'''
