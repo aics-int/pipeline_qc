@@ -1,14 +1,19 @@
 # Upload aligned H2B data to fms, with alignment info in metadata block
-from aicsfiles import FileManagementSystem
-from aicsfiles.filter import Filter
 import os
 import pandas as pd
+from copy import deepcopy
 
-LK_ENV = 'stg-aics'
+from aicsfiles import FileManagementSystem
+from aicsfiles.filter import Filter
+from lkaccess import LabKey, contexts
+
+LK_ENV = contexts.STAGE  # The LabKey environment to use
 INPUT_CSV = '/allen/aics/microscopy/Data/alignV2/align_info.csv'
 FOLDER = '/allen/aics/microscopy/Data/alignV2/AICS-61'
 
-fms = FileManagementSystem(host=LK_ENV)
+# TODO: We may want to put all of the following code into its own function and parametrize it in a /bin script
+lk = LabKey(server_context=LK_ENV)
+fms = FileManagementSystem(lk_conn=lk)
 df = pd.read_csv(INPUT_CSV)
 
 # Example row in the INPUT_CSV
@@ -21,37 +26,69 @@ df['date'] = df['date'].astype(str)
 # String or Path object of file to be uploaded to FMS
 failed_files = []
 all_files = os.listdir(FOLDER)
+
+# TODO: The number of files this loop handles can be fairly high (Up to around ~2000). Would be worth parallelizing or
+#       approaching in a different manner.
 for file in all_files:
     if file.endswith('.tiff'):
         new_file_path = os.path.join(FOLDER, file)
 
         # Find the file we want to copy the initial metadata blob from
-        content_proc_filter = Filter().with_file_name(file.replace('-alignV2', '').replace('.tiff', '.czi'))
-        result = fms.query_files(content_proc_filter)
+        content_proc_filter = Filter().with_file_name(file.replace('-alignV2', '').replace('.tiff', '.ome.tiff'))
+        '''
+        The queried file is expected to have (at least) the following metadata:
+        {
+            file: {
+                file_id: '',
+                file_name: '',
+                original_path: '',
+            }
+            content_processing: {},
+            microscopy: {
+                fov_id: ''
+            }
+        }
+        '''
+        fms_result = fms.query_files(content_proc_filter)
+        original_file = fms_result[0]
 
         # get instrument and date from file
-        file_path = result[0]['file']['original_path']
+        file_path = original_file['file']['original_path']
         zsd = 'ZSD' + file_path.split('ZSD')[1][0]
-        date = result[0]['file']['file_name'].split('_')[2]
+        date = original_file['file']['file_name'].split('_')[2]
 
         # Only upload files with 'pass' camera-alignment status for now
-        if df.loc[(df['instrument'] == zsd) & (df['date'] == date), 'qc'] == 'pass':
-            # get align info
-            shift_x = df.loc[(df['instrument'] == zsd) & (df['date'] == date), 'shift_x'].values.tolist()[0]
-            shift_y = df.loc[(df['instrument'] == zsd) & (df['date'] == date), 'shift_y'].values.tolist()[0]
-            scaling = df.loc[(df['instrument'] == zsd) & (df['date'] == date), 'scaling'].values.tolist()[0]
-            rotation_angle = df.loc[(df['instrument'] == zsd) & (df['date'] == date), 'rotate_angle'].values.tolist()[0]
+        filtered_df = df.loc[(df['instrument'] == zsd) & (df['date'] == date) & (df['qc'] == 'pass')]
+        if len(filtered_df.index) > 0:
+            # Edit metadata accordingly
+            new_metadata = deepcopy(original_file)  # This is a shallow copy, but it technically doesn't matter
 
-            if 'content_processing' in result[0]:
-                new_metadata = result[0]
-                # Edit metadata accordingly
+            if 'content_processing' in original_file:
+                # get align info
+                shift_x = filtered_df['shift_x'].values[0]
+                shift_y = filtered_df['shift_y'].values[0]
+                scaling = filtered_df['scaling'].values[0]
+                rotation_angle = filtered_df['rotate_angle'].values[0]
+
                 new_metadata['content_processing']['two_camera_alignment'] = {}
                 new_metadata['content_processing']['two_camera_alignment']['algorithm_version'] = 'alignV2'
                 new_metadata['content_processing']['two_camera_alignment']['shift_x'] = shift_x
                 new_metadata['content_processing']['two_camera_alignment']['shift_y'] = shift_y
                 new_metadata['content_processing']['two_camera_alignment']['scaling'] = scaling
                 new_metadata['content_processing']['two_camera_alignment']['rotation_angle'] = rotation_angle
-                fms.upload_file(new_file_path, new_metadata)
+
+            new_metadata['provenance'] = {}
+            new_metadata['provenance']['input_files'] = [original_file['file']['file_id']]
+            new_metadata['provenance']['algorithm'] = 'OmeTiffCameraAlignment'
+
+            aligned_file = fms.upload_file(new_file_path, new_metadata)
+
+            fov_id = original_file['microscopy']['fov_id']
+            lk.update_rows(
+                schema_name='microscopy',
+                query_name='FOV',
+                rows=[{'FovId': fov_id, 'AlignedImageFileId': aligned_file.file_id}]
+            )
         else:
             failed_files.append(file)
 
