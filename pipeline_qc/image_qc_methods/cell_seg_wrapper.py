@@ -1,6 +1,6 @@
 import numpy as np
 import os
-
+from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Dict
 from datetime import datetime
@@ -59,15 +59,8 @@ class CellSegmentationWrapper:
         ''')
 
         for index, row in query_df.iterrows():
-            # File name now is: {barcode}-{obj}-{date}-{colony pos(optional)}-CellNucSegCombined-{scene}-{pos}-{well}.tiff
-            file_prefix = row['localfilepath'].split('/')[-1]
-            if 'alignV2' in file_prefix:
-                file_name = file_prefix.replace('alignV2', 'CellNucSegCombined')
-            else:
-                if 'Scene' in file_prefix:
-                    str_i = file_prefix.find('Scene')
-                    file_name = file_prefix[:str_i] + 'CellNucSegCombined' + file_prefix[str_i:]
-
+            file_name = self._get_seg_filename(row['localfilepath'])
+                
             if os.path.isfile(f'{output_dir}/{file_name}'):
                 print(f'FOV:{row["fovid"]} has already been segmented')
             else:
@@ -94,3 +87,19 @@ class CellSegmentationWrapper:
                         writer.save(comb_seg)
 
         return
+    
+    def _get_seg_filename(self, fov_file_path: str):
+        """
+        Generate appropriate segmentation filename based on FOV file name
+        Will look like this: {barcode}-{obj}-{date}-{colony pos(optional)}-{scene}-{pos}-{well}_CellNucSegCombined.ome.tiff
+        """
+        if fov_file_path.endswith(".ome.tiff"):
+            file_prefix = Path(fov_file_path[:-9]).stem
+        else:
+            file_prefix = Path(fov_file_path).stem
+        
+        file_prefix = file_prefix.replace("-alignV2", "").replace("alignV2", "") # get rid of alignV2 in all its forms
+        return f"{file_prefix}_CellNucSegCombined.ome.tiff"
+
+
+
