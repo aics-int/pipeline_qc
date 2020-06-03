@@ -1,4 +1,4 @@
-import pipeline_qc.upload_aligned_files_to_fms as uploader
+import pipeline_qc.camera_alignment.upload_aligned_files_to_fms as uploader
 
 import argparse
 import logging

@@ -8,12 +8,9 @@ from aicsfiles import FileManagementSystem
 from aicsfiles.filter import Filter
 from lkaccess import LabKey, contexts
 
-LK_ENV = contexts.STAGE  # The LabKey environment to use
 # Example row in the INPUT_CSV
 # | change_median_intensity | coor_dist_qc | date    | diff_mse | dist_sum_diff | folder        | image_type | instrument | mse_qc | qc  | num_beads | num_beads_qc | rotate_angle | scaling    | shift_x   | shift_y    |
 # | -1.306519255            | 1	           | 20190813| 7.46E-05	| 0.143271547   | ZSD3_20190813	| beads	     | ZSD3	      | 0      |pass | 32        |  1           | -0.002435847 | 0.999571786|1.228227663|-0.465022644|
-INPUT_CSV = '/allen/aics/microscopy/Data/alignV2/align_info.csv'
-FOLDER = '/allen/aics/microscopy/Data/alignV2/AICS-61'
 
 log = logging.getLogger(__name__)
 logging.getLogger(__name__).setLevel(logging.DEBUG)
@@ -34,7 +31,6 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
     #       approaching in a different manner.
     for file in all_files:
         if file.endswith('.tiff'):
-            log.debug('')
             new_file_path = os.path.join(folder, file)
 
             # Find the file we want to copy the initial metadata blob from
@@ -64,6 +60,7 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
             # Only upload files with 'pass' camera-alignment status for now
             filtered_df = df.loc[(df['instrument'] == zsd) & (df['date'] == date) & (df['qc'] == 'pass')]
             if len(filtered_df.index) > 0:
+                log.info(f'Uploading file {file}')
                 # Edit metadata accordingly
                 new_metadata = deepcopy(original_file)  # This is a shallow copy, but it technically doesn't matter
 
@@ -94,6 +91,7 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
                     rows=[{'FovId': fov_id, 'AlignedImageFileId': aligned_file.file_id}]
                 )
             else:
+                log.info(f'Failing file {file}')
                 failed_files.append(file)
 
     pd.DataFrame(failed_files).to_csv(os.path.join(folder, 'fail_upload.csv'))
