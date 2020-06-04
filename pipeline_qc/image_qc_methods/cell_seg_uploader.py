@@ -74,7 +74,7 @@ class CellSegmentationUploader:
             }
         }
 
-        self._fms_client.upload_file(combined_segmentation_path, metadata, timeout=self._fms_timeout)
+        self._fms_client.upload_file_sync(combined_segmentation_path, metadata, timeout=self._fms_timeout)
 
     def _channel_metadata_block(self, content_type: str, processing_date: str):
         """

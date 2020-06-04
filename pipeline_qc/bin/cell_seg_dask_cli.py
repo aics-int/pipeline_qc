@@ -1,17 +1,12 @@
-from aics_dask_utils import DistributedHandler
-from dask_jobqueue import SLURMCluster
-
-"""
-This sample script will get deployed in the bin directory of the
-users' virtualenv when the parent module is installed using pip.
-"""
-
 import argparse
 import logging
 import sys
 import traceback
 import lkaccess.contexts
 
+from aics_dask_utils import DistributedHandler
+from dask_jobqueue import SLURMCluster
+from datetime import datetime
 from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationWrapper
 from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader, FileManagementSystem
 
@@ -125,7 +120,6 @@ def main():
 
         def work(cell_seg_wrapper, fov_id):
             successResponse = f"FOV {fov_id} success"
-            failureResponse = f"FOV {fov_id} failure"
 
             try:
                 cell_seg_wrapper.batch_cell_segmentations(
@@ -138,29 +132,36 @@ def main():
                 return successResponse
 
             except Exception as e:
-                print(f"FOV {fov_id}: Exception: {e}")                
-                return failureResponse
+                error = f"FOV {fov_id} failure: {str(e)}\n{traceback.format_exc()}"
+                print(error)
+                return error
 
 
         # Run distributed
+        print("v1.0.2")
+        print(f"** START: {datetime.now()}")
         cluster = SLURMCluster(cores=1, 
-                               memory="50GB", 
-                               queue="aics_gpu_general", 
-                               walltime="00:20:00", 
+                               memory="60G", 
+                               queue="aics_gpu_general",
+                               nanny=False,
+                               walltime="00:30:00",
+                               extra=["--resources GPU=1,nthreads=8"],
                                job_extra=["--gres=gpu:gtx1080:1"])   
-        cluster.scale(4)
+        cluster.scale(3)
+        print(cluster.job_script())
 
-        with DistributedHandler(None) as handler:
+        with DistributedHandler(cluster.scheduler_address) as handler:
             futures = handler.client.map(
                 lambda fov_id: work(cell_seg, fov_id),
                 args.fovids
             )
 
-        results = handler.gather(futures)
-        print("Results:\n")
-        for r in results:
-            print(f"{r}\n")
+            results = handler.gather(futures)
+            print("Results:\n")
+            for r in results:
+                print(f"{r}\n")
 
+        print(f"**END: {datetime.now()}")
     except Exception as e:
         log.error("=============================================")
         if dbg:
@@ -170,11 +171,6 @@ def main():
         log.error("=============================================")
         sys.exit(1)
 
-
-
-
-
-                          
 
 if __name__ == "__main__":
     main()
