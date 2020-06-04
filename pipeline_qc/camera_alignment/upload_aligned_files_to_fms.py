@@ -62,7 +62,7 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
             if len(filtered_df.index) > 0:
                 log.info(f'Uploading file {file}')
                 # Edit metadata accordingly
-                new_metadata = deepcopy(original_file)  # This is a shallow copy, but it technically doesn't matter
+                new_metadata = deepcopy(original_file)
 
                 if 'content_processing' in original_file:
                     # get align info
