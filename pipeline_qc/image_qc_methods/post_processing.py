@@ -2,11 +2,12 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
 import shutil
+import seaborn as sns
 
-df = pd.read_csv('/allen/aics/microscopy/Aditya/image_qc_outputs/20200519_metrics/fov_qc_metrics.csv')
-aics61 = df[df['cellline'] == 'AICS-53']
-aics61_4 = aics61[aics61['workflow'] == "['Pipeline 4.2']"]
-# aics61_4_aligned = aics61_4[aics61_4['localfilepath'].str.contains('aligned_cropped')]
+df = pd.read_csv('/allen/aics/microscopy/Aditya/image_qc_outputs/20200410_metrics/fov_qc_metrics.csv')
+aics61 = df[df['cellline'] == 'AICS-61']
+aics61_4 = aics61[aics61['workflow'] == "['Pipeline 4.4']"]
+aics61_4_aligned = aics61_4[aics61_4['localfilepath'].str.contains('aligned_cropped')]
 aics61_4_aligned = aics61_4
 
 for index, row in aics61_4_aligned.iterrows():
@@ -140,9 +141,13 @@ for index, row in aics61_4_aligned.iterrows():
     else:
         aics61_4_aligned.at[index, 'Pass_cellline'] = True
 
-aics61_failed = aics61_4_aligned[(aics61_4_aligned['Pass'] == False)]
-aics61_passed = aics61_4_aligned[(aics61_4_aligned['Pass'] == True)]
+aics61_failed = aics61_4_aligned[(aics61_4_aligned['Pass_cellline'] == False)]
+aics61_passed = aics61_4_aligned[(aics61_4_aligned['Pass_cellline'] == True)]
 
 # target = '/allen/aics/microscopy/Aditya/image_qc_outputs/failed_examples_aics61'
 # for filepath in list(aics61_failed['localfilepath']):
 #     shutil.copy(filepath, target + '/' + filepath.split('/')[-1])
+
+sns.scatterplot(aics61_4_aligned['405nm median-intensity'], aics61_4_aligned['488nm median-intensity'], hue=aics61_4_aligned['Pass_cellline'])
+sns.scatterplot(aics61_4_aligned['405nm median-intensity'], aics61_4_aligned['638nm median-intensity'], hue=aics61_4_aligned['Pass_cellline'])
+sns.scatterplot(aics61_4_aligned['488nm median-intensity'], aics61_4_aligned['638nm median-intensity'], hue=aics61_4_aligned['Pass_cellline'])
