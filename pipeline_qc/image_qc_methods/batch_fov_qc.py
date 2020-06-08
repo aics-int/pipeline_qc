@@ -11,7 +11,7 @@ import dask.config
 from dask_jobqueue import SLURMCluster
 from pipeline_qc import detect_edge, detect_z_stack_false_clip
 from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
-                                          query_fovs)
+                                          query_fovs, z_stack_check)
 
 
 class StandardizeFOVArrayResult(NamedTuple):
@@ -57,6 +57,9 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                 bf_edge_detect = detect_edge.detect_edge_position(channel_array)
                 for edge_key, edge_value in bf_edge_detect.items():
                     stat_dict.update({channel_name + ' ' + edge_key: edge_value})
+                bf_zstack_intensity = z_stack_check.z_stack_order_check(channel_array)
+                for zstack_key, zstack_value in bf_zstack_intensity:
+                    stat_dict.update({channel_name + ' ' + zstack_key: zstack_value})
                 bf_false_clip_dict = detect_z_stack_false_clip.detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
                     stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
