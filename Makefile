@@ -50,3 +50,18 @@ clean:
 > rm -fr coverage.xml
 > rm -fr htmlcov/
 > rm -fr .pytest_cache
+
+bumpversion-major: venv
+> $(VENV_ACTIVATE) && bump2version major --allow-dirty
+
+bumpversion-minor: venv
+> $(VENV_ACTIVATE) && bump2version minor --allow-dirty
+
+bumpversion-patch: venv
+> $(VENV_ACTIVATE) && bump2version patch --allow-dirty
+
+bumpversion-dev: venv
+> $(VENV_ACTIVATE) && bump2version devbuild --allow-dirty
+
+bumpversion-release: venv
+> $(VENV_ACTIVATE) && bump2version release --allow-dirty
