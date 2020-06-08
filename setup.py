@@ -31,6 +31,7 @@ interactive_dev_deps = [
     # 'itkwidgets==0.12.2',
     # 'ipython==7.0.1',
     # 'ipywidgets==7.4.1'
+    'bump2version'
 ]
 all_deps = [*test_deps, *lint_deps, *interactive_dev_deps]
 
