@@ -67,7 +67,7 @@ def _update_aligned_file_metadata(original_file, filtered_df):
 def _update_failed_files(failed_files, file, folder, failure_msg):
     log.info(f'Failing file {file} ({failure_msg})')
     new_failed_files = failed_files.append({'FileName': file, 'Failure': failure_msg}, ignore_index=True)
-    new_failed_files.to_csv(os.path.join(folder, 'fail_upload_TEST.csv'))
+    new_failed_files.to_csv(os.path.join(folder, 'fail_upload.csv'))
     return new_failed_files
 
 
