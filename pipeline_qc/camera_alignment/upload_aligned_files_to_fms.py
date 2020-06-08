@@ -64,9 +64,11 @@ def _update_aligned_file_metadata(original_file, filtered_df):
     return new_metadata
 
 
-def _update_failed_files(failed_files, file, failure_msg):
+def _update_failed_files(failed_files, file, folder, failure_msg):
     log.info(f'Failing file {file} ({failure_msg})')
-    return failed_files.append({'FileName': file, 'Failure': failure_msg}, ignore_index=True)
+    new_failed_files = failed_files.append({'FileName': file, 'Failure': failure_msg}, ignore_index=True)
+    new_failed_files.to_csv(os.path.join(folder, 'fail_upload_TEST.csv'))
+    return new_failed_files
 
 
 def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
@@ -97,7 +99,7 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
                 _check_metadata(original_file)
                 metadata_is_good = True
             except Exception as e:
-                _update_failed_files(failed_files, file, str(e))
+                failed_files = _update_failed_files(failed_files, file, folder, str(e))
                 metadata_is_good = False
 
             if metadata_is_good:
@@ -122,8 +124,7 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
                         rows=[{'FovId': fov_id, 'AlignedImageFileId': aligned_file.file_id}]
                     )
                 else:
-                    _update_failed_files(failed_files, file, 'No corresponding file with "QC: Pass": found')
+                    failed_files = _update_failed_files(failed_files, file, folder,
+                                                        'No corresponding file with "QC: Pass": found')
         else:
-            _update_failed_files(failed_files, file, "Not a .tiff")
-
-    failed_files.to_csv(os.path.join(folder, 'fail_upload.csv'))
+            failed_files = _update_failed_files(failed_files, file, folder, "Not a .tiff")
