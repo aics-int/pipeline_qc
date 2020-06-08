@@ -52,6 +52,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
             for intensity_key, intensity_value, in intensity_dict.items():
                 stat_dict.update({channel_name + ' ' + intensity_key + '-intensity': intensity_value})
 
+<<<<<<<
             # Runs all metrics to be run on brightfield (edge detection, false clip bf) and makes bf qc_images
             if channel_name == 'brightfield':
                 bf_edge_detect = detect_edge.detect_edge_position(channel_array)
@@ -60,6 +61,19 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                 bf_false_clip_dict = detect_z_stack_false_clip.detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
                     stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
+=======
+            # Runs all metrics to be run on brightfield (edge detection, false clip bf, zstack intensity) and makes bf qc_images
+            if channel_name == 'brightfield':
+                bf_edge_detect = detect_edge.detect_edge_position(channel_array)
+                for edge_key, edge_value in bf_edge_detect.items():
+                    stat_dict.update({channel_name + ' ' + edge_key: edge_value})
+                bf_zstack_intensity = z_stack_check.z_stack_order_check(channel_array)
+                for zstack_key, zstack_value in bf_zstack_intensity:
+                    stat_dict.update({channel_name + ' ' + zstack_key: zstack_value})
+                bf_false_clip_dict = detect_z_stack_false_clip.detect_false_clip_bf(channel_array)
+                for false_clip_key, false_clip_value in bf_false_clip_dict.items():
+                    stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
+>>>>>>>
 
                 # PUT QC_IMAGES FOR BF HERE
                 if image_gen:
