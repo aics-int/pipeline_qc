@@ -39,6 +39,9 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
         channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
                                                                          str(row['sourceimagefileid']))
 
+        # Segments area in FOV that has cells
+        cell_mask = detect_edge.segment_from_zstack(channel_dict['brightfield'], gaussian_thresh=0.045)
+
         # Initializes a dictionary where all stats for an fov are saved
         stat_dict = dict()
 
@@ -48,7 +51,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                 print('This FOV is not a multi-dimensional image, skipping...')
                 return dict()
             # Runs the intensity metrics on all z-stack images. Put here since run on all channels
-            intensity_dict = intensity.intensity_stats_single_channel(channel_array)
+            intensity_dict = intensity.intensity_stats_single_channel(channel_array, cell_mask)
             for intensity_key, intensity_value, in intensity_dict.items():
                 stat_dict.update({channel_name + ' ' + intensity_key + '-intensity': intensity_value})
 
