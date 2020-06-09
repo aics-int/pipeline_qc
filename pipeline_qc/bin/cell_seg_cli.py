@@ -10,7 +10,7 @@ import traceback
 import lkaccess.contexts
 
 from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationWrapper
-from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader, FileManagementSystem
+from pipeline_qc.image_qc_methods.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
 
 ###############################################################################
 
@@ -61,6 +61,7 @@ class Args(argparse.Namespace):
         self.save_to_fms = False
         self.save_to_isilon = False
         self.env = 'stg'
+        self.process_duplicates = False
         self.__parse()
 
     def __parse(self):
@@ -91,6 +92,9 @@ class Args(argparse.Namespace):
         p.add_argument('--save_to_isilon',
                        help="Save segmentations on the isilon (default is False)",
                        default=False, required=False, action='store_true')
+        p.add_argument('--process_duplicates',
+                       help="Re-process segmentation run if existing segmentation is found (default is False)",
+                       default=False, required=False, action='store_true')                       
         p.add_argument('--env', type=str,
                        help="Environment that data will be stored to('prod, 'stg', 'dev' (default is 'stg')",
                        default='stg', required=False)
@@ -110,7 +114,7 @@ def get_app_root(env: str) -> CellSegmentationWrapper:
     """
     conf = CONFIG[env]
     fms = FileManagementSystem(host=conf["fms_host"], port=conf["fms_port"])
-    uploader = CellSegmentationUploader(fms_client=fms, fms_timeout=conf["fms_timeout_in_seconds"])
+    uploader = CellSegmentationRepository(fms_client=fms, fms_timeout=conf["fms_timeout_in_seconds"])
     return CellSegmentationWrapper(uploader, conf["labkey_context"])
 
 
@@ -128,7 +132,8 @@ def main():
             fovids=args.fovids,
             only_from_fms=args.only_from_fms,
             save_to_fms=args.save_to_fms,
-            save_to_isilon=args.save_to_isilon
+            save_to_isilon=args.save_to_isilon,
+            process_duplicates=args.process_duplicates
         )
 
     except Exception as e:

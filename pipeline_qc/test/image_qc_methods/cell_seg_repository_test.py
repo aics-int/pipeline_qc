@@ -2,15 +2,15 @@ import pytest
 
 from unittest.mock import Mock, call
 from aicsfiles import FileManagementSystem
-from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader, FileManagementSystem
+from pipeline_qc.image_qc_methods.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
 
 
-class TestCellSegmentationUploader:
+class TestCellSegmentationRepository:
 
     @pytest.fixture(autouse=True)
     def setup(self):
         self._mock_fms_client = Mock(spec=FileManagementSystem)
-        self._cell_seg_uploader = CellSegmentationUploader(fms_client=self._mock_fms_client)
+        self._cell_seg_repository = CellSegmentationRepository(fms_client=self._mock_fms_client)
 
     def test_upload_combined_segmentation_no_initial_metadata(self):
         # Arrange
@@ -19,7 +19,7 @@ class TestCellSegmentationUploader:
         self._mock_fms_client.query_files.return_value = None
 
         # Act
-        self._cell_seg_uploader.upload_combined_segmentation(combined_seg_path, input_file_path)
+        self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
 
         # Assert
         self._mock_fms_client.upload_file.assert_called_once()
@@ -40,10 +40,31 @@ class TestCellSegmentationUploader:
         self._mock_fms_client.query_files.return_value = [{"microscopy": {"fov_id": "9999"}}]
 
         # Act
-        self._cell_seg_uploader.upload_combined_segmentation(combined_seg_path, input_file_path)
+        self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
 
         # Assert
         metadata = self._mock_fms_client.upload_file.call_args[0][1]
         assert metadata["file"]["file_type"] == "image"
         assert len(metadata["content_processing"]["channels"]) == 4  # 4 channels
         assert metadata["microscopy"]["fov_id"] == "9999"
+
+    def test_segmentation_exists_found(self):
+         # Arrange
+        self._mock_fms_client.query_files.return_value = [{"file_id": "1234", "file_name": "segmentation.ome.tiff"}]      
+        
+        # Act
+        exists = self._cell_seg_repository.segmentation_exists("segmentation.ome.tiff")
+
+        # Assert
+        assert exists == True
+
+    @pytest.mark.parametrize("result", [None, []])
+    def test_segmentation_exists_not_found(self, result):
+         # Arrange
+        self._mock_fms_client.query_files.return_value = result      
+        
+        # Act
+        exists = self._cell_seg_repository.segmentation_exists("segmentation.ome.tiff")
+
+        # Assert
+        assert exists == False
