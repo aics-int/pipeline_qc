@@ -21,11 +21,12 @@ class CellSegmentationWrapper:
     and performs additional query and upload tasks for microscopy pipeline usage
     """
 
-    def __init__(self, repository: CellSegmentationRepository, labkey_context: ServerContext):
+    def __init__(self, repository: CellSegmentationRepository, labkey_host: str, labkey_port: int):
         if repository is None:
             raise AttributeError("repository")
         self._repository = repository
-        self._labkey_context = labkey_context
+        self._labkey_host = labkey_host
+        self._labkey_port = labkey_port
 
     def single_seg_run(self, image):
         sm = SuperModel(MODEL)
@@ -51,7 +52,7 @@ class CellSegmentationWrapper:
         FOV images are queried from FMS based on the given options and segmented sequentially.
         """                                
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
-                                        only_from_fms=only_from_fms)
+                                        only_from_fms=only_from_fms, labkey_host=self._labkey_host, labkey_port=self._labkey_port)
 
 
         print(f'''

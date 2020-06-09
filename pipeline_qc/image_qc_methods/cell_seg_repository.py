@@ -74,7 +74,7 @@ class CellSegmentationRepository:
             }
         }
 
-        self._fms_client.upload_file(combined_segmentation_path, metadata, timeout=self._fms_timeout)
+        self._fms_client.upload_file_sync(combined_segmentation_path, metadata, timeout=self._fms_timeout)
 
     def segmentation_exists(self, filename: str):
         """

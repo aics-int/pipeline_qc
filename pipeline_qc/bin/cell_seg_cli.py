@@ -30,19 +30,22 @@ CONFIG = {
         "fms_host": "aics.corp.alleninstitute.org",
         "fms_port": 80,
         "fms_timeout_in_seconds": 300,
-        "labkey_context": lkaccess.contexts.PROD
+        "lk_host": "aics.corp.alleninstitute.org",
+        "lk_port": 80
     },
     "stg":{
         "fms_host": "stg-aics.corp.alleninstitute.org",
         "fms_port": 80,
         "fms_timeout_in_seconds": 300,
-        "labkey_context": lkaccess.contexts.STAGE
+        "lk_host": "stg-aics.corp.alleninstitute.org",
+        "lk_port": 80
     },
     "dev":{
         "fms_host": "dev-aics-ssl-001.corp.alleninstitute.org",
         "fms_port": 8080,
         "fms_timeout_in_seconds": 300,
-        "labkey_context": lkaccess.contexts.DEV
+        "lk_host": "localhost",
+        "lk_port": 3000
     }
 }
 
