@@ -7,7 +7,7 @@ import lkaccess.contexts
 from aics_dask_utils import DistributedHandler
 from dask_jobqueue import SLURMCluster
 from datetime import datetime
-from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationWrapper
+from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationDistributedWrapper
 from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader, FileManagementSystem
 
 ###############################################################################
@@ -109,57 +109,29 @@ def get_app_root(env: str) -> CellSegmentationWrapper:
     conf = CONFIG[env]
     fms = FileManagementSystem(host=conf["fms_host"], port=conf["fms_port"])
     uploader = CellSegmentationUploader(fms_client=fms, fms_timeout=conf["fms_timeout_in_seconds"])
-    return CellSegmentationWrapper(uploader, conf["labkey_context"])
+    return CellSegmentationDistributedWrapper(uploader, conf["labkey_context"])
 
 def main():
     args = Args()
     dbg = args.debug
 
     try:        
-        cell_seg: CellSegmentationWrapper = get_app_root(args.env)
-
-        def work(cell_seg_wrapper, fov_id):
-            successResponse = f"FOV {fov_id} success"
-
-            try:
-                cell_seg_wrapper.batch_cell_segmentations(
-                    output_dir=args.output_dir,
-                    fovids=[fov_id],
-                    save_to_fms=args.save_to_fms,
-                    save_to_isilon=args.save_to_isilon
-                )
-                
-                return successResponse
-
-            except Exception as e:
-                error = f"FOV {fov_id} failure: {str(e)}\n{traceback.format_exc()}"
-                print(error)
-                return error
-
+        cell_seg: CellSegmentationDistributedWrapper = get_app_root(args.env)
 
         # Run distributed
-        print("v1.0.2")
+        print("v2.0.0")
         print(f"** START: {datetime.now()}")
-        cluster = SLURMCluster(cores=1, 
-                               memory="60G", 
-                               queue="aics_gpu_general",
-                               nanny=False,
-                               walltime="00:30:00",
-                               extra=["--resources GPU=1,nthreads=4"],
-                               job_extra=["--gres=gpu:gtx1080:1"])   
-        cluster.scale(3)
-        print(cluster.job_script())
 
-        with DistributedHandler(cluster.scheduler_address) as handler:
-            futures = handler.client.map(
-                lambda fov_id: work(cell_seg, fov_id),
-                args.fovids
-            )
-
-            results = handler.gather(futures)
-            print("Results:\n")
-            for r in results:
-                print(f"{r}\n")
+        cell_seg.batch_cell_segmentations(
+            output_dir=args.output_dir,
+            workflows=args.workflows,
+            cell_lines=args.cell_lines,
+            plates=args.plates,
+            fovids=args.fovids,
+            only_from_fms=args.only_from_fms,
+            save_to_fms=args.save_to_fms,
+            save_to_isilon=args.save_to_isilon
+        )
 
         print(f"**END: {datetime.now()}")
     except Exception as e:
