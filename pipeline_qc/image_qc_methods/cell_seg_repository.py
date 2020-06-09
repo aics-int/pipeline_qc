@@ -17,12 +17,12 @@ class ContentTypes(object):
     NucContour = "Nucleus contour"
     MembContour = "Membrane contour"
 
-class CellSegmentationUploader:
+class CellSegmentationRepository:
     """
-    Interface for uploading segmentation files to FMS/Labkey
+    Interface for persistence (FMS/Labkey) operations on segmentation files
     """
     def __init__(self, fms_client: FileManagementSystem,  fms_timeout: int = 300):
-        if not fms_client:
+        if fms_client is None:
             raise AttributeError("fms_client")
         self._fms_timeout = fms_timeout
         self._fms_client = fms_client
@@ -76,6 +76,16 @@ class CellSegmentationUploader:
 
         self._fms_client.upload_file(combined_segmentation_path, metadata, timeout=self._fms_timeout)
 
+    def segmentation_exists(self, filename: str):
+        """
+        Check whether the given segmentation file has already been persisted 
+        param: filename: segmentation file name
+        return: True if file already exists, False otherwise
+        """
+        query = Filter().with_file_name(filename)
+        result = self._fms_client.query_files(query)
+        return (result is not None and len(result) > 0)
+
     def _channel_metadata_block(self, content_type: str, processing_date: str):
         """
         Build and return a metadata block for a given channel
@@ -98,4 +108,4 @@ class CellSegmentationUploader:
         query = Filter().with_file_id(file_id)
         result = self._fms_client.query_files(query)
 
-        return result[0] if result and len(result) > 0 else None
+        return result[0] if result is not None and len(result) > 0 else None
