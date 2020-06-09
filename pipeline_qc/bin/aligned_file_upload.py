@@ -7,7 +7,7 @@ import traceback
 
 from lkaccess import LabKey, contexts
 
-log = logging.getLogger('bin/labkey_cell_generation')
+log = logging.getLogger('bin/aligned_file_upload')
 logging.basicConfig(level=logging.INFO, format='[%(asctime)s - %(name)s - %(lineno)3d][%(levelname)s] %(message)s')
 logging.getLogger('labkey').setLevel(logging.ERROR)
 
@@ -28,8 +28,8 @@ class Args(argparse.Namespace):
 
     def __parse(self):
         p = argparse.ArgumentParser(
-            description='Inserts rows in the LabKey Processing.Cell for each cell present in the given segmentation'
-                        ' output file.'
+            description="Uploads a directory of aligned ome.tiff files to FMS and updates their corresponding FOV"
+                        " entries in LabKey to reference them"
         )
 
         p.add_argument('-f', '--file', dest='input_csv', required=True,
