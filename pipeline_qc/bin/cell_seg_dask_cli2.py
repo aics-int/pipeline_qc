@@ -7,7 +7,7 @@ import lkaccess.contexts
 from aics_dask_utils import DistributedHandler
 from dask_jobqueue import SLURMCluster
 from datetime import datetime
-from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationDistributedWrapper
+from pipeline_qc.image_qc_methods.cell_seg_wrapper_distributed import CellSegmentationDistributedWrapper
 from pipeline_qc.image_qc_methods.cell_seg_uploader import CellSegmentationUploader, FileManagementSystem
 
 ###############################################################################
