@@ -115,20 +115,206 @@ def detect_false_clip_bf(bf_z, threshold=(0.01, 0.073)):
     return stat_dict
 
 
-def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
+def initialize_peak(z_aggregate):
+    """
+    Initializes intensity peaks from median intensity profile
+    Parameters
+    ----------
+    z_aggregate
+        contrast profile in z
+
+    Returns
+    -------
+    top_peak
+        identified index of top z-slice
+    bottom_peak
+        identified index of bottom z-slice
+    """
+    try:
+        all_peaks = signal.argrelmax(np.array(z_aggregate))[0]
+    except:
+        all_peaks = []
+
+    # Initialize top and bottom peaks from all_peaks
+    if len(all_peaks) == 2:
+        bottom_peak = all_peaks[0]
+        top_peak = all_peaks[1]
+    elif len(all_peaks) > 2:
+        # Get the peak with highest intensity and initialize top/bottom with the same peak
+        indexed = stats.rankdata(all_peaks, method='ordinal')
+        refined_z = []
+        for index in all_peaks:
+            refined_z.append(z_aggregate[index])
+        top_peak = bottom_peak = all_peaks[np.where(refined_z == np.max(refined_z))][0]
+        peak_info = 'more than 2 peaks'
+        print('more than 2 peaks')
+    elif len(all_peaks) == 1:
+        # Set bottom peak and top peak as the same peak
+        bottom_peak = all_peaks[0]
+        top_peak = all_peaks[0]
+    else:
+        # Report cannot find peak
+        bottom_peak = 0
+        top_peak = 0
+        print('cannot find peak')
+        peak_info = 'cannot find peak'
+
+    return top_peak, bottom_peak
+
+
+def refine_bottom(real_bottom, contrast_99_percentile, ref_slope=-0.005, ref_r=0.8):
+    """
+    Refines the index of detected bottom z-slice
+    Parameters
+    ----------
+    real_bottom
+        Initial detected index of bottom z-slice
+    contrast_99_percentile
+        a list of contrast profile in z
+    ref_slope
+        a float of reference slope to set crop equals true/false
+    ref_r
+        a float of reference r2 value threshold to set crop equals true/false
+    Returns
+    -------
+    real_bottom
+        an integer of index of bottom z-stack or None
+    crop_bottom
+        a boolean if crop bottom is True or False
+    flag_bottom
+        a boolean if the bottom should be flagged
+
+    """
+    bottom_range = np.linspace(0, real_bottom - 1, real_bottom)
+    real_bottom = real_bottom
+    crop_bottom = False
+    flag_bottom = False
+    if len(bottom_range) >= 5:
+        # Get linear regression
+        slope, y_int, r, p, err = stats.linregress(x=list(range(0, 5)), y=contrast_99_percentile[0:5])
+        # Set criteria with slope and r-value to determine if the bottom is cropped
+        if slope <= ref_slope:
+            real_bottom = real_bottom
+            crop_bottom = False
+        elif (slope <= 0) & (math.fabs(r) > ref_r):
+            real_bottom = real_bottom
+            crop_bottom = False
+    else:
+        # The z-stack might not be cropped, but should require validation
+        print('flag bottom, too short')
+        flag_bottom = True
+        crop_bottom = False
+    return real_bottom, crop_bottom, flag_bottom
+
+
+def refine_top(real_top, contrast_99_percentile, ref_slope=-0.015, ref_r=0.8):
+    """
+    Refines the index of detected top z-slice
+    Parameters
+    ----------
+    real_top
+        Initial detected index of top z-slice
+    contrast_99_percentile
+        a list of contrast profile in z
+    ref_slope
+        a float of reference slope to set crop equals true/false
+    ref_r
+        a float of reference r2 value threshold to set crop equals true/false
+    Returns
+    -------
+    real_top
+        an integer of index of top-z-stack or None
+    crop_top
+        a boolean if crop top is True or False
+    flag_top
+        a boolean if the top should be flagged
+    """
+    top_range = np.linspace(real_top, len(contrast_99_percentile) - 1, len(contrast_99_percentile) - real_top)
+    real_top = real_top
+    crop_top = False
+    flag_top = False
+    if len(top_range) >= 5:
+        # get linear regression
+        slope, y_int, r, p, err = stats.linregress(x=list(range(real_top, real_top + 5)),
+                                                   y=contrast_99_percentile[real_top:real_top + 5])
+        # Set criteria with slope and r-value to determine if the top is cropped
+        if slope <= ref_slope:
+            real_top = real_top
+            crop_top = False
+        elif (slope <= 0) & (math.fabs(r) > ref_r):
+            real_top = real_top
+            crop_top = False
+    else:
+        # The z-stack might not be cropped, but should require validation
+        print('flag top, too short')
+        flag_top = True
+    return real_top, crop_top, flag_top
+
+
+def check_top(contrast_99_percentile, ref_slope_range=(-0.01, 0), ref_r=0.8):
+    """
+    Checks the top 5 z-slices of a z-stack to finally determine if it is cropped or not
+    Parameters
+    ----------
+    contrast_99_percentile
+        a list of contrast profile in z
+    ref_slope_range
+        a tuple of acceptable slope range to set crop equals true/false
+    ref_r
+        a float of reference r2 value threshold to set crop equals true/false
+    Returns
+    -------
+    crop_top
+        a boolean if crop top is True or False
+    """
+    crop_top = True
+    top_range = np.linspace(len(contrast_99_percentile)-5, len(contrast_99_percentile)-1, 5)
+    # for index in top_range:
+    #     #Calysta, I added this in because there were erors popping up when there were negative top_range values
+    #     if index < 0:
+    #         real_top = []
+    #         print('here')
+    #         crop_top = True
+    #         break
+    #     else:
+
+    slope, y_int, r, p, err = stats.linregress(x=top_range,
+                                               y=np.take(contrast_99_percentile,
+                                                         indices=top_range.astype(int)))
+    if (ref_slope_range[0] < slope <= ref_slope_range[1]) & (math.fabs(r) > ref_r):
+        crop_top = False
+    return crop_top
+
+
+def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19), ref_r=0.8):
     """
     Detects top/bottom clipping in a z-stack. (The method will fail if you have small debris/floating cells on top. )
-    :param cmdr: a (z, y, x) cmdr image
-    :param contrast_threshold: a tuple of contrast threshold (threshold for finding bottom, threshold for finding top)
-    :return:
-        real_bottom: an integer of index of bottom-z-stack or None
-        real_top: an integer of index of top-z-stack or None
-        crop_top: a boolean if crop top is True or False
-        crop_bottom: a boolean if crop bottom is True or False
-        flag_top: a boolean if the top should be flagged
-        flag_bottom: a boolean if the bottom should be flagged
-        contrast_99_percentile: contrast profile in z
-        z_aggregate: median intensity profile in z
+    Parameters
+    ----------
+    cmdr
+        a (z, y, x) cmdr image
+    contrast_threshold
+        a tuple of contrast threshold (threshold for finding bottom, threshold for finding top)
+    ref_r
+        a float of reference r2 value threshold to set crop equals true/false
+    Returns
+    -------
+    real_bottom
+        an integer of index of bottom-z-stack or None
+    real_top
+        an integer of index of top-z-stack or None
+    crop_top
+        a boolean if crop top is True or False
+    crop_bottom
+        a boolean if crop bottom is True or False
+    flag_top
+        a boolean if the top should be flagged
+    flag_bottom
+        a boolean if the bottom should be flagged
+    contrast_99_percentile
+        contrast profile in z
+    z_aggregate
+        median intensity profile in z
     """
 
     # Initialize values
@@ -154,34 +340,8 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
     # Find intensity peaks in bottom and top of z-stack. A perfect z-stack should return 2 peaks,
     # the peak at lower index is the bottom of z-stack in focus, and the peak at higher index is the top of z-stack
     # in focus
-    try:
-        all_peaks = signal.argrelmax(np.array(z_aggregate))[0]
-    except:
-        all_peaks = []
 
-    # Initialize top and bottom peaks from all_peaks
-    if len(all_peaks) == 2:
-        bottom_peak = all_peaks[0]
-        top_peak = all_peaks[1]
-    elif len(all_peaks) > 2:
-        # Get the peak with highest intensity and initialize top/bottom with the same peak
-        indexed = stats.rankdata(all_peaks, method='ordinal')
-        refined_z = []
-        for index in all_peaks:
-            refined_z.append(z_aggregate[index])
-        top_peak = bottom_peak = all_peaks[np.where(refined_z==np.max(refined_z))][0]
-        peak_info = 'more than 2 peaks'
-        print('more than 2 peaks')
-    elif len(all_peaks) == 1:
-        # Set bottom peak and top peak as the same peak
-        bottom_peak = all_peaks[0]
-        top_peak = all_peaks[0]
-    else:
-        # Report cannot find peak
-        bottom_peak = 0
-        top_peak = 0
-        print('cannot find peak')
-        peak_info = 'cannot find peak'
+    top_peak, bottom_peak = initialize_peak(z_aggregate)
 
     # From bottom and top peak, find the z plane at contrast threshold to the bottom and top of z-stack
     bottom_range = contrast_99_percentile[0: bottom_peak]
@@ -205,7 +365,7 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
             crop_top = False
             break
 
-    # For logging purposes only
+    # # For logging purposes only
     # if real_top is None:
     #     print('crop top')
     # if real_bottom is None:
@@ -214,59 +374,18 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
     # Refine crop bottom identification with the slope and fit of the contrast curve
     # Linear fit for first five z-stacks from bottom
     if real_bottom is not None:
-        bottom_range = np.linspace(0, real_bottom - 1, real_bottom)
-        if len(bottom_range) >= 5:
-            # Get linear regression
-            slope, y_int, r, p, err = stats.linregress(x=list(range(0, 5)), y=contrast_99_percentile[0:5])
-            # Set criteria with slope and r-value to determine if the bottom is cropped
-            if slope <= -0.005:
-                real_bottom = real_bottom
-                crop_bottom = False
-            elif (slope <= 0) & (math.fabs(r) > 0.8):
-                real_bottom = real_bottom
-                crop_bottom = False
-        else:
-            # The z-stack might not be cropped, but should require validation
-            print('flag bottom, too short')
-            flag_bottom = True
-            crop_bottom = False
+        real_bottom, crop_bottom, flag_bottom = refine_bottom(real_bottom, contrast_99_percentile,
+                                                              ref_slope=-0.005, ref_r=ref_r)
 
     # Refine crop top identification with the slope and fit of the contrast curve
     # Linear fit for first five z-stacks from top
     if real_top is not None:
-        top_range = np.linspace(real_top, len(z_aggregate) - 1, len(z_aggregate) - real_top)
-        if len(top_range) >= 5:
-            # get linear regression
-            slope, y_int, r, p, err = stats.linregress(x=list(range(real_top, real_top + 5)),
-                                                       y=contrast_99_percentile[real_top:real_top + 5])
-            # Set criteria with slope and r-value to determine if the top is cropped
-            if slope <= -0.015:
-                real_top = real_top
-                crop_top = False
-            elif (slope <= 0) & (math.fabs(r) > 0.8):
-                real_top = real_top
-                crop_top = False
-        else:
-            # The z-stack might not be cropped, but should require validation
-            print('flag top, too short')
-            flag_top = True
+        real_top, crop_top, flag_top = refine_top(real_top, contrast_99_percentile,
+                                                  ref_slope=-0.015, ref_r=ref_r)
 
+    # last check for top. Could be more tolerant with crop top cut-off, but cannot predict the top slice
     if real_top is None:
-        top_range = np.linspace(len(z_aggregate)-5, len(z_aggregate)-1, 5)
-        for index in top_range:
-            #Calysta, I added this in because there were erors popping up when there were negative top_range values
-            if index < 0:
-                real_top = []
-                crop_top = True
-                break
-            else:
-                slope, y_int, r, p, err = stats.linregress(x=top_range,
-                                                   y=np.take(contrast_99_percentile, indices=top_range.astype(int)))
-
-            # print(slope)
-            if (slope > -0.01) & (slope <= 0) & (math.fabs(r) > 0.8):
-                real_top = real_top
-                crop_top = False
+        crop_top = check_top(contrast_99_percentile, ref_slope_range=(-0.01, 0), ref_r=ref_r)
 
     stat_dict = dict()
     stat_dict.update({'real_bottom': real_bottom})
@@ -281,13 +400,21 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
     return stat_dict
 
 #=======================================================================================================================
-# # Validating false clip methods
-#
-# csv = r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip.csv'
-# df = pd.read_csv(csv, names=['file_name'])
+# Validating false clip methods
+
+# csv = r'C:\Users\calystay\Downloads\aics94_fovqc.csv'
+# df = pd.read_csv(csv)
+# df = df[['fovid', 'sourceimagefileid', 'fovimagedate', 'localfilepath', 'barcode', '638nm crop_top-false clip',
+#         '638nm crop_bottom-false clip']]
+# df_check = df[df['638nm crop_top-false clip'] == True]
+
 # df_out = pd.DataFrame()
 #
-# for index, row in df.iterrows():
+# df_val = pd.read_csv(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip.csv', header=None)
+# df_val = df_val.rename(columns={0: 'file_name'})
+#
+# for index, row in df_val.iterrows():
+#
 #     plate = row['file_name'].split('_')[0]
 #     plate_path = os.path.join(r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_4_4', plate)
 #
@@ -298,30 +425,39 @@ def detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19)):
 #                 img = file
 #
 #     image_data = AICSImage(os.path.join(path, img))
+#     new_row = {'localfilepath': os.path.join(path, img)}
+#     # new_row = {'file_name': row['localfilepath']}
+#     # image_data = AICSImage('\\' + row['localfilepath'].replace('/', '\\'))
 #     image = image_data.data
 #
 #     channel_names = np.asarray(image_data.get_channel_names())
 #     cmdr_index = np.where(channel_names == 'CMDRP')[0][0]
 #
-#     cmdr = image[0, cmdr_index, :, :, :]
+#     cmdr = image[0, 0, cmdr_index, :, :, :]
+#     for upper_contrast in np.linspace(0.18, 0.25, 30):
+#         # detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity =
 #
-#     # detect_bottom, detect_top, crop_top, crop_bottom, flag_top, flag_bottom, contrast, intensity =
+#         stat_dict = detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, upper_contrast))
 #
-#     stat_dict = detect_false_clip_cmdr(cmdr, contrast_threshold=(0.2, 0.19))
+#         # Plot to compare
+#         # plt_save_path = os.path.join(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\test_0608_1',
+#         #                              str(row['fovid']) + '_plot.png')
+#         # plot_profile_clip(detect_bottom=None, detect_top=None,
+#         #                   profiles=[stat_dict['contrast_99_percentile'], stat_dict['z_aggregate']],
+#         #                   output_path=plt_save_path)
 #
-#     # Plot to compare
-#     # plt_save_path = os.path.join(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\test_5',
-#     #                              img.split('.czi')[0] + '_plot.png')
-#     # plot_profile_clip(detect_bottom=detect_bottom, detect_top=detect_top, profiles=[contrast, intensity],
-#     #                   output_path=plt_save_path)
+#         new_row['crop_bottom'] = stat_dict['crop_bottom']
+#         new_row['crop_top' + '_' + str(upper_contrast)] = stat_dict['crop_top']
 #
-#     row = {'full_path': os.path.join(path, img),
-#            'detect_bottom': stat_dict['detect_bottom]'],
-#            'detect_top': stat_dict['detect_top'],
-#            'crop_bottom': stat_dict['crop_bottom'],
-#            'crop_top': stat_dict['crop_top'],
-#            'flag_bottom': stat_dict['flag_bottom'],
-#            'flag_top': stat_dict['flag_top']}
+#         # row = {  # 'full_path': os.path.join(path, img),
+#         #     #'detect_bottom': stat_dict['detect_bottom]'],
+#         #     #'detect_top': stat_dict['detect_top'],
+#         #     'crop_bottom' + '_' + str(upper_contrast): stat_dict['crop_bottom'],
+#         #     'crop_top' + '_' + str(upper_contrast): stat_dict['crop_top'],
+#         #     'flag_bottom' + '_' + str(upper_contrast): stat_dict['flag_bottom'],
+#         #     'flag_top' + '_' + str(upper_contrast): stat_dict['flag_top'],
+#         # }
 #
-#     df_out = df_out.append(row, ignore_index=True)
-# df_out.to_csv(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip_out_3.csv')
+#     df_out = df_out.append(new_row, ignore_index=True)
+#     print(new_row)
+# df_out.to_csv(r'\\allen\aics\microscopy\Calysta\test\crop_top_bottom\false_clip_out_0609_1.csv')
