@@ -88,6 +88,7 @@ class CellSegmentationDistributedWrapper:
 
 
     def _process_single_cell_segmentation(self, row, output_dir, save_to_fms, save_to_isilon):
+        print(f"** START DISTRIBUTED::cell_seg_wrapper_distributed._process_single_cell_segmentation: {datetime.now()}")
         fov_id = row["fovid"]
 
         try:
@@ -97,24 +98,31 @@ class CellSegmentationDistributedWrapper:
                 msg = f'FOV:{row["fovid"]} has already been segmented'
                 print(msg)
                 return msg
-            else:
+            else:               
                 print(f'Running Segmentation on fov:{row["fovid"]}')
+                print(f"** START create_segmentable_image: {datetime.now()}")
                 im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
+                print(f"** END create_segmentable_image: {datetime.now()}")
                 if im.shape[0] ==3:
+                    print(f"** START single_seg_run: {datetime.now()}")
                     comb_seg = self.single_seg_run(im)
+                    print(f"** END single_seg_run: {datetime.now()}")
                 else:
                     msg = f'FOV:{row["fovid"]} does not have nucleus or cellular color channels'
                     print(msg)
                     return msg
                 
-                if save_to_fms == True:
+                if save_to_fms == True:                    
                     print("Uploading output file to FMS")
+                    print(f"** START DISTRIBUTED:: Write image: {datetime.now()}")
 
                     with TemporaryDirectory() as tmp_dir:
                         local_file_path = f'{tmp_dir}/{file_name}'
                         with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
                             writer.save(comb_seg)
+                        print(f"** START DISTRIBUTED:: upload_combined_segmentation: {datetime.now()}")
                         self._uploader.upload_combined_segmentation(local_file_path, row["sourceimagefileid"])
+                        print(f"** END DISTRIBUTED:: upload_combined_segmentation: {datetime.now()}")
 
                 if save_to_isilon == True:
                     print("Saving output file to Isilon")

@@ -46,6 +46,7 @@ class CellSegmentationWrapper:
     def batch_cell_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
                                  only_from_fms=True, save_to_fms=False, save_to_isilon=False,
                                  output_dir = '/allen/aics/microscopy/Aditya/cell_segmentations'):
+        print(f"** START batch_cell_segmentations: {datetime.now()}")
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
                                         only_from_fms=only_from_fms, labkey_context=self._labkey_context)
 
@@ -65,21 +66,28 @@ class CellSegmentationWrapper:
                 print(f'FOV:{row["fovid"]} has already been segmented')
             else:
                 print(f'Running Segmentation on fov:{row["fovid"]}')
+                print(f"** START _create_segmentable_image: {datetime.now()}")
                 im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
+                print(f"** END _create_segmentable_image: {datetime.now()}")
                 if im.shape[0] ==3:
+                    print(f"** START single_seg_run: {datetime.now()}")
                     comb_seg = self.single_seg_run(im)
+                    print(f"** END single_seg_run: {datetime.now()}")
                 else:
                     print(f'FOV:{row["fovid"]} does not have nucleus or cellular color channels')
                     break
                 
                 if save_to_fms == True:
                     print("Uploading output file to FMS")
+                    print(f"** START Write file: {datetime.now()}")
 
                     with TemporaryDirectory() as tmp_dir:
                         local_file_path = f'{tmp_dir}/{file_name}'
                         with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
                             writer.save(comb_seg)
+                        print(f"** START upload_combined_segmentation: {datetime.now()}")
                         self._uploader.upload_combined_segmentation(local_file_path, row["sourceimagefileid"])
+                        print(f"** END upload_combined_segmentation: {datetime.now()}")
 
                 if save_to_isilon == True:
                     print("Saving output file to Isilon")
