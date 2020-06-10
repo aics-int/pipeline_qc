@@ -52,7 +52,9 @@ class CellSegmentationDistributedWrapper:
                                  output_dir = '/allen/aics/microscopy/Aditya/cell_segmentations'):
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
                                         only_from_fms=only_from_fms, labkey_context=self._labkey_context)
-
+        rows = []
+        for i, row in query_df.iterrows():
+            rows.append(row)
 
         print(f'''
         __________________________________________
@@ -75,7 +77,7 @@ class CellSegmentationDistributedWrapper:
         with DistributedHandler(cluster.scheduler_address) as handler:
             futures = handler.client.map(
                 lambda row: self._process_single_cell_segmentation(row, output_dir, save_to_fms, save_to_isilon),
-                query_df
+                rows
             )
 
             results = handler.gather(futures)
