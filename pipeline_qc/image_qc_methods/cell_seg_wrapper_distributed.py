@@ -69,7 +69,7 @@ class CellSegmentationDistributedWrapper:
                                queue="aics_gpu_general",
                                nanny=False,
                                walltime="00:30:00",
-                               extra=["--resources GPU=1,nthreads4"],
+                               extra=["--resources GPU=1,nthreads=4"],
                                job_extra=["--gres=gpu:gtx1080:1"])   
         cluster.scale(3)
         print(cluster.job_script())
