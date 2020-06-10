@@ -69,7 +69,7 @@ class CellSegmentationDistributedWrapper:
                                queue="aics_gpu_general",
                                nanny=False,
                                walltime="00:30:00",
-                               extra=["--resources GPU=1,nthreads=4"],
+                               extra=["--resources GPU=1,nthreads=8"],
                                job_extra=["--gres=gpu:gtx1080:1"])   
         cluster.scale(3)
         print(cluster.job_script())
@@ -128,6 +128,8 @@ class CellSegmentationDistributedWrapper:
                     print("Saving output file to Isilon")
                     with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
                         writer.save(comb_seg)
+                
+                return f"FOV {fov_id} success" 
 
         except Exception as e:
             error = f"FOV {fov_id} failure: {str(e)}\n{traceback.format_exc()}"
