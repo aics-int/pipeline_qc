@@ -102,7 +102,7 @@ class Args(argparse.Namespace):
 ###############################################################################
 
 
-def get_app_root(env: str) -> CellSegmentationWrapper:
+def get_app_root(env: str) -> CellSegmentationDistributedWrapper:
     """
     Build dependency tree and return application root
     """
