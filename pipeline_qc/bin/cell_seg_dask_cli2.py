@@ -119,7 +119,7 @@ def main():
         cell_seg: CellSegmentationDistributedWrapper = get_app_root(args.env)
 
         # Run distributed
-        print("v2.0.0")
+        print("v2")
         print(f"** START: {datetime.now()}")
 
         cell_seg.batch_cell_segmentations(

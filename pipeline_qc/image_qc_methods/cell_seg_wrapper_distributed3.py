@@ -17,7 +17,7 @@ from dask_jobqueue import SLURMCluster
 # Constants
 MODEL = "DNA_MEM_instance_LF_integration_two_camera"
 
-class CellSegmentationDistributedWrapper2:
+class CellSegmentationDistributedWrapper3:
     """
     Single cell ML Segmentation wrapper
     Wraps the core segmentation code from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/dl_model_zoo/browse
@@ -63,30 +63,17 @@ class CellSegmentationDistributedWrapper2:
 
         __________________________________________
         ''')
-
-        # Create segmentable images (CPU)
-        print(f"START CPU work: {datetime.now()}")
-
         rows = []
         for i, row in query_df.iterrows():
             rows.append(row)
         
-        cluster = SLURMCluster(cores=1, 
-                               memory="50G", 
-                               queue="aics_cpu_general",
-                               nanny=True,
-                               walltime="00:30:00")     
-        cluster.scale(20)
-        print(cluster.job_script())
+        # Create segmentable images (CPU)
+        print(f"START CPU work: {datetime.now()}")
+        
 
         images = []
-        with DistributedHandler(cluster.scheduler_address) as handler:
-            futures = handler.client.map(
-                lambda row: self._create_segmentable_image(row),
-                rows
-            )
-
-            images = handler.gather(futures)
+        for row in rows:
+            images.append(self._create_segmentable_image(row))
 
         print(f"END CPU work: {datetime.now()}")      
 
