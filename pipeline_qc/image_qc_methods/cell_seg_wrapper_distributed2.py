@@ -17,7 +17,7 @@ from dask_jobqueue import SLURMCluster
 # Constants
 MODEL = "DNA_MEM_instance_LF_integration_two_camera"
 
-class CellSegmentationDistributedWrapper:
+class CellSegmentationDistributedWrapper2:
     """
     Single cell ML Segmentation wrapper
     Wraps the core segmentation code from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/dl_model_zoo/browse
@@ -35,7 +35,10 @@ class CellSegmentationDistributedWrapper:
 
         return sm.apply_on_single_zstack(input_img=image, inputCh=[0, 1, 2])
 
-    def _create_segmentable_image(self, localfilepath, sourceimagefileid):
+    def _create_segmentable_image(self, row):
+        print(f"** START create_segmentable_image: {datetime.now()}")
+        localfilepath = row['localfilepath']
+        sourceimagefileid = row['sourceimagefileid']
 
         channel_dict = file_processing_methods.split_image_into_channels(localfilepath, sourceimagefileid)
 
@@ -45,6 +48,7 @@ class CellSegmentationDistributedWrapper:
                 if key == channel:
                     full_im_list.append(value)
 
+        print(f"** END create_segmentable_image: {datetime.now()}")
         return np.array(full_im_list)
 
     def batch_cell_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
@@ -52,10 +56,6 @@ class CellSegmentationDistributedWrapper:
                                  output_dir = '/allen/aics/microscopy/Aditya/cell_segmentations'):
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
                                         only_from_fms=only_from_fms, labkey_context=self._labkey_context)
-        rows = []
-        for i, row in query_df.iterrows():
-            rows.append(row)
-
         print(f'''
         __________________________________________
 
@@ -64,20 +64,46 @@ class CellSegmentationDistributedWrapper:
         __________________________________________
         ''')
 
+        # Create segmentable images (CPU)
+        print(f"START CPU work: {datetime.now()}")
+        
+        rows = []
+        for i, row in query_df.iterrows():
+            rows.append(row)
+        
+        cluster = SLURMCluster(cores=1, 
+                               memory="50G", 
+                               queue="aics_cpu_general",
+                               nanny=True,
+                               walltime="00:30:00")     
+        cluster.scale(20)
+        print(cluster.job_script())
+
+        images = []
+        with DistributedHandler(cluster.scheduler_address) as handler:
+            futures = handler.client.map(
+                lambda row: self._create_segmentable_image(row),
+                rows
+            )
+
+            images = handler.gather(futures)
+
+        print(f"END CPU work: {datetime.now()}")      
+
+
+        # Segment (GPU)
+        print(f"START GPU work: {datetime.now()}")
         cluster = SLURMCluster(cores=1, 
                                memory="60G", 
                                queue="aics_gpu_general",
                                nanny=False,
                                walltime="00:30:00",
-                               extra=["--resources GPU=1,nthreads=8"],
+                               extra=["--resources GPU=1"],
                                job_extra=["--gres=gpu:gtx1080:1"])   
         cluster.scale(3)
         print(cluster.job_script())
-        from distributed import Client
-        with DistributedHandler(cluster.scheduler_address) as handler:
-            client: Client = handler.client
-            client.m
 
+        with DistributedHandler(cluster.scheduler_address) as handler:
             futures = handler.client.map(
                 lambda row: self._process_single_cell_segmentation(row, output_dir, save_to_fms, save_to_isilon),
                 rows
@@ -88,51 +114,20 @@ class CellSegmentationDistributedWrapper:
             for r in results:
                 print(f"{r}\n")
 
+        print(f"END GPU work: {datetime.now()}")
 
-
-    def _process_single_cell_segmentation(self, row, output_dir, save_to_fms, save_to_isilon):
+    def _process_single_cell_segmentation(self, im, row, output_dir, save_to_fms, save_to_isilon):
         print(f"** START DISTRIBUTED::cell_seg_wrapper_distributed._process_single_cell_segmentation: {datetime.now()}")
         fov_id = row["fovid"]
 
         try:
             file_name = self._get_seg_filename(row['localfilepath'])
-                
-            if os.path.isfile(f'{output_dir}/{file_name}'):
-                msg = f'FOV:{row["fovid"]} has already been segmented'
-                print(msg)
-                return msg
-            else:               
-                print(f'Running Segmentation on fov:{row["fovid"]}')
-                print(f"** START create_segmentable_image: {datetime.now()}")
-                im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
-                print(f"** END create_segmentable_image: {datetime.now()}")
-                if im.shape[0] ==3:
-                    print(f"** START single_seg_run: {datetime.now()}")
-                    comb_seg = self.single_seg_run(im)
-                    print(f"** END single_seg_run: {datetime.now()}")
-                else:
-                    msg = f'FOV:{row["fovid"]} does not have nucleus or cellular color channels'
-                    print(msg)
-                    return msg
-                
-                if save_to_fms == True:                    
-                    print("Uploading output file to FMS")
-                    print(f"** START DISTRIBUTED:: Write image: {datetime.now()}")
-
-                    with TemporaryDirectory() as tmp_dir:
-                        local_file_path = f'{tmp_dir}/{file_name}'
-                        with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
-                            writer.save(comb_seg)
-                        print(f"** START DISTRIBUTED:: upload_combined_segmentation: {datetime.now()}")
-                        self._uploader.upload_combined_segmentation(local_file_path, row["sourceimagefileid"])
-                        print(f"** END DISTRIBUTED:: upload_combined_segmentation: {datetime.now()}")
-
-                if save_to_isilon == True:
-                    print("Saving output file to Isilon")
-                    with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
-                        writer.save(comb_seg)
-                
-                return f"FOV {fov_id} success" 
+                                            
+            print(f"** START single_seg_run: {datetime.now()}")
+            comb_seg = self.single_seg_run(im)
+            print(f"** END single_seg_run: {datetime.now()}")
+            
+            return f"FOV {fov_id} success" 
 
         except Exception as e:
             error = f"FOV {fov_id} failure: {str(e)}\n{traceback.format_exc()}"

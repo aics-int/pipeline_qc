@@ -60,6 +60,7 @@ setup(name=PACKAGE_NAME,
               "cell_seg_cli={}.bin.cell_seg_cli:main".format(PACKAGE_NAME),
               "cell_seg_dask_cli={}.bin.cell_seg_dask_cli:main".format(PACKAGE_NAME),
               "cell_seg_dask_cli2={}.bin.cell_seg_dask_cli2:main".format(PACKAGE_NAME),
+              "cell_seg_dask_cli3={}.bin.cell_seg_dask_cli3:main".format(PACKAGE_NAME),
               "labkey_cell_generation={}.bin.labkey_cell_generation:main".format(PACKAGE_NAME)
           ]
       },
