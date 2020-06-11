@@ -75,9 +75,6 @@ class CellSegmentationDistributedWrapper:
         print(cluster.job_script())
         from distributed import Client
         with DistributedHandler(cluster.scheduler_address) as handler:
-            client: Client = handler.client
-            client.m
-
             futures = handler.client.map(
                 lambda row: self._process_single_cell_segmentation(row, output_dir, save_to_fms, save_to_isilon),
                 rows
