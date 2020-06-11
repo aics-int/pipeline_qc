@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import traceback
+import aicsimageio
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -29,6 +30,7 @@ class CellSegmentationDistributedWrapper:
             raise AttributeError("uploader")
         self._uploader = uploader
         self._labkey_context = labkey_context
+        aicsimageio.disable_dask()
 
     def single_seg_run(self, image):
         sm = SuperModel(MODEL)

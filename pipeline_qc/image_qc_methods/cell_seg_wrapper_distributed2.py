@@ -76,7 +76,7 @@ class CellSegmentationDistributedWrapper2:
                                queue="aics_cpu_general",
                                nanny=True,
                                walltime="00:30:00")     
-        cluster.scale(20)
+        cluster.scale(80)
         print(cluster.job_script())
 
         images = []
