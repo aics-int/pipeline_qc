@@ -2,6 +2,7 @@
 import os
 import logging
 import pandas as pd
+import re
 from copy import deepcopy
 
 from aicsfiles import FileManagementSystem
@@ -38,6 +39,21 @@ def _check_metadata(file):
     assert 'content_processing' in file, '"content_processing" block missing from metadata'
     assert 'microscopy' in file, '"microscopy" block missing from metadata'
     assert 'fov_id' in file['microscopy'], '"fov_id" missing from "microscopy" metadata block'
+
+
+def _grab_zsd_and_date(file):
+    file_name = file['file']['file_name']
+    file_path = file['file']['original_path']
+    zsd = 'ZSD' + file_path.split('ZSD')[1][0]
+    # Grab the date from the file name, assuming it's in the format YYYYMMDD and bookended by underscores or hyphens
+    date = re.search('[_-]([0-9]{8})[_-]', file_name).group(1)
+
+    log.debug(f'Info for file {file_name}')
+    log.debug(f'Path:       {file_path}')
+    log.debug(f'Date :      {date}')
+    log.debug(f'Instrument: {zsd}')
+
+    return zsd, date
 
 
 def _update_aligned_file_metadata(original_file, filtered_df):
@@ -104,9 +120,7 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
 
             if metadata_is_good:
                 # get instrument and date from file
-                file_path = original_file['file']['original_path']
-                zsd = 'ZSD' + file_path.split('ZSD')[1][0]
-                date = original_file['file']['file_name'].split('_')[2]
+                zsd, date = _grab_zsd_and_date(original_file)
 
                 # Only upload files with 'pass' camera-alignment status for now
                 filtered_df = df.loc[(df['instrument'] == zsd) & (df['date'] == date) & (df['qc'] == 'pass')]
