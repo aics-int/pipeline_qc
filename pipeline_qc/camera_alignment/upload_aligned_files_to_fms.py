@@ -110,35 +110,36 @@ def upload_aligned_files(lk: LabKey, input_csv: str, folder: str):
             fms_result = fms.query_files(content_proc_filter)
             original_file = fms_result[0]
 
-            # TODO: This try-except smells weird
             try:
                 _check_metadata(original_file)
-                metadata_is_good = True
             except Exception as e:
                 failed_files = _update_failed_files(failed_files, file, folder, str(e))
-                metadata_is_good = False
+                continue
 
-            if metadata_is_good:
-                # get instrument and date from file
+            # get instrument and date from file
+            try:
                 zsd, date = _grab_zsd_and_date(original_file)
+            except Exception as e:
+                failed_files = _update_failed_files(failed_files, file, folder, f"Issue grabbing ZSD or Date: {str(e)}")
+                continue
 
-                # Only upload files with 'pass' camera-alignment status for now
-                filtered_df = df.loc[(df['instrument'] == zsd) & (df['date'] == date) & (df['qc'] == 'pass')]
+            # Only upload files with 'pass' camera-alignment status for now
+            filtered_df = df.loc[(df['instrument'] == zsd) & (df['date'] == date) & (df['qc'] == 'pass')]
 
-                if len(filtered_df.index) > 0:
-                    log.info(f'Uploading file {file}')
-                    new_metadata = _update_aligned_file_metadata(original_file, filtered_df)
+            if len(filtered_df.index) > 0:
+                log.info(f'Uploading file {file}')
+                new_metadata = _update_aligned_file_metadata(original_file, filtered_df)
 
-                    aligned_file = fms.upload_file(new_file_path, new_metadata)
+                aligned_file = fms.upload_file(new_file_path, new_metadata)
 
-                    fov_id = original_file['microscopy']['fov_id']
-                    lk.update_rows(
-                        schema_name='microscopy',
-                        query_name='FOV',
-                        rows=[{'FovId': fov_id, 'AlignedImageFileId': aligned_file.file_id}]
-                    )
-                else:
-                    failed_files = _update_failed_files(failed_files, file, folder,
-                                                        'No corresponding file with "QC: Pass": found')
+                fov_id = original_file['microscopy']['fov_id']
+                lk.update_rows(
+                    schema_name='microscopy',
+                    query_name='FOV',
+                    rows=[{'FovId': fov_id, 'AlignedImageFileId': aligned_file.file_id}]
+                )
+            else:
+                failed_files = _update_failed_files(failed_files, file, folder,
+                                                    'No corresponding file with "QC: Pass": found')
         else:
             failed_files = _update_failed_files(failed_files, file, folder, "Not a .tiff")
