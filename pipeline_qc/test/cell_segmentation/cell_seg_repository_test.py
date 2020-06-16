@@ -2,15 +2,15 @@ import pytest
 
 from unittest.mock import Mock, call
 from aicsfiles import FileManagementSystem
-from pipeline_qc.image_qc_methods.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
-
+from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
+from pipeline_qc.cell_segmentation.configuration import AppConfig
 
 class TestCellSegmentationRepository:
 
     @pytest.fixture(autouse=True)
     def setup(self):
         self._mock_fms_client = Mock(spec=FileManagementSystem)
-        self._cell_seg_repository = CellSegmentationRepository(fms_client=self._mock_fms_client)
+        self._cell_seg_repository = CellSegmentationRepository(fms_client=self._mock_fms_client, config=Mock(spec=AppConfig))
 
     def test_upload_combined_segmentation_no_initial_metadata(self):
         # Arrange
