@@ -9,8 +9,11 @@ import sys
 import traceback
 import lkaccess.contexts
 
-from pipeline_qc.image_qc_methods.cell_seg_wrapper import CellSegmentationWrapper
-from pipeline_qc.image_qc_methods.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
+from datetime import datetime
+from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapper
+from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationService
+from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
+from pipeline_qc.cell_segmentation.configuration import AppConfig
 
 ###############################################################################
 
@@ -55,14 +58,13 @@ class Args(argparse.Namespace):
         super().__init__()
         # Arguments that could be passed in through the command line
         self.output_dir = '/allen/aics/microscopy/Aditya/cell_segmentations'
-        # self.json_dir = '/allen/aics/microscopy/Aditya/image_qc_outputs/json_logs'
         self.workflows = None
         self.cell_lines = None
         self.plates = None
         self.fovids = None
         self.only_from_fms = True
         self.save_to_fms = False
-        self.save_to_isilon = False
+        self.save_to_filesystem = False
         self.env = 'stg'
         self.process_duplicates = False
         self.__parse()
@@ -71,9 +73,7 @@ class Args(argparse.Namespace):
         p = argparse.ArgumentParser(prog='Cell and Nuclear Segmentations',
                                     description='Generates Cell and nuclear Segmentations for a series of fovs. '
                                                 'Can filter based on workflow, cell line, plate, or specific fovids')
-        p.add_argument('--output_dir', type=str,
-                       help='directory which all files should be saved',
-                       default='/allen/aics/microscopy/Aditya/cell_segmentations', required=False)
+
         p.add_argument('--workflows', nargs='+',
                        help="Array of workflows to run segmentations on. E.g. --workflows '[PIPELINE 4]' '[PIPELINE 4.4'] ",
                        default=None, required=False)
@@ -92,9 +92,12 @@ class Args(argparse.Namespace):
         p.add_argument('--save_to_fms',
                        help="Save segmentations in fms (default is False)",
                        default=False, required=False, action='store_true')
-        p.add_argument('--save_to_isilon',
-                       help="Save segmentations on the isilon (default is False)",
+        p.add_argument('--save_to_filesystem',
+                       help="Save segmentations on the filesystem (default is False)",
                        default=False, required=False, action='store_true')
+        p.add_argument('--output_dir', type=str,
+                       help='directory where files should be saved when saving to filesystem (can be isilon)',
+                       default='/allen/aics/microscopy/Aditya/cell_segmentations', required=False)
         p.add_argument('--process_duplicates',
                        help="Re-process segmentation run if existing segmentation is found (default is False)",
                        default=False, required=False, action='store_true')                       
@@ -115,10 +118,11 @@ def get_app_root(env: str) -> CellSegmentationWrapper:
     """
     Build dependency tree and return application root
     """
-    conf = CONFIG[env]
-    fms = FileManagementSystem(host=conf["fms_host"], port=conf["fms_port"])
-    uploader = CellSegmentationRepository(fms_client=fms, fms_timeout=conf["fms_timeout_in_seconds"])
-    return CellSegmentationWrapper(uploader, conf["labkey_context"])
+    app_config = AppConfig(CONFIG[env])
+    fms = FileManagementSystem(host=app_config.fms_host, port=app_config.fms_port)
+    repository = CellSegmentationRepository(fms, app_config)
+    service = CellSegmentationService(repository, app_config)
+    return CellSegmentationWrapper(service, app_config)
 
 
 def main():
@@ -126,6 +130,9 @@ def main():
     dbg = args.debug
 
     try:
+        print(f"[{datetime.now()}] - Start cell_seg_cli")
+        print(f"Environment: {args.env}")
+
         cell_seg: CellSegmentationWrapper = get_app_root(args.env)
         cell_seg.batch_cell_segmentations(
             output_dir=args.output_dir,
@@ -135,9 +142,11 @@ def main():
             fovids=args.fovids,
             only_from_fms=args.only_from_fms,
             save_to_fms=args.save_to_fms,
-            save_to_isilon=args.save_to_isilon,
+            save_to_filesystem=args.save_to_filesystem,
             process_duplicates=args.process_duplicates
         )
+
+        print(f"[{datetime.now()}] - End cell_seg_cli")
 
     except Exception as e:
         log.error("=============================================")

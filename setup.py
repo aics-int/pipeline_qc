@@ -68,21 +68,20 @@ setup(name=PACKAGE_NAME,
           # -- E.g.
           # 'numpy>=1.15.1',
           # 'requests'
-          'lkaccess',
-          'aicsimageio',
-          'aics_dask_utils==0.2.0',
+          'aicsfiles',
+          'aicsimageio>=3.2.1',
+          'aics_dask_utils',
           'bokeh',
           'dask',
           'dask_jobqueue',
-          'aicsfiles',
+          'labkey',
+          'lkaccess',
+          'matplotlib',
           'numpy',
+          'pandas',
           'scipy',
           'scikit-image',
-          'tqdm',
-          'pandas',
-          'labkey',
-          'matplotlib',
-          'aicsfiles'
+          'tqdm'
       ],
 
       # For test setup. This will allow JUnit XML output for Jenkins

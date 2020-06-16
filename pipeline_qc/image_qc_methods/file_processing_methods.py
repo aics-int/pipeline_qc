@@ -8,13 +8,15 @@ import os
 from skimage import exposure
 from labkey.utils import create_server_context
 
+DEFAULT_LK_HOST = "aics.corp.alleninstitute.org"
+DEFAULT_LK_PORT = 80
 
-def split_image_into_channels(im_path, source_image_file_id):
+def split_image_into_channels(im_path, source_image_file_id, labkey_host: str = DEFAULT_LK_HOST, labkey_port: int = DEFAULT_LK_PORT):
     # Splits image data into all requisite channels, as 3D images (405, 488, 561, 638, bf are normal channels)
     # Uses the context table in labkey to find the channel number and then splits the aicsimage loaded file accordingly
     # This allows us to only load an image once and then use it for as many qc steps as we want to later
 
-    server_context = LabKey(contexts.PROD)
+    server_context = LabKey(host=labkey_host, port=labkey_port)
     im = AICSImage(im_path)
     np_im = im.data[0, 0, :, :, :, :]
     if source_image_file_id == 'nan':
