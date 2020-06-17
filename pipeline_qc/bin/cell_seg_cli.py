@@ -54,7 +54,7 @@ CONFIG = {
 
 CLUSTER_CONFIG = {
     "gtx1080":{
-        "partition": "aics.corp.alleninstitute.org",
+        "partition": "aics_gpu_general",
         "cluster_size": 3,
         "worker_memory_limit": "50G",
         "worker_time_limit": "10:00:00",
@@ -110,8 +110,8 @@ class Args(argparse.Namespace):
         p.add_argument('--process_duplicates',
                        help="Re-process segmentation run if existing segmentation is found (default is False)",
                        default=False, required=False, action='store_true')                                              
-        p.add_argument('--env', type=str,
-                       help="Environment that data will be stored to('prod, 'stg', 'dev' (default is 'stg')",
+        p.add_argument('--env', choices=['dev', 'stg', 'prod'],
+                       help="Environment that data will be stored to (default is 'stg')",
                        default='stg', required=False)
         p.add_argument('--debug',
                        help='Enable debug mode',
@@ -121,7 +121,7 @@ class Args(argparse.Namespace):
                                  help="Run in distributed mode (default is False). Use with --gpu to specify cluster gpu type.",
                                  default=False, required=False, action='store_true')
         distributed.add_argument('--gpu', choices=["gtx1080", "titanx", "titanxp", "v100"],
-                                 help="Environment that data will be stored to('prod, 'stg', 'dev' (default is 'gtx1080')",
+                                 help="Cluster GPU type to use for distributed run (default is 'gtx1080')",
                                  default='gtx1080', required=False)
 
         p.parse_args(namespace=self)
