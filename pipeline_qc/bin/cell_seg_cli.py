@@ -10,10 +10,10 @@ import traceback
 import lkaccess.contexts
 
 from datetime import datetime
-from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapper
+from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
 from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationService
 from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
-from pipeline_qc.cell_segmentation.configuration import AppConfig
+from pipeline_qc.cell_segmentation.configuration import AppConfig, GpuClusterConfig
 
 ###############################################################################
 
@@ -49,6 +49,15 @@ CONFIG = {
         "fms_timeout_in_seconds": 300,
         "lk_host": "localhost",
         "lk_port": 3000
+    }
+}
+
+CLUSTER_CONFIG = {
+    "gtx1080":{
+        "partition": "aics.corp.alleninstitute.org",
+        "cluster_size": 3,
+        "worker_memory_limit": "50G",
+        "worker_time_limit": "10:00:00",
     }
 }
 
@@ -100,13 +109,20 @@ class Args(argparse.Namespace):
                        default='/allen/aics/microscopy/Aditya/cell_segmentations', required=False)
         p.add_argument('--process_duplicates',
                        help="Re-process segmentation run if existing segmentation is found (default is False)",
-                       default=False, required=False, action='store_true')                       
+                       default=False, required=False, action='store_true')                                              
         p.add_argument('--env', type=str,
                        help="Environment that data will be stored to('prod, 'stg', 'dev' (default is 'stg')",
                        default='stg', required=False)
         p.add_argument('--debug',
                        help='Enable debug mode',
                        default=False, required=False, action='store_true')
+        distributed = p.add_argument_group("distributed", "Distributed run options")
+        distributed.add_argument('--distributed',
+                                 help="Run in distributed mode (default is False). Use with --gpu to specify cluster gpu type.",
+                                 default=False, required=False, action='store_true')
+        distributed.add_argument('--gpu', choices=["gtx1080", "titanx", "titanxp", "v100"],
+                                 help="Environment that data will be stored to('prod, 'stg', 'dev' (default is 'gtx1080')",
+                                 default='gtx1080', required=False)
 
         p.parse_args(namespace=self)
 
@@ -114,26 +130,33 @@ class Args(argparse.Namespace):
 ###############################################################################
 
 
-def get_app_root(env: str) -> CellSegmentationWrapper:
+def get_app_root(args: Args) -> CellSegmentationWrapperBase:
     """
     Build dependency tree and return application root
     """
+    env = args.env
+
     app_config = AppConfig(CONFIG[env])
     fms = FileManagementSystem(host=app_config.fms_host, port=app_config.fms_port)
     repository = CellSegmentationRepository(fms, app_config)
     service = CellSegmentationService(repository, app_config)
-    return CellSegmentationWrapper(service, app_config)
+
+    if args.distributed:
+        cluster_config = GpuClusterConfig(args.gpu, CLUSTER_CONFIG[args.gpu])
+        print(CLUSTER_CONFIG[args.gpu])
+        return CellSegmentationDistributedWrapper(service, app_config, cluster_config)
+    else:    
+        return CellSegmentationWrapper(service, app_config)
 
 
 def main():
     args = Args()
-    dbg = args.debug
 
     try:
         print(f"[{datetime.now()}] - Start cell_seg_cli")
         print(f"Environment: {args.env}")
 
-        cell_seg: CellSegmentationWrapper = get_app_root(args.env)
+        cell_seg = get_app_root(args)
         cell_seg.batch_cell_segmentations(
             output_dir=args.output_dir,
             workflows=args.workflows,
@@ -150,7 +173,7 @@ def main():
 
     except Exception as e:
         log.error("=============================================")
-        if dbg:
+        if args.debug:
             log.error("\n\n" + traceback.format_exc())
             log.error("=============================================")
         log.error("\n\n" + str(e) + "\n")
