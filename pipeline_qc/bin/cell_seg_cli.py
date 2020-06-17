@@ -55,7 +55,7 @@ CONFIG = {
 CLUSTER_CONFIG = {
     "gtx1080":{
         "partition": "aics_gpu_general",
-        "cluster_size": 3,
+        "cluster_size": 4,
         "worker_memory_limit": "50G",
         "worker_time_limit": "10:00:00",
     }
@@ -143,7 +143,6 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
 
     if args.distributed:
         cluster_config = GpuClusterConfig(args.gpu, CLUSTER_CONFIG[args.gpu])
-        print(CLUSTER_CONFIG[args.gpu])
         return CellSegmentationDistributedWrapper(service, app_config, cluster_config)
     else:    
         return CellSegmentationWrapper(service, app_config)

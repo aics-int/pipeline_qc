@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import aicsimageio
 
 from pandas import Series
 from dataclasses import dataclass
@@ -76,6 +77,7 @@ class CellSegmentationService:
         return sm.apply_on_single_zstack(input_img=image, inputCh=[0, 1, 2])
 
     def _create_segmentable_image(self, localfilepath, sourceimagefileid):
+        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
         channel_dict = file_processing_methods.split_image_into_channels(localfilepath, sourceimagefileid)
 
         full_im_list = list()
