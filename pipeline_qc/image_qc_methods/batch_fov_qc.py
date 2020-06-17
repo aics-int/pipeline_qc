@@ -156,7 +156,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
         if isinstance(result, StandardizeFOVArrayResult):
             stat_list.append(result.stat_dict)
         else:
-            errors.append(result.fovid, result.error)
+            errors.append(result.fov_id, result.error)
 
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
 
