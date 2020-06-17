@@ -8,12 +8,12 @@ def intensity_stats_single_channel(single_channel_im, cell_mask):
 
     single_channel_im_seg = single_channel_im * cell_mask
     result = dict()
-    result.update({'mean': np.nonzero(single_channel_im_seg).mean()})
-    result.update({'median': np.median(np.nonzero(single_channel_im_seg))})
-    result.update({'max': np.nonzero(single_channel_im_seg).max()})
-    result.update({'min': np.nonzero(single_channel_im_seg).min()})
-    result.update({'std': np.nonzero(single_channel_im_seg).std()})
-    result.update({'99.5%': np.percentile(np.nonzero(single_channel_im_seg), 99.5)})
-    result.update({'0.5%': np.percentile(np.nonzero(single_channel_im_seg), 0.5)})
+    result.update({'mean': single_channel_im_seg[np.nonzero(single_channel_im_seg)].mean()})
+    result.update({'median': np.median(single_channel_im_seg[np.nonzero(single_channel_im_seg)])})
+    result.update({'max': single_channel_im_seg[np.nonzero(single_channel_im_seg)].max()})
+    result.update({'min': single_channel_im_seg[np.nonzero(single_channel_im_seg)].min()})
+    result.update({'std': single_channel_im_seg[np.nonzero(single_channel_im_seg)].std()})
+    result.update({'99.5%': np.percentile(single_channel_im_seg[np.nonzero(single_channel_im_seg)], 99.5)})
+    result.update({'0.5%': np.percentile(single_channel_im_seg[np.nonzero(single_channel_im_seg)], 0.5)})
 
     return result

@@ -40,7 +40,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                                                                          str(row['sourceimagefileid']))
 
         # Segments area in FOV that has cells
-        cell_mask = detect_edge.segment_from_zstack(channel_dict['brightfield'], gaussian_thresh=0.045)
+        cell_mask = detect_edge.segment_from_zstack(channel_dict['brightfield'], segment_gauss_thresh=0.045)
 
         # Initializes a dictionary where all stats for an fov are saved
         stat_dict = dict()
