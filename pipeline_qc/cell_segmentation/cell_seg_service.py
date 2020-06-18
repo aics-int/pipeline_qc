@@ -1,7 +1,9 @@
 import numpy as np
 import os
 import aicsimageio
+import traceback
 
+from enum import Enum
 from pandas import Series
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,8 +15,23 @@ from pipeline_qc.image_qc_methods.cell_seg_repository import CellSegmentationRep
 from model_zoo_3d_segmentation.zoo import SuperModel
 from .configuration import AppConfig
 
-# Constants
-MODEL = "DNA_MEM_instance_LF_integration_two_camera"
+
+class ResultStatus(Enum):
+    SUCCESS = "SUCCESS"
+    SKIPPED = "SKIPPED"
+    FAILED = "FAILED"
+
+
+@dataclass
+class CellSegmentationResult:
+    fov_id: int
+    status: ResultStatus
+    message: str = ""
+
+    def __str__(self):
+        return f"FOV {self.fov_id}: {self.status.value}\n{self.message}"
+    
+
 
 class CellSegmentationService:
     """
@@ -22,6 +39,9 @@ class CellSegmentationService:
     Exposes functionality to perform single cell segmentations of FOVs using the latest ML segmentation algorithms
     This service wraps the core ML Segmentation code from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/dl_model_zoo/browse
     """
+
+    # Constants
+    MODEL = "DNA_MEM_instance_LF_integration_two_camera"
 
     def __init__(self, repository: CellSegmentationRepository, config: AppConfig):
         if repository is None:
@@ -31,7 +51,12 @@ class CellSegmentationService:
         self._repository = repository
         self._config = config
 
-    def single_cell_segmentation(self, row: Series, save_to_fms: bool, save_to_filesystem: bool, output_dir: str, process_duplicates: bool): 
+    def single_cell_segmentation(self, 
+                                 row: Series, 
+                                 save_to_fms: bool, 
+                                 save_to_filesystem: bool, 
+                                 output_dir: str, 
+                                 process_duplicates: bool) -> CellSegmentationResult: 
         """
         Run segmentation process for a single FOV
         :param: row: FOV information as a pandas Dataframe row
@@ -40,36 +65,49 @@ class CellSegmentationService:
         :param: output_dir: output directory path when saving to file system (can be network / isilon path)
         :param: process_duplicates: indicate whether to process or skip fov if segmentation already exists in FMS
         """                                
+        fov_id = row["fovid"]
+        local_file_path = row["localfilepath"]
+        source_file_id = row["sourceimagefileid"]
 
-        file_name = self._get_seg_filename(row['localfilepath'])
+        try:
+            file_name = self._get_seg_filename(local_file_path)
 
-        if not process_duplicates and self._repository.segmentation_exists(file_name):
-            print(f'FOV:{row["fovid"]} has already been segmented') 
-            return
-        
-        print(f'Running Segmentation on fov:{row["fovid"]}')
-        im = self._create_segmentable_image(row['localfilepath'], row['sourceimagefileid'])
-        if im.shape[0] ==3:
-            comb_seg = self._segment_from_model(im, MODEL)
-        else:
-            print(f'FOV:{row["fovid"]} does not have nucleus or cellular color channels')
-            return
-        
-        if save_to_fms == True:
-            print("Uploading output file to FMS")
+            if not process_duplicates and self._repository.segmentation_exists(file_name):
+                msg = f"FOV {fov_id} has already been segmented"
+                print(msg)
+                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
+            
+            im = self._create_segmentable_image(local_file_path, source_file_id)
+            if im.shape[0] != 3:
+                msg = f"FOV {fov_id} does not have nucleus or cellular color channels"
+                print(msg)
+                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
+            
+            print(f'Running Segmentation on FOV {fov_id}')
 
-            with TemporaryDirectory() as tmp_dir:
-                local_file_path = f'{tmp_dir}/{file_name}'
-                with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
-                    writer.save(comb_seg)
-                self._repository.upload_combined_segmentation(local_file_path, row["sourceimagefileid"])
+            combined_segmentation = self._segment_from_model(im, self.MODEL)
 
-        if save_to_filesystem == True:
-            print("Saving output file to Isilon")
-            with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
-                writer.save(comb_seg)
+            if save_to_fms:
+                print("Uploading output file to FMS")
 
-        return
+                with TemporaryDirectory() as tmp_dir:
+                    local_file_path = f'{tmp_dir}/{file_name}'
+                    with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
+                        writer.save(combined_segmentation)
+                    self._repository.upload_combined_segmentation(local_file_path, source_file_id)
+
+            if save_to_filesystem:
+                print("Saving output file to filesystem")
+                with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
+                    writer.save(combined_segmentation)
+
+            return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SUCCESS)
+
+        except Exception as ex:
+            msg = f"Exception while processing FOV {fov_id}: {str(ex)}\n{traceback.format_exc()}"
+            print(msg)
+            return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=error)
+
 
     def _segment_from_model(self, image, model):
         sm = SuperModel(model)

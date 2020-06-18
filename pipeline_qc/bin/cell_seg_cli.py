@@ -17,7 +17,8 @@ from pipeline_qc.cell_segmentation.configuration import AppConfig, GpuClusterCon
 
 ###############################################################################
 
-log = logging.getLogger()
+
+
 # Note: basicConfig should only be called in bin scripts (CLIs).
 # https://docs.python.org/3/library/logging.html#logging.basicConfig
 # "This function does nothing if the root logger already has handlers configured for it."
@@ -26,6 +27,7 @@ log = logging.getLogger()
 logging.basicConfig(level=logging.INFO,
                     format='[%(asctime)s - %(name)s - %(lineno)3d][%(levelname)s] %(message)s')
 
+log = logging.getLogger()
 ###############################################################################
 
 CONFIG = {
@@ -154,7 +156,7 @@ def main():
     try:
         print(f"[{datetime.now()}] - Start cell_seg_cli")
         print(f"Environment: {args.env}")
-
+        
         cell_seg = get_app_root(args)
         cell_seg.batch_cell_segmentations(
             output_dir=args.output_dir,
