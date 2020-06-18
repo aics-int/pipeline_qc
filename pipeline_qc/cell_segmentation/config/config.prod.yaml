@@ -1,0 +1,5 @@
+fms_host: "aics.corp.alleninstitute.org"
+fms_port: 80
+fms_timeout_in_seconds: 300
+lk_host: "aics.corp.alleninstitute.org"
+lk_port: 80

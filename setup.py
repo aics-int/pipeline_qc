@@ -79,6 +79,7 @@ setup(name=PACKAGE_NAME,
           'matplotlib',
           'numpy',
           'pandas',
+          'pyyaml',
           'scipy',
           'scikit-image',
           'tqdm'

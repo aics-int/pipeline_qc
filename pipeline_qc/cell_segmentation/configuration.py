@@ -1,4 +1,16 @@
+import os
+import yaml
 from typing import Dict
+
+class Configuration:
+    @staticmethod
+    def load(filepath: str) -> Dict:
+        if not filepath.startswith("/"):
+            base_dir = os.path.dirname(os.path.realpath(__file__))
+            filepath = f"{base_dir}/{filepath}"
+
+        return yaml.safe_load(open(filepath))
+        
 
 class AppConfig:
     """

@@ -13,7 +13,7 @@ from datetime import datetime
 from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
 from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationService
 from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
-from pipeline_qc.cell_segmentation.configuration import AppConfig, GpuClusterConfig
+from pipeline_qc.cell_segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
 
 ###############################################################################
 
@@ -30,38 +30,6 @@ logging.basicConfig(level=logging.INFO,
 log = logging.getLogger()
 ###############################################################################
 
-CONFIG = {
-    "prod":{
-        "fms_host": "aics.corp.alleninstitute.org",
-        "fms_port": 80,
-        "fms_timeout_in_seconds": 300,
-        "lk_host": "aics.corp.alleninstitute.org",
-        "lk_port": 80
-    },
-    "stg":{
-        "fms_host": "stg-aics.corp.alleninstitute.org",
-        "fms_port": 80,
-        "fms_timeout_in_seconds": 300,
-        "lk_host": "stg-aics.corp.alleninstitute.org",
-        "lk_port": 80
-    },
-    "dev":{
-        "fms_host": "dev-aics-ssl-001.corp.alleninstitute.org",
-        "fms_port": 8080,
-        "fms_timeout_in_seconds": 300,
-        "lk_host": "localhost",
-        "lk_port": 3000
-    }
-}
-
-CLUSTER_CONFIG = {
-    "gtx1080":{
-        "partition": "aics_gpu_general",
-        "cluster_size": 4,
-        "worker_memory_limit": "50G",
-        "worker_time_limit": "10:00:00",
-    }
-}
 
 class Args(argparse.Namespace):
 
@@ -138,13 +106,14 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
     """
     env = args.env
 
-    app_config = AppConfig(CONFIG[env])
+    app_config = AppConfig(Configuration.load(f"config/config.{env}.yaml"))
     fms = FileManagementSystem(host=app_config.fms_host, port=app_config.fms_port)
     repository = CellSegmentationRepository(fms, app_config)
     service = CellSegmentationService(repository, app_config)
 
     if args.distributed:
-        cluster_config = GpuClusterConfig(args.gpu, CLUSTER_CONFIG[args.gpu])
+        gpu = args.gpu
+        cluster_config = GpuClusterConfig(gpu, Configuration.load(f"config/cluster.{gpu}.yaml"))
         return CellSegmentationDistributedWrapper(service, app_config, cluster_config)
     else:    
         return CellSegmentationWrapper(service, app_config)

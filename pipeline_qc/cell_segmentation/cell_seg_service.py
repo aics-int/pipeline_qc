@@ -106,7 +106,7 @@ class CellSegmentationService:
         except Exception as ex:
             msg = f"Exception while processing FOV {fov_id}: {str(ex)}\n{traceback.format_exc()}"
             print(msg)
-            return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=error)
+            return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
 
     def _segment_from_model(self, image, model):
