@@ -45,6 +45,8 @@ class GpuClusterConfig:
     GPU Cluster configuration interface (for distributed runs)
     """
     def __init__(self, gpu:str, config: Dict): 
+        if not config.contains("gpus") or not config["gpus"].contains(gpu):
+            raise Exception("Invalid configuration")
         self._gpu = gpu
         self._config: Dict = config
 
@@ -67,14 +69,14 @@ class GpuClusterConfig:
         """
         Number of nodes to scale the cluster to (should be the number of available GPUs)
         """
-        return int(self._config["cluster_size"])
+        return int(self._config["gpus"][self._gpu]["cluster_size"])
 
     @property
     def worker_memory_limit(self) -> str:
         """
         Memory limit per worker/job
         """
-        return self._config["worker_memory_limit"]
+        return self._config["gpus"][self._gpu]["memory_limit"]
 
     @property
     def worker_time_limit(self) -> str:

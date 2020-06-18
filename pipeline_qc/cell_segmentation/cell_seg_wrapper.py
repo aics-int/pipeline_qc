@@ -36,7 +36,7 @@ class CellSegmentationWrapper(CellSegmentationWrapperBase):
         FOV images are queried from FMS based on the given options and segmented sequentially.
         """                                
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
-                                        only_from_fms=only_from_fms)
+                                        only_from_fms=only_from_fms, labkey_host=self._config.labkey_host, labkey_port=self._config.labkey_port)
 
 
         print(f'''
@@ -81,7 +81,7 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
         FOV images are queried from FMS based on the given options and segmented concurrently on GPU nodes
         """                                
         query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
-                                        only_from_fms=only_from_fms)
+                                        only_from_fms=only_from_fms, labkey_host=self._config.labkey_host, labkey_port=self._config.labkey_port)
 
 
         print(f'''

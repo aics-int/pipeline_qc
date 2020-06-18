@@ -113,7 +113,7 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
 
     if args.distributed:
         gpu = args.gpu
-        cluster_config = GpuClusterConfig(gpu, Configuration.load(f"config/cluster.{gpu}.yaml"))
+        cluster_config = GpuClusterConfig(gpu, Configuration.load(f"config/cluster.yaml"))
         return CellSegmentationDistributedWrapper(service, app_config, cluster_config)
     else:    
         return CellSegmentationWrapper(service, app_config)
@@ -125,7 +125,7 @@ def main():
     try:
         print(f"[{datetime.now()}] - Start cell_seg_cli")
         print(f"Environment: {args.env}")
-        
+
         cell_seg = get_app_root(args)
         cell_seg.batch_cell_segmentations(
             output_dir=args.output_dir,

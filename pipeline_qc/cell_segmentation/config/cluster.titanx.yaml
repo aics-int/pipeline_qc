@@ -1,4 +1,0 @@
-partition: "aics_gpu_general"
-cluster_size: 8
-worker_memory_limit: "50G"
-worker_time_limit: "10:00:00"

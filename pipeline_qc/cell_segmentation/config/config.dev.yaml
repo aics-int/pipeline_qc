@@ -1,5 +1,5 @@
 fms_host: "dev-aics-ssl-001.corp.alleninstitute.org"
 fms_port: 8080
 fms_timeout_in_seconds: 300
-lk_host: "localhost"
-lk_port: 3000
+labkey_host: "localhost"
+labkey_port: 3000
