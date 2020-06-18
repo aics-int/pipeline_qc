@@ -1,13 +1,7 @@
-"""
-This sample script will get deployed in the bin directory of the
-users' virtualenv when the parent module is installed using pip.
-"""
-
 import argparse
 import logging
 import sys
 import traceback
-import lkaccess.contexts
 
 from datetime import datetime
 from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
@@ -17,17 +11,17 @@ from pipeline_qc.cell_segmentation.configuration import Configuration, AppConfig
 
 ###############################################################################
 
-
-
 # Note: basicConfig should only be called in bin scripts (CLIs).
 # https://docs.python.org/3/library/logging.html#logging.basicConfig
 # "This function does nothing if the root logger already has handlers configured for it."
 # As such, it should only be called once, and at the highest level (the CLIs in this case).
 # It should NEVER be called in library code!
+
+log = logging.getLogger()
+log.handlers = [] # reset handlers because fnet module sets logging handlers as soon as imported...
 logging.basicConfig(level=logging.INFO,
                     format='[%(asctime)s - %(name)s - %(lineno)3d][%(levelname)s] %(message)s')
 
-log = logging.getLogger()
 ###############################################################################
 
 

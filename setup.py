@@ -63,6 +63,7 @@ setup(name=PACKAGE_NAME,
               "upload_aligned_files={}.bin.aligned_file_upload:main".format(PACKAGE_NAME)
           ]
       },
+      include_package_data=True,
       install_requires=[
           # List of modules required to use/run this module.
           # -- E.g.
