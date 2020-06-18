@@ -61,7 +61,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                 for edge_key, edge_value in bf_edge_detect.items():
                     stat_dict.update({channel_name + ' ' + edge_key: edge_value})
                 bf_zstack_intensity = z_stack_check.z_stack_order_check(channel_array)
-                for zstack_key, zstack_value in bf_zstack_intensity:
+                for zstack_key, zstack_value in bf_zstack_intensity.items():
                     stat_dict.update({channel_name + ' ' + zstack_key: zstack_value})
                 bf_false_clip_dict = detect_z_stack_false_clip.detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
