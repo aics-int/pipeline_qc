@@ -45,7 +45,7 @@ class GpuClusterConfig:
     GPU Cluster configuration interface (for distributed runs)
     """
     def __init__(self, gpu:str, config: Dict): 
-        if not config.contains("gpus") or not config["gpus"].contains(gpu):
+        if "gpus" not in config or gpu not in config["gpus"]:
             raise Exception("Invalid configuration")
         self._gpu = gpu
         self._config: Dict = config

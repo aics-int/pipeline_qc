@@ -1,15 +1,15 @@
 partition: "aics_gpu_general"
 worker_time_limit: "24:00:00"
 gpus:
-    - gtx1080:
+    gtx1080:
         cluster_size: 4
         memory_limit: "50G"        
-    - titanx:
+    titanx:
         cluster_size: 8
         memory_limit: "50G"
-    - titanxp:
+    titanxp:
         cluster_size: 4
         memory_limit: "50G"
-    - v100:
+    v100:
         cluster_size: 12
         memory_limit: "50G"
