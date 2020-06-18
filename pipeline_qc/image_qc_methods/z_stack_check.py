@@ -16,8 +16,8 @@ def z_stack_order_check(image):
     else:
         out_of_order = False
 
-    result.append({"Max Intensity z-stack": np.argmax(means)})
-    result.append({"Z-stacks out of order": out_of_order})
+    result.update({"Max Intensity z-stack": np.argmax(means)})
+    result.update({"Z-stacks out of order": out_of_order})
 
     return result
 
