@@ -85,12 +85,12 @@ class CellSegmentationService:
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
             
-            self.log.info(msg)(f'Running Segmentation on FOV {fov_id}')
+            self.log.info(f'Running Segmentation on FOV {fov_id}')
 
             combined_segmentation = self._segment_from_model(im, self.MODEL)
 
             if save_to_fms:
-                self.log.info(msg)("Uploading output file to FMS")
+                self.log.info("Uploading output file to FMS")
 
                 with TemporaryDirectory() as tmp_dir:
                     local_file_path = f'{tmp_dir}/{file_name}'
@@ -99,7 +99,7 @@ class CellSegmentationService:
                     self._repository.upload_combined_segmentation(local_file_path, source_file_id)
 
             if save_to_filesystem:
-                self.log.info(msg)("Saving output file to filesystem")
+                self.log.info("Saving output file to filesystem")
                 with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
                     writer.save(combined_segmentation)
 
@@ -107,7 +107,7 @@ class CellSegmentationService:
 
         except Exception as ex:
             msg = f"Exception while processing FOV {fov_id}: {str(ex)}\n{traceback.format_exc()}"
-            self.log.info(msg)(msg)
+            self.log.info(msg)
             return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
 

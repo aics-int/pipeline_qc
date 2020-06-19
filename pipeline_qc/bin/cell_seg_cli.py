@@ -3,6 +3,7 @@ import logging
 import sys
 import traceback
 
+from logging import FileHandler, StreamHandler, Formatter
 from datetime import datetime
 from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
 from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationService
@@ -79,10 +80,15 @@ class Args(argparse.Namespace):
 ###############################################################################
 
 def configure_logging(debug: bool):  
+    f = Formatter(fmt='[%(asctime)s][%(levelname)s] %(message)s')
+    streamHandler = StreamHandler()
+    streamHandler.setFormatter(f)
+    fileHandler = FileHandler(filename="cell_seg_cli.log", mode="w")
+    fileHandler.setFormatter(f)
+
     log = logging.getLogger() # root logger
-    log.handlers = [] # reset handlers because fnet module sets logging handlers as soon as imported...
-    logging.basicConfig(level=logging.DEBUG if debug else logging.INFO,
-                        format='[%(asctime)s][%(levelname)s] %(message)s')
+    log.handlers = [streamHandler, fileHandler] # overwrite handlers
+
 
 def get_app_root(args: Args) -> CellSegmentationWrapperBase:
     """
