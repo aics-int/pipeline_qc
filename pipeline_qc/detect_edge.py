@@ -54,6 +54,24 @@ def filter_small_objects(bw_img, area):
     return int_img
 
 
+def segment_from_zstack(bf_z, segment_gauss_thresh=0.045):
+    """
+    From a 3D bright field image, create a segmentation mask showing where all cells are in an FOV
+    :param bf_z: a 3D bright field image
+    :param segment_gauss_thresh: a float to set gaussian threshold for 2D segmentation of colony area
+    :return: a 2D numpy array that has 1s where cells exist in an FOV, 0s where they do not
+    """
+    if (len(bf_z.shape) == 2) | ((len(bf_z.shape) > 2) & (bf_z.shape[0] == 1)):
+        # If the input bf image is 1 plane only
+        bf = bf_z
+    else:
+        # If the input bf image is a z-stack
+        new_edge_filled, z_center = pm.find_center_z_plane(bf_z)
+        bf = bf_z[z_center, :, :]
+
+    return segment_colony_area(bf, segment_gauss_thresh)
+
+
 def detect_edge_position(bf_z, segment_gauss_thresh=0.045, area_cover_thresh=0.9):
     """
     From a 3D bright field image, determine if the z-stack is in an edge position

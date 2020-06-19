@@ -39,6 +39,9 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
         channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
                                                                          str(row['sourceimagefileid']))
 
+        # Segments area in FOV that has cells
+        cell_mask = detect_edge.segment_from_zstack(channel_dict['brightfield'], segment_gauss_thresh=0.045)
+
         # Initializes a dictionary where all stats for an fov are saved
         stat_dict = dict()
 
@@ -48,7 +51,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                 print('This FOV is not a multi-dimensional image, skipping...')
                 return dict()
             # Runs the intensity metrics on all z-stack images. Put here since run on all channels
-            intensity_dict = intensity.intensity_stats_single_channel(channel_array)
+            intensity_dict = intensity.intensity_stats_single_channel(channel_array, cell_mask)
             for intensity_key, intensity_value, in intensity_dict.items():
                 stat_dict.update({channel_name + ' ' + intensity_key + '-intensity': intensity_value})
 
@@ -58,7 +61,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                 for edge_key, edge_value in bf_edge_detect.items():
                     stat_dict.update({channel_name + ' ' + edge_key: edge_value})
                 bf_zstack_intensity = z_stack_check.z_stack_order_check(channel_array)
-                for zstack_key, zstack_value in bf_zstack_intensity:
+                for zstack_key, zstack_value in bf_zstack_intensity.items():
                     stat_dict.update({channel_name + ' ' + zstack_key: zstack_value})
                 bf_false_clip_dict = detect_z_stack_false_clip.detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
@@ -153,7 +156,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
         if isinstance(result, StandardizeFOVArrayResult):
             stat_list.append(result.stat_dict)
         else:
-            errors.append(result.fovid, result.error)
+            errors.append([result.fov_id, result.error])
 
     # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
 
