@@ -1,3 +1,5 @@
+import logging
+
 from abc import ABC, abstractmethod
 from aics_dask_utils import DistributedHandler
 from dask_jobqueue import SLURMCluster
@@ -26,7 +28,7 @@ class CellSegmentationWrapper(CellSegmentationWrapperBase):
             raise AttributeError("app_config")
         self._cell_seg_service = cell_seg_service
         self._config = config
-
+        self.log = logging.getLogger(__name__)
 
     def batch_cell_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
                                  only_from_fms=True, save_to_fms=False, save_to_filesystem=False, process_duplicates=False,
@@ -39,13 +41,9 @@ class CellSegmentationWrapper(CellSegmentationWrapperBase):
                                         only_from_fms=only_from_fms, labkey_host=self._config.labkey_host, labkey_port=self._config.labkey_port)
 
 
-        print(f'''
-        __________________________________________
 
-        {len(query_df)} fovs were found to process.
+        self.log.info(f"{len(query_df)} fovs were found to process.")
 
-        __________________________________________
-        ''')
 
         for index, row in query_df.iterrows():
             self._cell_seg_service.single_cell_segmentation(row, 
@@ -71,7 +69,7 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
         self._cell_seg_service = cell_seg_service
         self._config = config
         self._cluster_config = cluster_config
-
+        self.log = logging.getLogger(__name__)
 
     def batch_cell_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
                                  only_from_fms=True, save_to_fms=False, save_to_filesystem=False, process_duplicates=False,
@@ -84,13 +82,7 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
                                         only_from_fms=only_from_fms, labkey_host=self._config.labkey_host, labkey_port=self._config.labkey_port)
 
 
-        print(f'''
-        __________________________________________
-
-        {len(query_df)} fovs were found to process.
-
-        __________________________________________
-        ''')
+        self.log.info(f"{len(query_df)} fovs were found to process.")
 
         cluster = SLURMCluster(cores=1, 
                                memory=self._cluster_config.worker_memory_limit, 
@@ -102,7 +94,7 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
 
         cluster.scale(self._cluster_config.cluster_size)
 
-        print(cluster.job_script())
+        self.log.debug(cluster.job_script())
 
         with DistributedHandler(cluster.scheduler_address) as handler:
             results = handler.batched_map(
@@ -115,7 +107,7 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
                 resources={"GPU":1}
             )
 
-            print("Results:\n")
+            self.log.info("Results:")
             for r in results:
-                print(f"{r}\n")
+                self.log.info(r)
         

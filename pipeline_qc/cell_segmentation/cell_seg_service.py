@@ -2,6 +2,7 @@ import numpy as np
 import os
 import aicsimageio
 import traceback
+import logging
 
 from enum import Enum
 from pandas import Series
@@ -50,6 +51,7 @@ class CellSegmentationService:
             raise AttributeError("app_config")
         self._repository = repository
         self._config = config
+        self.log = logging.getLogger(__name__)
 
     def single_cell_segmentation(self, 
                                  row: Series, 
@@ -68,27 +70,27 @@ class CellSegmentationService:
         fov_id = row["fovid"]
         local_file_path = row["localfilepath"]
         source_file_id = row["sourceimagefileid"]
-
+        
         try:
             file_name = self._get_seg_filename(local_file_path)
 
             if not process_duplicates and self._repository.segmentation_exists(file_name):
                 msg = f"FOV {fov_id} has already been segmented"
-                print(msg)
+                self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
             
             im = self._create_segmentable_image(local_file_path, source_file_id)
             if im.shape[0] != 3:
                 msg = f"FOV {fov_id} does not have nucleus or cellular color channels"
-                print(msg)
+                self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
             
-            print(f'Running Segmentation on FOV {fov_id}')
+            self.log.info(msg)(f'Running Segmentation on FOV {fov_id}')
 
             combined_segmentation = self._segment_from_model(im, self.MODEL)
 
             if save_to_fms:
-                print("Uploading output file to FMS")
+                self.log.info(msg)("Uploading output file to FMS")
 
                 with TemporaryDirectory() as tmp_dir:
                     local_file_path = f'{tmp_dir}/{file_name}'
@@ -97,7 +99,7 @@ class CellSegmentationService:
                     self._repository.upload_combined_segmentation(local_file_path, source_file_id)
 
             if save_to_filesystem:
-                print("Saving output file to filesystem")
+                self.log.info(msg)("Saving output file to filesystem")
                 with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
                     writer.save(combined_segmentation)
 
@@ -105,7 +107,7 @@ class CellSegmentationService:
 
         except Exception as ex:
             msg = f"Exception while processing FOV {fov_id}: {str(ex)}\n{traceback.format_exc()}"
-            print(msg)
+            self.log.info(msg)(msg)
             return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
 

@@ -9,21 +9,6 @@ from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationServi
 from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
 from pipeline_qc.cell_segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
 
-###############################################################################
-
-# Note: basicConfig should only be called in bin scripts (CLIs).
-# https://docs.python.org/3/library/logging.html#logging.basicConfig
-# "This function does nothing if the root logger already has handlers configured for it."
-# As such, it should only be called once, and at the highest level (the CLIs in this case).
-# It should NEVER be called in library code!
-
-log = logging.getLogger()
-log.handlers = [] # reset handlers because fnet module sets logging handlers as soon as imported...
-logging.basicConfig(level=logging.INFO,
-                    format='[%(asctime)s - %(name)s - %(lineno)3d][%(levelname)s] %(message)s')
-
-###############################################################################
-
 
 class Args(argparse.Namespace):
 
@@ -93,6 +78,11 @@ class Args(argparse.Namespace):
 
 ###############################################################################
 
+def configure_logging(debug: bool):  
+    log = logging.getLogger() # root logger
+    log.handlers = [] # reset handlers because fnet module sets logging handlers as soon as imported...
+    logging.basicConfig(level=logging.DEBUG if debug else logging.INFO,
+                        format='[%(asctime)s][%(levelname)s] %(message)s')
 
 def get_app_root(args: Args) -> CellSegmentationWrapperBase:
     """
@@ -115,10 +105,13 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
 
 def main():
     args = Args()
+    debug = args.debug
+    configure_logging(debug)
+    log = logging.getLogger(__name__)
 
     try:
-        print(f"[{datetime.now()}] - Start cell_seg_cli")
-        print(f"Environment: {args.env}")
+        log.info("Start cell_seg_cli")
+        log.info(f"Environment: {args.env}")
 
         cell_seg = get_app_root(args)
         cell_seg.batch_cell_segmentations(
@@ -133,11 +126,11 @@ def main():
             process_duplicates=args.process_duplicates
         )
 
-        print(f"[{datetime.now()}] - End cell_seg_cli")
+        log.info("End cell_seg_cli")
 
     except Exception as e:
         log.error("=============================================")
-        if args.debug:
+        if debug:
             log.error("\n\n" + traceback.format_exc())
             log.error("=============================================")
         log.error("\n\n" + str(e) + "\n")
