@@ -99,10 +99,10 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
         with DistributedHandler(cluster.scheduler_address) as handler:
             results = handler.batched_map(
                 lambda row: self._cell_seg_service.single_cell_segmentation(row, 
-                                                            save_to_fms=save_to_fms, 
-                                                            save_to_filesystem=save_to_filesystem,
-                                                            output_dir=output_dir,
-                                                            process_duplicates=process_duplicates),
+                                                                            save_to_fms=save_to_fms, 
+                                                                            save_to_filesystem=save_to_filesystem,
+                                                                            output_dir=output_dir,
+                                                                            process_duplicates=process_duplicates),
                 [row for i, row in query_df.iterrows()],
                 resources={"GPU":1}
             )

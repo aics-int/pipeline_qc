@@ -88,6 +88,7 @@ def configure_logging(debug: bool):
 
     log = logging.getLogger() # root logger
     log.handlers = [streamHandler, fileHandler] # overwrite handlers
+    log.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
 def get_app_root(args: Args) -> CellSegmentationWrapperBase:
