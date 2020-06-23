@@ -12,10 +12,9 @@ from tempfile import TemporaryDirectory
 from datetime import datetime
 from aicsimageio.writers import ome_tiff_writer
 from pipeline_qc.image_qc_methods import file_processing_methods
-from pipeline_qc.image_qc_methods.cell_seg_repository import CellSegmentationRepository
 from model_zoo_3d_segmentation.zoo import SuperModel
 from .configuration import AppConfig
-
+from .cell_seg_repository import CellSegmentationRepository
 
 class ResultStatus(Enum):
     SUCCESS = "SUCCESS"
