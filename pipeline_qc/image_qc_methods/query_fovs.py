@@ -41,6 +41,7 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         INNER JOIN microscopy.wellimagingmodejunction as welljn on well.wellid = welljn.wellid
         WHERE fov.objective = 100
         AND file.filename NOT LIKE '%aligned_cropped%'
+        AND fov.qcstatusid.name = 'Passed'
         {workflow_query}
         {cell_line_query}
         {plate_query}

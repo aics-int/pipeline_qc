@@ -6,8 +6,8 @@ from typing import NamedTuple
 
 import pandas as pd
 from aics_dask_utils import DistributedHandler
-from dask_jobqueue import SLURMCluster
 import dask.config
+import aicsimageio
 from dask_jobqueue import SLURMCluster
 from pipeline_qc import detect_edge, detect_z_stack_false_clip
 from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
@@ -24,6 +24,8 @@ class StandardizeFOVArrayError(NamedTuple):
     error: str
 
 def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
+
+    aicsimageio.use_dask(False)
 
     try:
 
