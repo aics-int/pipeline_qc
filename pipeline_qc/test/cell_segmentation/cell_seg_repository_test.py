@@ -22,10 +22,10 @@ class TestCellSegmentationRepository:
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
 
         # Assert
-        self._mock_fms_client.upload_file.assert_called_once()
-        upload_path = self._mock_fms_client.upload_file.call_args[0][0]
+        self._mock_fms_client.upload_file_sync.assert_called_once()
+        upload_path = self._mock_fms_client.upload_file_sync.call_args[0][0]
         assert upload_path == combined_seg_path
-        metadata = self._mock_fms_client.upload_file.call_args[0][1]
+        metadata = self._mock_fms_client.upload_file_sync.call_args[0][1]
         assert metadata["file"]["file_type"] == "image"
         assert len(metadata["content_processing"]["channels"]) == 4  # 4 channels
         assert metadata["content_processing"]["channels"]["0"]["content_type"] == "Nucleus segmentation"
@@ -43,7 +43,7 @@ class TestCellSegmentationRepository:
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
 
         # Assert
-        metadata = self._mock_fms_client.upload_file.call_args[0][1]
+        metadata = self._mock_fms_client.upload_file_sync.call_args[0][1]
         assert metadata["file"]["file_type"] == "image"
         assert len(metadata["content_processing"]["channels"]) == 4  # 4 channels
         assert metadata["microscopy"]["fov_id"] == "9999"

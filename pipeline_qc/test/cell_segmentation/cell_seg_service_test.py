@@ -1,21 +1,27 @@
 import pytest
 import numpy
+import os 
 
 from unittest import mock
 from unittest.mock import Mock
 from pandas import Series
-from pipeline_qc.cell_segmentation.cell_seg_service import SuperModel, ResultStatus, AppConfig, CellSegmentationService, CellSegmentationResult, CellSegmentationRepository
 
+@pytest.mark.skipif(os.environ.get("USER", "") == "jenkins",
+                    reason=f"Import errors on Jenkins. Can't install all necessary modules through gradle + setup.py.")
 class TestCellSegmentationService:
+
     row = Series(index=["fovid", "localfilepath", "sourceimagefileid"],
                  data=[63, "/allen/aics/some/place/file.tiff", "abcdef123456"])
 
     @pytest.fixture(autouse=True)
     def setup(self):
+        from pipeline_qc.cell_segmentation.cell_seg_service import AppConfig, CellSegmentationService, CellSegmentationRepository
         self._mock_repository = Mock(spec=CellSegmentationRepository)
         self._cell_seg_service = CellSegmentationService(self._mock_repository, config=Mock(spec=AppConfig))
 
     def test_single_cell_segmentation_skips_existing_fov(self):
+        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult
+
         # Arrange       
         self._mock_repository.segmentation_exists.return_value = True
 
@@ -32,6 +38,8 @@ class TestCellSegmentationService:
 
     @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.file_processing_methods")
     def test_single_cell_segmentation_skips_incompatible_fov(self, mock_file_processing_methods):
+        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult
+
         # Arrange
         image_data = {
                       "405nm": [1, 2, 3],
@@ -53,6 +61,8 @@ class TestCellSegmentationService:
     @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
     @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.SuperModel")
     def test_single_cell_segmentation_happy_path(self, mock_tiff_writer, mock_super_model):
+        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult
+
         # Arrange
         image_data = {
                       "405nm": [1, 2, 3],
