@@ -1,0 +1,5 @@
+fms_host: "aics.corp.alleninstitute.org"
+fms_port: 80
+fms_timeout_in_seconds: 300
+labkey_host: "aics.corp.alleninstitute.org"
+labkey_port: 80

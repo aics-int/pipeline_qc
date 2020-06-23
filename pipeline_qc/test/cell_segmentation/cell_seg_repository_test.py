@@ -2,15 +2,15 @@ import pytest
 
 from unittest.mock import Mock, call
 from aicsfiles import FileManagementSystem
-from pipeline_qc.image_qc_methods.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
-
+from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
+from pipeline_qc.cell_segmentation.configuration import AppConfig
 
 class TestCellSegmentationRepository:
 
     @pytest.fixture(autouse=True)
     def setup(self):
         self._mock_fms_client = Mock(spec=FileManagementSystem)
-        self._cell_seg_repository = CellSegmentationRepository(fms_client=self._mock_fms_client)
+        self._cell_seg_repository = CellSegmentationRepository(fms_client=self._mock_fms_client, config=Mock(spec=AppConfig))
 
     def test_upload_combined_segmentation_no_initial_metadata(self):
         # Arrange
@@ -22,10 +22,10 @@ class TestCellSegmentationRepository:
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
 
         # Assert
-        self._mock_fms_client.upload_file.assert_called_once()
-        upload_path = self._mock_fms_client.upload_file.call_args[0][0]
+        self._mock_fms_client.upload_file_sync.assert_called_once()
+        upload_path = self._mock_fms_client.upload_file_sync.call_args[0][0]
         assert upload_path == combined_seg_path
-        metadata = self._mock_fms_client.upload_file.call_args[0][1]
+        metadata = self._mock_fms_client.upload_file_sync.call_args[0][1]
         assert metadata["file"]["file_type"] == "image"
         assert len(metadata["content_processing"]["channels"]) == 4  # 4 channels
         assert metadata["content_processing"]["channels"]["0"]["content_type"] == "Nucleus segmentation"
@@ -43,7 +43,7 @@ class TestCellSegmentationRepository:
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
 
         # Assert
-        metadata = self._mock_fms_client.upload_file.call_args[0][1]
+        metadata = self._mock_fms_client.upload_file_sync.call_args[0][1]
         assert metadata["file"]["file_type"] == "image"
         assert len(metadata["content_processing"]["channels"]) == 4  # 4 channels
         assert metadata["microscopy"]["fov_id"] == "9999"

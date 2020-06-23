@@ -63,26 +63,27 @@ setup(name=PACKAGE_NAME,
               "upload_aligned_files={}.bin.aligned_file_upload:main".format(PACKAGE_NAME)
           ]
       },
+      include_package_data=True,
       install_requires=[
           # List of modules required to use/run this module.
           # -- E.g.
           # 'numpy>=1.15.1',
           # 'requests'
-          'lkaccess',
-          'aicsimageio',
-          'aics_dask_utils==0.2.0',
+          'aicsfiles',
+          'aicsimageio>=3.2.1',
+          'aics_dask_utils',
           'bokeh',
           'dask',
           'dask_jobqueue',
-          'aicsfiles',
+          'labkey',
+          'lkaccess',
+          'matplotlib',
           'numpy',
+          'pandas',
+          'pyyaml',
           'scipy',
           'scikit-image',
-          'tqdm',
-          'pandas',
-          'labkey',
-          'matplotlib',
-          'aicsfiles'
+          'tqdm'
       ],
 
       # For test setup. This will allow JUnit XML output for Jenkins

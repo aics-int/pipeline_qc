@@ -1,10 +1,12 @@
-from lkaccess import LabKey, contexts
+from lkaccess import LabKey
 from labkey.utils import ServerContext
 import os
 import pandas as pd
 
+DEFAULT_LK_HOST = "aics.corp.alleninstitute.org"
+DEFAULT_LK_PORT = 80
 
-def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovids = None, labkey_context: ServerContext = contexts.PROD):
+def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovids = None, labkey_host: str = DEFAULT_LK_HOST, labkey_port: int = DEFAULT_LK_PORT):
     # Queries FMS (only using cell line right now) for image files that we would QC
     # Inputs all need to be lists of strings
 
@@ -26,7 +28,7 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
     else:
         fovid_query = f"AND fov.fovid IN {str(fovids).replace('[','(').replace(']',')')}"
 
-    labkey_client = LabKey(labkey_context)
+    labkey_client = LabKey(host=labkey_host, port=labkey_port)
 
     sql = f'''
      SELECT fov.fovid, fov.sourceimagefileid, well.wellname.name as wellname, plate.barcode,
@@ -130,11 +132,11 @@ def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_
     return pd.DataFrame(image_metadata_list)
 
 
-def query_fovs(workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, labkey_context: ServerContext = contexts.PROD):
+def query_fovs(workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, labkey_host: str = DEFAULT_LK_HOST, labkey_port: int = DEFAULT_LK_PORT):
     # Script that can query multiple parameters and join those tables into one query dataframe
     # workflows, cell_lines, plates, and fovs are all lists of strings
     # options: only_from_fms means you can only query fms. If false, will call the filesystem query as well
-    df = query_fovs_from_fms(workflows, cell_lines, plates, fovids, labkey_context=labkey_context)
+    df = query_fovs_from_fms(workflows, cell_lines, plates, fovids, labkey_host=labkey_host)
     if only_from_fms == False:
         df_2 = query_fovs_from_filesystem(plates)
         df = pd.concat([df, df_2], axis=0, ignore_index=True)

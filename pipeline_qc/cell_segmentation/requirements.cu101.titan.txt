@@ -1,0 +1,10 @@
+## Install for Titan compatible (Titan, Titanx, GTX) GPU + Cuda v10.1
+--find-links https://download.pytorch.org/whl/torch_stable.html
+
+https://download.pytorch.org/whl/cu101/torch-1.3.1-cp37-cp37m-linux_x86_64.whl #torch==1.3.1+cu101
+https://download.pytorch.org/whl/cu101/torchvision-0.4.2-cp37-cp37m-linux_x86_64.whl #torchvision==0.4.2+cu101
+scikit-image==0.16.2
+
+git+https://aicsbitbucket.corp.alleninstitute.org/scm/assay/dl_model_zoo.git@0.1.0-pipeline-compatible #dl_model_zoo
+git+https://github.com/AllenCellModeling/pytorch_fnet.git@ad_customization #fnet
+-e git+https://aicsbitbucket.corp.alleninstitute.org/scm/assay/cell_detector.git#egg=cell_detector #cell_detector

@@ -2,6 +2,7 @@
 from datetime import datetime
 from aicsfiles import FileManagementSystem
 from aicsfiles.filter import Filter
+from .configuration import AppConfig
 
 # Algorithm information
 # must match existing ContentGenerationAlgorithm name and version in Labkey
@@ -21,11 +22,13 @@ class CellSegmentationRepository:
     """
     Interface for persistence (FMS/Labkey) operations on segmentation files
     """
-    def __init__(self, fms_client: FileManagementSystem,  fms_timeout: int = 300):
+    def __init__(self, fms_client: FileManagementSystem, config: AppConfig):
         if fms_client is None:
             raise AttributeError("fms_client")
-        self._fms_timeout = fms_timeout
+        if config is None:
+            raise AttributeError("config")
         self._fms_client = fms_client
+        self._config = config
 
     def upload_combined_segmentation(self, combined_segmentation_path: str, input_file_id: str):
         """
@@ -74,7 +77,7 @@ class CellSegmentationRepository:
             }
         }
 
-        self._fms_client.upload_file(combined_segmentation_path, metadata, timeout=self._fms_timeout)
+        self._fms_client.upload_file_sync(combined_segmentation_path, metadata, timeout=self._config.fms_timeout_in_seconds)
 
     def segmentation_exists(self, filename: str):
         """

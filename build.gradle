@@ -23,7 +23,7 @@ for (scriptPlugin in scriptPlugins) {
 }
 
 
-
+py.venvPython = "python3.7"
 
 // Add the environment variable to gradle for coverage report
 // Do not add this to setup.cfg since it will break IDE tools
