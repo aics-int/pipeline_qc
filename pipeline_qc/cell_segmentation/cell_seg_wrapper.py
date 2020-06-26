@@ -37,16 +37,13 @@ class CellSegmentationWrapper(CellSegmentationWrapperBase):
         Process segmentations as a batch. 
         FOV images are queried from FMS based on the given options and segmented sequentially.
         """                                
-        query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
-                                        only_from_fms=only_from_fms, labkey_host=self._config.labkey_host, labkey_port=self._config.labkey_port)
+        fovs = self._cell_seg_service.get_fov_records(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
+
+        self.log.info(f"{len(fovs)} fovs were found to process.")
 
 
-
-        self.log.info(f"{len(query_df)} fovs were found to process.")
-
-
-        for index, row in query_df.iterrows():
-            self._cell_seg_service.single_cell_segmentation(row, 
+        for fov in fovs:
+            self._cell_seg_service.single_cell_segmentation(fov, 
                                                             save_to_fms=save_to_fms, 
                                                             save_to_filesystem=save_to_filesystem,
                                                             output_dir=output_dir,
@@ -78,11 +75,9 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
         Process segmentations as a batch. 
         FOV images are queried from FMS based on the given options and segmented concurrently on GPU nodes
         """                                
-        query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
-                                        only_from_fms=only_from_fms, labkey_host=self._config.labkey_host, labkey_port=self._config.labkey_port)
+        fovs = self._cell_seg_service.get_fov_records(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
 
-
-        self.log.info(f"{len(query_df)} fovs were found to process.")
+        self.log.info(f"{len(fovs)} fovs were found to process.")
 
         cluster = SLURMCluster(cores=1, 
                                memory=self._cluster_config.worker_memory_limit, 
@@ -98,12 +93,12 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
 
         with DistributedHandler(cluster.scheduler_address) as handler:
             results = handler.batched_map(
-                lambda row: self._cell_seg_service.single_cell_segmentation(row, 
+                lambda fov: self._cell_seg_service.single_cell_segmentation(fov, 
                                                                             save_to_fms=save_to_fms, 
                                                                             save_to_filesystem=save_to_filesystem,
                                                                             output_dir=output_dir,
                                                                             process_duplicates=process_duplicates),
-                [row for i, row in query_df.iterrows()],
+                fovs,
                 resources={"GPU":1}
             )
 
