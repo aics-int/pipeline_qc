@@ -95,7 +95,8 @@ def main():
             cell_lines=args.cell_lines,
             plates=args.plates,
             fovids=args.fovids,
-            only_from_fms=args.only_from_fms
+            only_from_fms=args.only_from_fms,
+            reprocess = args.reprocess
         )
 
     except Exception as e:
