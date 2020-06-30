@@ -83,7 +83,7 @@ def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_
     # Need to work on
 
     prod_dir = '/allen/aics/microscopy/'
-    pipeline_dirs = ['PIPELINE_4_4', 'get', 'PIPELINE_4_6', 'PIPELINE_4_7', 'PIPELINE_5.2', 'PIPELINE_6', 'PIPELINE_7']
+    pipeline_dirs = ['PIPELINE_4_4', 'PIPELINE_4_5', 'PIPELINE_4_6', 'PIPELINE_4_7', 'PIPELINE_5.2', 'PIPELINE_6', 'PIPELINE_7']
     data_dirs = ['RnD_Sandbox']
     paths = list()
     # Iterates through all dirs in PRODUCTION directory that are relevant, and finds all plate directories that match
