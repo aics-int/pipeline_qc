@@ -60,6 +60,32 @@ class TestCellSegmentationService:
 
     @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.file_processing_methods")
     @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.SuperModel")
+    def test_single_cell_segmentation_fails_on_empty_segmentation(self, mock_super_model: Mock, mock_file_processing_methods: Mock):
+        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult, SuperModel
+        
+        # Arrange
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        image_data = {
+                      "405nm": [1, 2, 3],
+                      "638nm": [4, 5, 6],
+                      "brightfield": [7, 8, 9]
+                     }
+        mock_file_processing_methods.split_image_into_channels.return_value = image_data
+        mock_super_model.return_value.apply_on_single_zstack.return_value = None
+        self._mock_repository.segmentation_exists.return_value = False
+
+        # Act
+        result: CellSegmentationResult = self._cell_seg_service.single_cell_segmentation(fov, 
+                                                                save_to_fms=False, 
+                                                                save_to_filesystem=False, 
+                                                                output_dir="", 
+                                                                process_duplicates=False)
+        # Assert
+        assert result.fov_id == 63
+        assert result.status == ResultStatus.FAILED
+
+    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.file_processing_methods")
+    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.SuperModel")
     @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
     def test_single_cell_segmentation_happy_path_dual_camera(self, mock_tiff_writer: Mock, mock_super_model: Mock, mock_file_processing_methods: Mock):
         from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult, CellSegmentationService

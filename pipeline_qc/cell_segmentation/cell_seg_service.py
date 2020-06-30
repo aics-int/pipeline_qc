@@ -104,6 +104,10 @@ class CellSegmentationService:
             self.log.info(f'Running Segmentation on FOV {fov_id}')
 
             combined_segmentation = self._segment_from_model(im, model)
+            if combined_segmentation is None:
+                msg = f"FOV {fov_id} could not be segmented: returned empty result"
+                self.log.info(msg)
+                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, msg=msg)
 
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
