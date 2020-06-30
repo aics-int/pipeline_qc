@@ -12,7 +12,7 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
 
     # This logic allows us to optionally leave any inout blank and still be able to
     if not workflows:
-        workflow_query = ''
+        workflow_query = ""
     else:
         workflow_query = f"AND fov.wellid.plateid.workflow.name IN {str(workflows).replace('[','(').replace(']',')')}"
     if not cell_lines:
@@ -33,7 +33,8 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
     sql = f'''
      SELECT fov.fovid, fov.sourceimagefileid, well.wellname.name as wellname, plate.barcode,
         instrument.name as instrument, fcl.celllineid.name as cellline, fov.fovimagedate, file.localfilepath,
-        fov.wellid.plateid.workflow.name as workflow, welljn.imagingmodeid.name as imaging_mode
+        fov.wellid.plateid.workflow.name as workflow, welljn.imagingmodeid.name as imaging_mode, 
+        cldef.geneid.name as gene
         FROM microscopy.fov as fov
         INNER JOIN microscopy.well as well on fov.wellid = well.wellid
         INNER JOIN microscopy.plate as plate on well.plateid = plate.plateid
@@ -41,6 +42,7 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         INNER JOIN celllines.filecellline as fcl on fov.sourceimagefileid = fcl.fileid
         INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
         INNER JOIN microscopy.wellimagingmodejunction as welljn on well.wellid = welljn.wellid
+        INNER JOIN celllines.celllinedefinition as cldef on fcl.celllineid = cldef.celllineid
         WHERE fov.objective = 100
         AND file.filename NOT LIKE '%aligned_cropped%'
         AND fov.qcstatusid.name = 'Passed'
@@ -72,10 +74,10 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
     if df.empty:
         print("Query from FMS returned no fovids")
         return pd.DataFrame(columns=['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath',
-                                     'wellname', 'barcode', 'cellline', 'workflow'])
+                                     'wellname', 'barcode', 'cellline', 'workflow', 'imaging_mode', 'gene'])
     else:
         return df[['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
-                    'cellline', 'workflow']]
+                    'cellline', 'workflow', 'imaging_mode', 'gene']]
 
 
 def query_fovs_from_filesystem(plates, workflows = ['PIPELINE_4_4', 'PIPELINE_4_5', 'PIPELINE_4_6', 'PIPELINE_4_7', 'PIPELINE_5.2', 'PIPELINE_6', 'PIPELINE_7', 'RnD_Sandbox']):

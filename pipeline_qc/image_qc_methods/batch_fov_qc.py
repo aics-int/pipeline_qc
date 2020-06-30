@@ -23,7 +23,7 @@ class StandardizeFOVArrayError(NamedTuple):
     fov_id: int
     error: str
 
-def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
+def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg', reprocess = False):
 
     aicsimageio.use_dask(False)
 
@@ -31,11 +31,12 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
 
         print(f"Processing fovid:{str(row['fovid'])}")
 
-        # Doesn't run the code if a picke for the fovid identified already exists
-        if os.path.isfile(f"{json_dir}/{row['fovid']}.pickle"):
-            print(f"Fovid:{str(row['fovid'])} has already been processed")
-            with open(f"{json_dir}/{row['fovid']}.pickle", 'rb') as handle:
-                return StandardizeFOVArrayResult(row['fovid'], pickle.load(handle))
+        if reprocess == False:
+            # Doesn't run the code if a picke for the fovid identified already exists
+            if os.path.isfile(f"{json_dir}/{row['fovid']}.pickle"):
+                print(f"Fovid:{str(row['fovid'])} has already been processed")
+                with open(f"{json_dir}/{row['fovid']}.pickle", 'rb') as handle:
+                    return StandardizeFOVArrayResult(row['fovid'], pickle.load(handle))
 
         # Splits 6D image into single channel images for qc algorithm processing
         channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
@@ -98,7 +99,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
         print(f"Failed processing for FOV:{row['fovid']}")
         return StandardizeFOVArrayError(row['fovid'], str(e))
 
-def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg'):
+def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg', reprocess = False):
     # Runs qc steps and collates all data into a single dataframe for easy sorting and plotting
     # Runs on multiple files, to be used with the query_fms function
     pd.options.mode.chained_assignment = None
@@ -151,6 +152,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
             [output_dir for i in range(len(query_df))],
             [image_gen for i in range(len(query_df))],
             [env for i in range(len(query_df))],
+            [reprocess for i in range(len(query_df))],
         )
     stat_list = []
     errors = []

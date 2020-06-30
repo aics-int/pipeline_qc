@@ -37,6 +37,7 @@ class Args(argparse.Namespace):
         self.fovids = None
         self.only_from_fms = True
         self.env = 'stg'
+        self.reprocess = False
         #
         self.__parse()
 
@@ -68,6 +69,9 @@ class Args(argparse.Namespace):
         p.add_argument('--env', type=str,
                        help="Environment that data will be stored to('prod, 'stg', default is 'stg')",
                        default='stg', required=False)
+        p.add_argument('--reprocess', type=str,
+                       help="Boolean to say whether data that has already been processed should be reprocessed')",
+                       default='False', required=False)
         p.add_argument('--debug',
                        help='Enable debug mode',
                        default=False, required=False, action='store_true')
