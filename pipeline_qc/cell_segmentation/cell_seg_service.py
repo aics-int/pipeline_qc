@@ -4,6 +4,7 @@ import aicsimageio
 import traceback
 import logging
 
+from typing import List
 from enum import Enum
 from pandas import Series
 from dataclasses import dataclass
@@ -11,10 +12,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from datetime import datetime
 from aicsimageio.writers import ome_tiff_writer
-from pipeline_qc.image_qc_methods import file_processing_methods
+from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from model_zoo_3d_segmentation.zoo import SuperModel
 from .configuration import AppConfig
 from .cell_seg_repository import CellSegmentationRepository
+from .fov_file import FovFile
 
 class ResultStatus(Enum):
     SUCCESS = "SUCCESS"
@@ -32,7 +34,6 @@ class CellSegmentationResult:
         return f"FOV {self.fov_id}: {self.status.value}\n{self.message}"
     
 
-
 class CellSegmentationService:
     """
     Single cell ML Segmentation Service
@@ -41,7 +42,8 @@ class CellSegmentationService:
     """
 
     # Constants
-    MODEL = "DNA_MEM_instance_LF_integration_two_camera"
+    MODEL_SINGLE_CAMERA = "DNA_MEM_instance_LF_integration"
+    MODEL_DUAL_CAMERA = "DNA_MEM_instance_LF_integration_two_camera"
 
     def __init__(self, repository: CellSegmentationRepository, config: AppConfig):
         if repository is None:
@@ -52,23 +54,38 @@ class CellSegmentationService:
         self._config = config
         self.log = logging.getLogger(__name__)
 
+    def get_fov_records(self, workflows: List, plates: List, cell_lines: List, fovids: List, only_from_fms:bool) -> List[FovFile]:
+        """
+        Query for FOV records and return results in list form
+        """
+        query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids,
+                                         only_from_fms=only_from_fms, labkey_host=self._config.labkey_host, labkey_port=self._config.labkey_port)
+        
+        fovs = []
+        for index, row in query_df.iterrows():
+            fovs.append(FovFile.from_dataframe_row(row))
+
+        return fovs
+
     def single_cell_segmentation(self, 
-                                 row: Series, 
+                                 fov: FovFile, 
                                  save_to_fms: bool, 
                                  save_to_filesystem: bool, 
                                  output_dir: str, 
                                  process_duplicates: bool) -> CellSegmentationResult: 
         """
         Run segmentation process for a single FOV
-        :param: row: FOV information as a pandas Dataframe row
+        :param: fov: FOV record
         :param: save_to_fms: indicate whether to save segmentation output to FMS
         :param: save_to_filesystem: indicate whether to save segmentation output to output_dir
         :param: output_dir: output directory path when saving to file system (can be network / isilon path)
         :param: process_duplicates: indicate whether to process or skip fov if segmentation already exists in FMS
         """                                
-        fov_id = row["fovid"]
-        local_file_path = row["localfilepath"]
-        source_file_id = row["sourceimagefileid"]
+
+        fov_id = fov.fov_id
+        local_file_path = fov.local_file_path
+        source_file_id = fov.source_image_file_id
+        model = self.MODEL_SINGLE_CAMERA if fov.is_single_camera else self.MODEL_DUAL_CAMERA
         
         try:
             file_name = self._get_seg_filename(local_file_path)
@@ -78,7 +95,7 @@ class CellSegmentationService:
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
             
-            im = self._create_segmentable_image(local_file_path, source_file_id)
+            im = self._create_segmentable_image(fov)
             if im.shape[0] != 3:
                 msg = f"FOV {fov_id} does not have nucleus or cellular color channels"
                 self.log.info(msg)
@@ -86,7 +103,11 @@ class CellSegmentationService:
             
             self.log.info(f'Running Segmentation on FOV {fov_id}')
 
-            combined_segmentation = self._segment_from_model(im, self.MODEL)
+            combined_segmentation = self._segment_from_model(im, model)
+            if combined_segmentation is None:
+                msg = f"FOV {fov_id} could not be segmented: returned empty result"
+                self.log.info(msg)
+                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, msg=msg)
 
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
@@ -109,19 +130,19 @@ class CellSegmentationService:
             self.log.info(msg)
             return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
-
     def _segment_from_model(self, image, model):
         sm = SuperModel(model)
 
-        return sm.apply_on_single_zstack(input_img=image, inputCh=[0, 1, 2])
+        return sm.apply_on_single_zstack(input_img=image)
 
-    def _create_segmentable_image(self, localfilepath, sourceimagefileid):
+    def _create_segmentable_image(self, fov: FovFile):
         """
         Create a segmentable image by picking the right channels
         Nucleus/Membrane segmentation requires an image with 3 channels: 405nm, 638nm and brightfield
         """
         aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
-        channel_dict = file_processing_methods.split_image_into_channels(localfilepath, sourceimagefileid)
+
+        channel_dict = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
 
         full_im_list = list()
         for channel in ['405nm', '638nm', 'brightfield']:

@@ -70,7 +70,7 @@ setup(name=PACKAGE_NAME,
           # -- E.g.
           # 'numpy>=1.15.1',
           # 'requests'
-          'aicsfiles',
+          'aicsfiles>=3.1.16',
           'aicsimageio>=3.2.1',
           'aics_dask_utils',
           'bokeh',
