@@ -68,7 +68,10 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg', re
                     stat_dict.update({channel_name + ' ' + zstack_key: zstack_value})
                 bf_false_clip_dict = detect_z_stack_false_clip.detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
-                    stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
+                    if false_clip_key == 'laplace_range':
+                        continue
+                    else:
+                        stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
 
                 # PUT QC_IMAGES FOR BF HERE
                 if image_gen:
@@ -169,4 +172,36 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     errors_df = pd.DataFrame(errors)
     errors_df.to_csv(output_dir + '/errors.csv')
 
-    return stat_df, errors
+    return stat_df, errors_df
+
+
+def batch_qc_serially(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg', reprocess = False):
+    query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
+    print(f'''
+    __________________________________________
+
+    {len(query_df)} fovs were found to process.
+
+    __________________________________________
+    ''')
+
+    results = list()
+    for i, row in query_df.iterrows():
+        results.append(process_single_fov(row, json_dir, output_dir, image_gen, env, reprocess))
+
+    stat_list = []
+    errors = []
+    for result in results:
+        if isinstance(result, StandardizeFOVArrayResult):
+            stat_list.append(result.stat_dict)
+        else:
+            errors.append([result.fov_id, result.error])
+
+    # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
+
+    stat_df = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
+    stat_df.to_csv(output_dir + '/fov_qc_metrics.csv')
+    errors_df = pd.DataFrame(errors)
+    errors_df.to_csv(output_dir + '/errors.csv')
+
+    return stat_df, errors_df
