@@ -19,7 +19,8 @@ class FovFile:
         """
         return self.workflow.lower() in ["pipeline 4",
                                          "pipeline 4.1", 
-                                         "pipeline 4.2"
+                                         "pipeline 4.2",
+                                         "pipeline 4.3"
                                         ]
 
     @staticmethod
