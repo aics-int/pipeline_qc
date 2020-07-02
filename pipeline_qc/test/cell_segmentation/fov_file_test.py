@@ -28,6 +28,7 @@ class TestFovFile:
                              [("Pipeline 4", True), 
                               ("Pipeline 4.1", True),
                               ("Pipeline 4.2", True),
+                              ("Pipeline 4.3", True),
                               ("Pipeline 4.4", False),
                               ("Pipeline 4.5", False),
                               ("Pipeline 4.6", False),
