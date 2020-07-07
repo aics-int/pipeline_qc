@@ -44,7 +44,7 @@ def perform_similarity_matrix_transform(img, matrix, output_path, filen):
 
     return after_transform
 
-
+print('aligning matrix')
 if os.path.exists(optical_control_img_filepath.replace('.czi', '_sim_matrix.txt')) is False:
     exe = camera_alignment.Executor(
         image_path=optical_control_img_filepath,
@@ -68,6 +68,7 @@ if folder_to_czi is not None:
     imgs = os.listdir(folder_to_czi)
     for raw_split_file in imgs:
         if raw_split_file.endswith('.czi'):
+            print('processing ' + raw_split_file)
             img_data = AICSImage(os.path.join(folder_to_czi, raw_split_file))
             channels = img_data.get_channel_names()
             img_stack = img_data.data
@@ -92,8 +93,8 @@ if folder_to_czi is not None:
                 final_img[0, 0, channels.index(channel), :, :, :] = img
 
             final_img = final_img.astype(np.uint16)
-            s, t, c, z, y, x = final_img.shape()
-            upload_img = final_img[0, :, :, :, (y-crop_dim[0])/2:(crop_dim[0] + (y-crop_dim[0])/2), (x-crop_dim[1])/2:(crop_dim[1] + (x-crop_dim[1])/2)]
+            s, t, c, z, y, x = final_img.shape
+            upload_img = final_img[0, :, :, :, int((y-crop_dim[0])/2):int(crop_dim[0] + (y-crop_dim[0])/2), int((x-crop_dim[1])/2):int(crop_dim[1] + (x-crop_dim[1])/2)]
             upload_img = upload_img.transpose((0, 2, 1, 3, 4))
 
             writer = writers.OmeTiffWriter(
