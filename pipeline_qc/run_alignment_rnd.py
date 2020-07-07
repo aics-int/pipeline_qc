@@ -45,21 +45,22 @@ def perform_similarity_matrix_transform(img, matrix, output_path, filen):
     return after_transform
 
 
-exe = camera_alignment.Executor(
-    image_path=optical_control_img_filepath,
-    image_type=image_type,
-    ref_channel_index=ref_channel,
-    mov_channel_index=mov_channel,
-    system_type=system_type,
-    thresh_488=None,  # Set 'None' to use default setting
-    thresh_638=None,  # Set 'None' to use default setting
-    crop_center=None,  # Set 'None' to use default setting
-    method_logging=True,
-    align_mov_img=True,
-    align_mov_img_path=optical_control_img_filepath,
-    align_mov_img_file_extension='_aligned.tif',
-    align_matrix_file_extension='_sim_matrix.txt')
-exe.execute()
+if os.path.exists(optical_control_img_filepath.replace('.czi', '_sim_matrix.txt')) is False:
+    exe = camera_alignment.Executor(
+        image_path=optical_control_img_filepath,
+        image_type=image_type,
+        ref_channel_index=ref_channel,
+        mov_channel_index=mov_channel,
+        system_type=system_type,
+        thresh_488=None,  # Set 'None' to use default setting
+        thresh_638=None,  # Set 'None' to use default setting
+        crop_center=None,  # Set 'None' to use default setting
+        method_logging=True,
+        align_mov_img=True,
+        align_mov_img_path=optical_control_img_filepath,
+        align_mov_img_file_extension='_aligned.tif',
+        align_matrix_file_extension='_sim_matrix.txt')
+    exe.execute()
 
 tf_array = np.loadtxt(optical_control_img_filepath.split('.')[0] + '_sim_matrix.txt', delimiter=',')
 
