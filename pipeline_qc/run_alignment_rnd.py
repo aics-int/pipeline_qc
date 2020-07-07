@@ -10,7 +10,7 @@ system_type = 'zsd'  # Select between 'zsd' or '3i'
 
 folder_to_czi = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200609\to_process_100X\split'  # Input folder to czi images. (Currently don't support 3i images, check back later, sorry!)
 folder_save = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200609\to_process_100X\split'  # Output folder to save split scene tiffs
-
+crop_dim = (600, 900)  # Final dimension of image after cropping in the form of (image height, image width)
 #===================================
 # Core script - don't change plz
 import numpy as np
@@ -92,7 +92,8 @@ if folder_to_czi is not None:
                 final_img[0, 0, channels.index(channel), :, :, :] = img
 
             final_img = final_img.astype(np.uint16)
-            upload_img = final_img[0, :, :, :, 12:612, 12:912]
+            s, t, c, z, y, x = final_img.shape()
+            upload_img = final_img[0, :, :, :, (y-crop_dim[0])/2:(crop_dim[0] + (y-crop_dim[0])/2), (x-crop_dim[1])/2:(crop_dim[1] + (x-crop_dim[1])/2)]
             upload_img = upload_img.transpose((0, 2, 1, 3, 4))
 
             writer = writers.OmeTiffWriter(
