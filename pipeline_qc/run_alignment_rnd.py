@@ -19,7 +19,7 @@ from pipeline_qc import camera_alignment
 from aicsimageio import AICSImage, writers
 from skimage import io, transform as tf
 
-def perform_similarity_matrix_transform(img, matrix, output_path, filen):
+def perform_similarity_matrix_transform(img, matrix):
     """
     Performs a similarity matrix geometric transform on an image
     :param img: A 2D/3D image to be transformed
