@@ -972,32 +972,32 @@ class Executor(object):
 
         return transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, coor_dist_qc, diff_sum_beads, mse_qc, diff_mse
 
-def main():
-    dbg = False
-    try:
-        # args = Args()
-        # dbg = args.debug
-        exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-                       image_type='rings',  # Select between 'rings' or 'zsd'
-                       ref_channel_index='488/TL 50um Dual',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
-                       mov_channel_index='640/405 50um Dual',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
-                       system_type='zsd',  # Select between 'zsd' or '3i'
-                       thresh_488=None,  # Set 'None' to use default setting
-                       thresh_638=None,  # Set 'None' to use default setting
-                       crop_center=None,  # Set 'None' to use default setting
-                       method_logging=True,
-                       align_mov_img=True,
-                       align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-                       align_mov_img_file_extension='_aligned.tif',
-                       align_matrix_file_extension='_sim_matrix.txt')
-        exe.execute()
-
-    except Exception as e:
-        log.error("===============")
-        if dbg:
-            log.error("\n\n" + traceback.format_exc())
-            log.error("===============")
-        log.error("\n\n" + str(e) + "\n")
-        log.error("===============")
-        sys.exit(1)
-
+# def main():
+#     dbg = False
+#     try:
+#         # args = Args()
+#         # dbg = args.debug
+#         exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+#                        image_type='rings',  # Select between 'rings' or 'zsd'
+#                        ref_channel_index='488/TL 50um Dual',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+#                        mov_channel_index='640/405 50um Dual',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+#                        system_type='zsd',  # Select between 'zsd' or '3i'
+#                        thresh_488=None,  # Set 'None' to use default setting
+#                        thresh_638=None,  # Set 'None' to use default setting
+#                        crop_center=None,  # Set 'None' to use default setting
+#                        method_logging=True,
+#                        align_mov_img=True,
+#                        align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+#                        align_mov_img_file_extension='_aligned.tif',
+#                        align_matrix_file_extension='_sim_matrix.txt')
+#         exe.execute()
+#         print('here')
+#     except Exception as e:
+#         log.error("===============")
+#         if dbg:
+#             log.error("\n\n" + traceback.format_exc())
+#             log.error("===============")
+#         log.error("\n\n" + str(e) + "\n")
+#         log.error("===============")
+#         sys.exit(1)
+#

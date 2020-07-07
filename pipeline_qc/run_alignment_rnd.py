@@ -2,13 +2,14 @@
 
 # READ HERE
 # Set user inputs:
-optical_control_img_filepath = r''
-image_type = 'rings'  # Select between 'rings' or 'beads'
-ref_channel = '488/TL 50um Dual'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
-mov_channel = '640/405 50um Dual'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+optical_control_img_filepath = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ZSD3_20200609\custombeads_100X_20200609.czi'
+image_type = 'beads'  # Select between 'rings' or 'beads'
+ref_channel = 'EGFP'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
 system_type = 'zsd'  # Select between 'zsd' or '3i'
-folder_to_czi = r''  # Input folder to czi images. (Currently don't support 3i images, check back later, sorry!)
-folder_save = r''  # Output folder to save split scene tiffs
+
+folder_to_czi = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200609\to_process_100X\split'  # Input folder to czi images. (Currently don't support 3i images, check back later, sorry!)
+folder_save = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200609\to_process_100X\split'  # Output folder to save split scene tiffs
 
 #===================================
 # Core script - don't change plz
@@ -18,7 +19,7 @@ from pipeline_qc import camera_alignment
 from aicsimageio import AICSImage, writers
 from skimage import io, transform as tf
 
-def perform_similarity_matrix_transform(img, matrix):
+def perform_similarity_matrix_transform(img, matrix, output_path, filen):
     """
     Performs a similarity matrix geometric transform on an image
     :param img: A 2D/3D image to be transformed
@@ -66,7 +67,7 @@ if folder_to_czi is not None:
     imgs = os.listdir(folder_to_czi)
     for raw_split_file in imgs:
         if raw_split_file.endswith('.czi'):
-            img_data = AICSImage(raw_split_file)
+            img_data = AICSImage(os.path.join(folder_to_czi, raw_split_file))
             channels = img_data.get_channel_names()
             img_stack = img_data.data
             omexml = img_data.metadata
