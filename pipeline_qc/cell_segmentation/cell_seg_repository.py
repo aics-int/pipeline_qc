@@ -1,4 +1,8 @@
+import os
+import logging
 
+from pathlib import Path
+from lkaccess import LabKey, QueryFilter
 from datetime import datetime
 from aicsfiles import FileManagementSystem
 from aicsfiles.filter import Filter
@@ -22,13 +26,17 @@ class CellSegmentationRepository:
     """
     Interface for persistence (FMS/Labkey) operations on segmentation files
     """
-    def __init__(self, fms_client: FileManagementSystem, config: AppConfig):
+    def __init__(self, fms_client: FileManagementSystem, labkey_client: LabKey, config: AppConfig):
         if fms_client is None:
             raise AttributeError("fms_client")
+        if labkey_client is None:
+            raise AttributeError("labkey_client")
         if config is None:
             raise AttributeError("config")
         self._fms_client = fms_client
-        self._config = config
+        self._labkey_client = labkey_client
+        self._config = config        
+        self._ensure_netrc()
 
     def upload_combined_segmentation(self, combined_segmentation_path: str, input_file_id: str):
         """
@@ -63,6 +71,7 @@ class CellSegmentationRepository:
         # Channel 3 = Membrane contour
 
         processing_date: str = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        run_id = self._create_run_id(processing_date)
 
         # Initialize metadata from input file's metadata, or start over if not available
         metadata = self._get_file_metadata(input_file_id) or {}
@@ -70,10 +79,10 @@ class CellSegmentationRepository:
 
         metadata["content_processing"] = {
             "channels": {
-                "0": self._channel_metadata_block(ContentTypes.NucSeg, processing_date),
-                "1": self._channel_metadata_block(ContentTypes.MembSeg, processing_date),
-                "2": self._channel_metadata_block(ContentTypes.NucContour, processing_date),
-                "3": self._channel_metadata_block(ContentTypes.MembContour, processing_date)
+                "0": self._channel_metadata_block(ContentTypes.NucSeg, processing_date, run_id),
+                "1": self._channel_metadata_block(ContentTypes.MembSeg, processing_date, run_id),
+                "2": self._channel_metadata_block(ContentTypes.NucContour, processing_date, run_id),
+                "3": self._channel_metadata_block(ContentTypes.MembContour, processing_date, run_id)
             }
         }
 
@@ -89,7 +98,7 @@ class CellSegmentationRepository:
         result = self._fms_client.query_files(query)
         return (result is not None and len(result) > 0)
 
-    def _channel_metadata_block(self, content_type: str, processing_date: str):
+    def _channel_metadata_block(self, content_type: str, processing_date: str, run_id: int):
         """
         Build and return a metadata block for a given channel
         param: content_type: content type to identify the channel's contents
@@ -99,7 +108,8 @@ class CellSegmentationRepository:
                 "algorithm": ALGORITHM,
                 "algorithm_version": ALGORITHM_VERSION,
                 "content_type": content_type,
-                "processing_date": processing_date
+                "processing_date": processing_date,
+                "run_id": run_id
                 }
 
     def _get_file_metadata(self, file_id: str):
@@ -112,3 +122,41 @@ class CellSegmentationRepository:
         result = self._fms_client.query_files(query)
 
         return result[0] if result is not None and len(result) > 0 else None
+
+    def _create_run_id(self, processing_date: str) -> int:
+        """
+        Create an algorithm "run" in Labkey and return the new run ID
+        This is used to later link cell records with
+        return: the run ID
+        """        
+        algorithm_id = self._labkey_client.select_first("processing",
+                                                        "ContentGenerationAlgorithm",
+                                                        filter_array=[
+                                                            QueryFilter('Name', ALGORITHM),
+                                                            QueryFilter('Version', ALGORITHM_VERSION)
+                                                        ])["ContentGenerationAlgorithmId"]
+
+        row = {
+            'ContentGenerationAlgorithmId': algorithm_id,
+            'ExecutionDate': processing_date,
+            'Notes': None
+        }
+        response = self._labkey_client.insert_rows("processing", "Run", rows=[row])
+
+        if response is None or "rows" not in response or len(response["rows"]) == 0:
+            raise Exception(f"Failed to create Run ID or unable to retrieve result from Labkey.")
+
+        return int(response['rows'][0]['runid'])
+        
+
+    def _ensure_netrc(self):
+        """
+        Ensure presence of Labkey .netrc credentials file
+        This file is required for authentication necessary for Update / Insert operations in Labkey
+        """
+        # This file must exist for uploads to proceed
+        netrc = Path.home() / ('_netrc' if os.name == 'nt' else '.netrc')
+        if not netrc.exists():
+            raise Exception(f"{netrc} was not found. It must exist with appropriate credentials for "
+                            f"uploading data to labkey."
+                            f"See https://www.labkey.org/Documentation/wiki-page.view?name=netrc for setup instructions.")

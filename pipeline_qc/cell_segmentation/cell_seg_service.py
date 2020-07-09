@@ -103,7 +103,8 @@ class CellSegmentationService:
             
             self.log.info(f'Running Segmentation on FOV {fov_id}')
 
-            combined_segmentation = self._segment_from_model(im, model)
+            #combined_segmentation = self._segment_from_model(im, model)
+            combined_segmentation = im
             if combined_segmentation is None:
                 msg = f"FOV {fov_id} could not be segmented: returned empty result"
                 self.log.info(msg)
