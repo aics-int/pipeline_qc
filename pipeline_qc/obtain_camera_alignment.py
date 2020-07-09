@@ -1016,36 +1016,36 @@ class Executor(object):
 #     try:
 #         # args = Args()
 #         # dbg = args.debug
-        exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-                       image_type='rings',  # Select between 'rings' or 'zsd'
-                       ref_channel_index='488/TL 50um Dual',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
-                       mov_channel_index='640/405 50um Dual',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
-                       system_type='3i',  # Select between 'zsd' or '3i'
-                       thresh_488=None,  # Set 'None' to use default setting
-                       thresh_638=None,  # Set 'None' to use default setting
-                       crop_center=None,  # Set 'None' to use default setting
-                       method_logging=True,
-                       align_mov_img=True,
-                       align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-                       align_mov_img_file_extension='_aligned.tif',
-                       align_matrix_file_extension='_sim_matrix.txt')
-        exe.execute()
-
-        exe = Executor(image_path=r'\\allen\aics\assay-dev\MicroscopyData\Jamie\2020\20200630\argo_split\20200630_J01_002-Scene-3-P3.czi',
-                       image_type='rings',  # Select between 'rings' or 'zsd'
-                       ref_channel_index='EGFP',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
-                       mov_channel_index='CMDRP',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
-                       system_type='zsd',  # Select between 'zsd' or '3i'
-                       thresh_488=None,  # Set 'None' to use default setting
-                       thresh_638=None,  # Set 'None' to use default setting
-                       crop_center=None,  # Set 'None' to use default setting
-                       method_logging=True,
-                       align_mov_img=True,
-                       align_mov_img_path=r'\\allen\aics\assay-dev\MicroscopyData\Jamie\2020\20200630\argo_split\20200630_J01_002-Scene-3-P3.czi',
-                       align_mov_img_file_extension='_aligned.tif',
-                       align_matrix_file_extension='_sim_matrix.txt')
-        exe.execute()
-#         print('here')
+#         exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+#                        image_type='rings',  # Select between 'rings' or 'zsd'
+#                        ref_channel_index='488/TL 50um Dual',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+#                        mov_channel_index='640/405 50um Dual',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+#                        system_type='3i',  # Select between 'zsd' or '3i'
+#                        thresh_488=None,  # Set 'None' to use default setting
+#                        thresh_638=None,  # Set 'None' to use default setting
+#                        crop_center=None,  # Set 'None' to use default setting
+#                        method_logging=True,
+#                        align_mov_img=True,
+#                        align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+#                        align_mov_img_file_extension='_aligned.tif',
+#                        align_matrix_file_extension='_sim_matrix.txt')
+#         exe.execute()
+#
+#         exe = Executor(image_path=r'\\allen\aics\assay-dev\MicroscopyData\Jamie\2020\20200630\argo_split\20200630_J01_002-Scene-3-P3.czi',
+#                        image_type='rings',  # Select between 'rings' or 'zsd'
+#                        ref_channel_index='EGFP',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+#                        mov_channel_index='CMDRP',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+#                        system_type='zsd',  # Select between 'zsd' or '3i'
+#                        thresh_488=None,  # Set 'None' to use default setting
+#                        thresh_638=None,  # Set 'None' to use default setting
+#                        crop_center=None,  # Set 'None' to use default setting
+#                        method_logging=True,
+#                        align_mov_img=True,
+#                        align_mov_img_path=r'\\allen\aics\assay-dev\MicroscopyData\Jamie\2020\20200630\argo_split\20200630_J01_002-Scene-3-P3.czi',
+#                        align_mov_img_file_extension='_aligned.tif',
+#                        align_matrix_file_extension='_sim_matrix.txt')
+#         exe.execute()
+# #         print('here')
 #     except Exception as e:
 #         log.error("===============")
 #         if dbg:
