@@ -77,13 +77,14 @@ class Executor(object):
             self.thresh_638 = (0.2, 99.8)
             self.crop_center = None
         elif (image_type == 'rings') & (system_type == '3i'):
-            self.thresh_488 = (0.2, 99.8),
-            self.thresh_638 = (0.2, 99.8),
+            self.thresh_488 = (0.2, 99.8)
+            self.thresh_638 = (0.2, 99.8)
             self.crop_center = (60, 60)
         else:
             self.thresh_488 = thresh_488
             self.thresh_638 = thresh_638
             self.crop_center = crop_center
+
 
     def append_file_name_with_ext(self, image_path, align_mov_img_file_extension):
         """
@@ -192,7 +193,7 @@ class Executor(object):
         if len(ref_stack.shape) == 2:
             ref = ref_stack
         elif len(ref_stack.shape) == 3:
-            ref_center_z, ref_max_intensity = Executor.get_center_slice(self, ref_stack)
+            ref_center_z, ref_max_contrast = Executor.get_center_slice(self, ref_stack)
             ref = ref_stack[ref_center_z, :, :]
         else:
             print('dimension of ref_stack does not fit')
@@ -217,6 +218,30 @@ class Executor(object):
         print(mov.shape)
         return ref, mov
 
+
+    def get_center_slice_by_contrast(self, stack):
+        """
+        Getx index of center z slice by finding the slice with max. contrast value
+        Parameters
+        ----------
+        stack           a 3D (or 2D) image
+
+        Returns
+        -------
+        center_z        index of center z-slice
+        max_contrast    contrast of that slice
+        """
+        center_z = 0
+        max_contrast = 0
+        for z in range(0, stack.shape[0]):
+            contrast = (np.max(stack[z, :, :]) - np.min(stack[z, :, :])) / (np.max(stack[z, :, :]))
+            if contrast > max_contrast:
+                center_z = z
+                max_contrast = contrast
+
+        return center_z, max_contrast
+
+
     def get_center_slice(self, stack):
         """
         Gets index of center z slice by finding the slice with max. sum intensity
@@ -232,7 +257,12 @@ class Executor(object):
             if sum_intensity >= max_intensity:
                 center_z = z
                 max_intensity = sum_intensity
+
+        if center_z < 2:
+            center_z, max_intensity = Executor.get_center_slice_by_contrast(self, stack)
+
         return center_z, max_intensity
+
 
     def assign_ref_to_mov(self, updated_ref_peak_dict, updated_mov_peak_dict):
         """
@@ -885,10 +915,19 @@ class Executor(object):
         # read image
         img = AICSImage(self.image_path)
         channels = img.get_channel_names()
-
+        print(channels)
         # split ref and move channels from image
-        ref_stack = img.data[0, 0, channels.index(self.ref_channel_index), :, :, :]
-        mov_stack = img.data[0, 0, channels.index(self.mov_channel_index), :, :, :]
+        if self.system_type == 'zsd':
+            ref_stack = img.data[0, 0, channels.index(self.ref_channel_index), :, :, :]
+            mov_stack = img.data[0, 0, channels.index(self.mov_channel_index), :, :, :]
+        elif self.system_type == '3i':
+            ref_index = channels.index(self.ref_channel_index)
+            ref_img = AICSImage(self.image_path.split('_C')[0] + '_C' + str(ref_index) + '.' + self.image_path.split('.')[-1])
+            ref_stack = ref_img.data[0, 0, ref_index, :, :, :]
+
+            mov_index = channels.index(self.mov_channel_index)
+            mov_img = AICSImage(self.image_path.split('_C')[0] + '_C' + str(mov_index) + '.' + self.image_path.split('.')[-1])
+            mov_stack = mov_img.data[0, 0, mov_index, :, :, :]
 
         #=======================================================================================================================
         # Pre-process images
@@ -977,20 +1016,35 @@ class Executor(object):
 #     try:
 #         # args = Args()
 #         # dbg = args.debug
-#         exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-#                        image_type='rings',  # Select between 'rings' or 'zsd'
-#                        ref_channel_index='488/TL 50um Dual',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
-#                        mov_channel_index='640/405 50um Dual',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
-#                        system_type='zsd',  # Select between 'zsd' or '3i'
-#                        thresh_488=None,  # Set 'None' to use default setting
-#                        thresh_638=None,  # Set 'None' to use default setting
-#                        crop_center=None,  # Set 'None' to use default setting
-#                        method_logging=True,
-#                        align_mov_img=True,
-#                        align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-#                        align_mov_img_file_extension='_aligned.tif',
-#                        align_matrix_file_extension='_sim_matrix.txt')
-#         exe.execute()
+        exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+                       image_type='rings',  # Select between 'rings' or 'zsd'
+                       ref_channel_index='488/TL 50um Dual',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+                       mov_channel_index='640/405 50um Dual',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+                       system_type='3i',  # Select between 'zsd' or '3i'
+                       thresh_488=None,  # Set 'None' to use default setting
+                       thresh_638=None,  # Set 'None' to use default setting
+                       crop_center=None,  # Set 'None' to use default setting
+                       method_logging=True,
+                       align_mov_img=True,
+                       align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+                       align_mov_img_file_extension='_aligned.tif',
+                       align_matrix_file_extension='_sim_matrix.txt')
+        exe.execute()
+
+        exe = Executor(image_path=r'\\allen\aics\assay-dev\MicroscopyData\Jamie\2020\20200630\argo_split\20200630_J01_002-Scene-3-P3.czi',
+                       image_type='rings',  # Select between 'rings' or 'zsd'
+                       ref_channel_index='EGFP',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+                       mov_channel_index='CMDRP',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+                       system_type='zsd',  # Select between 'zsd' or '3i'
+                       thresh_488=None,  # Set 'None' to use default setting
+                       thresh_638=None,  # Set 'None' to use default setting
+                       crop_center=None,  # Set 'None' to use default setting
+                       method_logging=True,
+                       align_mov_img=True,
+                       align_mov_img_path=r'\\allen\aics\assay-dev\MicroscopyData\Jamie\2020\20200630\argo_split\20200630_J01_002-Scene-3-P3.czi',
+                       align_mov_img_file_extension='_aligned.tif',
+                       align_matrix_file_extension='_sim_matrix.txt')
+        exe.execute()
 #         print('here')
 #     except Exception as e:
 #         log.error("===============")
