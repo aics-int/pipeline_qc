@@ -7,7 +7,7 @@ from logging import FileHandler, StreamHandler, Formatter
 from datetime import datetime
 from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
 from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationService
-from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem
+from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
 from pipeline_qc.cell_segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
 
 
@@ -99,7 +99,8 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
 
     app_config = AppConfig(Configuration.load(f"config/config.{env}.yaml"))
     fms = FileManagementSystem(host=app_config.fms_host, port=app_config.fms_port)
-    repository = CellSegmentationRepository(fms, app_config)
+    labkey = LabKey(host=app_config.labkey_host, port=app_config.labkey_port)
+    repository = CellSegmentationRepository(fms, labkey, app_config)
     service = CellSegmentationService(repository, app_config)
 
     if args.distributed:
@@ -137,9 +138,8 @@ def main():
 
     except Exception as e:
         log.error("=============================================")
-        if debug:
-            log.error("\n\n" + traceback.format_exc())
-            log.error("=============================================")
+        log.error("\n\n" + traceback.format_exc())
+        log.error("=============================================")
         log.error("\n\n" + str(e) + "\n")
         log.error("=============================================")
         sys.exit(1)
