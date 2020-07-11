@@ -2,8 +2,8 @@ import pytest
 
 from unittest.mock import Mock, call
 from aicsfiles import FileManagementSystem
-from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
-from pipeline_qc.cell_segmentation.configuration import AppConfig
+from pipeline_qc.segmentation.cell.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
+from pipeline_qc.segmentation.configuration import AppConfig
 
 class TestCellSegmentationRepository:
 

@@ -14,9 +14,9 @@ from datetime import datetime
 from aicsimageio.writers import ome_tiff_writer
 from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from model_zoo_3d_segmentation.zoo import SuperModel
-from .configuration import AppConfig
 from .cell_seg_repository import CellSegmentationRepository
-from .fov_file import FovFile
+from ..configuration import AppConfig
+from ..fov_file import FovFile
 
 class ResultStatus(Enum):
     SUCCESS = "SUCCESS"

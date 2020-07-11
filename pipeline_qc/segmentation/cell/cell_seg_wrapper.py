@@ -5,7 +5,7 @@ from aics_dask_utils import DistributedHandler
 from dask_jobqueue import SLURMCluster
 from pipeline_qc.image_qc_methods import query_fovs
 from .cell_seg_service import CellSegmentationService
-from .configuration import AppConfig, GpuClusterConfig
+from ..configuration import AppConfig, GpuClusterConfig
 
 class CellSegmentationWrapperBase(ABC):
     """

@@ -1,7 +1,7 @@
 import pytest
 
 from pandas import Series
-from pipeline_qc.cell_segmentation.fov_file import FovFile
+from pipeline_qc.segmentation.fov_file import FovFile
 
 class TestFovFile:
 

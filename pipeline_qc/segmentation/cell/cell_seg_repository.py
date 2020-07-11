@@ -6,7 +6,7 @@ from lkaccess import LabKey, QueryFilter
 from datetime import datetime
 from aicsfiles import FileManagementSystem
 from aicsfiles.filter import Filter
-from .configuration import AppConfig
+from ..configuration import AppConfig
 
 # Algorithm information
 # must match existing ContentGenerationAlgorithm name and version in Labkey

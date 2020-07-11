@@ -5,10 +5,10 @@ import traceback
 
 from logging import FileHandler, StreamHandler, Formatter
 from datetime import datetime
-from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
-from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationService
-from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
-from pipeline_qc.cell_segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
+from pipeline_qc.segmentation.cell.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
+from pipeline_qc.segmentation.cell.cell_seg_service import CellSegmentationService
+from pipeline_qc.segmentation.cell.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
+from pipeline_qc.segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
 
 
 class Args(argparse.Namespace):
