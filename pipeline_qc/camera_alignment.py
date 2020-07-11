@@ -21,19 +21,6 @@ log = logging.getLogger()
 logging.basicConfig(level=logging.INFO,
                     format='[%(levelname)4s:%(lineno)4s %(asctime)s] %(message)s')
 
-# Initialize variables
-# image_path = r'\\allen\aics\microscopy\Calysta\argolight\data_set_to_share\ZSD1\3500003331_100X_20190813_psf.czi'
-# image_type = 'rings'
-# ref_channel_index = 'EGFP'
-# mov_channel_index = 'CMDRP'
-# bead_488_lower_thresh = 99.4
-# bead_638_lower_thresh = 99
-# method_logging = True
-# align_mov_img = True
-# align_mov_img_path = r''
-# align_mov_img_file_extension = '_aligned.tif'
-# align_matrix_file_extension = '_sim_matrix.txt'
-
 
 class Args(object):
     def __init__(self, log_cmdline=True):
@@ -66,21 +53,37 @@ class Args(object):
 
 
 class Executor(object):
-    def __init__(self, image_path, image_type, ref_channel_index, mov_channel_index, thresh_488,
+    def __init__(self, image_path, image_type, ref_channel_index, mov_channel_index, system_type, thresh_488,
                  thresh_638, method_logging, align_mov_img, align_mov_img_path, align_mov_img_file_extension,
                  align_matrix_file_extension, crop_center):
         self.image_path = image_path
         self.image_type = image_type
         self.ref_channel_index = ref_channel_index
         self.mov_channel_index = mov_channel_index
-        self.thresh_488 = thresh_488
-        self.thresh_638 = thresh_638
+
         self.method_logging = method_logging
         self.align_mov_img = align_mov_img
         self.align_mov_img_path = align_mov_img_path
         self.align_mov_img_file_extension = align_mov_img_file_extension
         self.align_matrix_file_extension = align_matrix_file_extension
-        self.crop_center = crop_center
+        self.system_type = system_type
+
+        if image_type == 'beads':
+            self.thresh_488 = (99.4, 100)
+            self.thresh_638 = (99, 100)
+            self.crop_center = None
+        elif (image_type == 'rings') & (system_type == 'zsd'):
+            self.thresh_488 = (0.2, 99.8)
+            self.thresh_638 = (0.2, 99.8)
+            self.crop_center = None
+        elif (image_type == 'rings') & (system_type == '3i'):
+            self.thresh_488 = (0.2, 99.8),
+            self.thresh_638 = (0.2, 99.8),
+            self.crop_center = (60, 60)
+        else:
+            self.thresh_488 = thresh_488
+            self.thresh_638 = thresh_638
+            self.crop_center = crop_center
 
     def append_file_name_with_ext(self, image_path, align_mov_img_file_extension):
         """
@@ -879,18 +882,6 @@ class Executor(object):
 
     def execute(self):
 
-        # image_path = args.image_path
-        # image_type = str(args.image_type)
-        # ref_channel_index = str(args.ref_channel_index)
-        # mov_channel_index = str(args.mov_channel_index)
-        # bead_488_lower_thresh = float(args.bead_488_lower_thresh)
-        # bead_638_lower_thresh = float(args.bead_638_lower_thresh)
-        # method_logging = bool(args.method_logging)
-        # align_mov_img = bool(args.align_mov_img)
-        # align_mov_img_path = args.align_mov_img_path
-        # align_mov_img_file_extension = str(args.align_mov_img_file_extension)
-        # align_matrix_file_extension = str(args.align_matrix_file_extension)
-
         # read image
         img = AICSImage(self.image_path)
         channels = img.get_channel_names()
@@ -969,11 +960,10 @@ class Executor(object):
                                                           image_type=self.image_type, method_logging=self.method_logging)
 
         # Save metrics
-        # Todo: Check with SW, in what format to save transform to be applied to pipeline images and saved in image metadata?
         np.savetxt(Executor.append_file_name_with_ext(self, image_path=self.align_mov_img_path,
                                                       align_mov_img_file_extension=self.align_matrix_file_extension),
                    tform.params, delimiter=',')
-        print ('here')
+
         if self.align_mov_img:
             Executor.perform_similarity_matrix_transform(self, img=mov_stack, matrix=tform,
                                                          output_path=Executor.append_file_name_with_ext(
@@ -982,43 +972,32 @@ class Executor(object):
 
         return transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, coor_dist_qc, diff_sum_beads, mse_qc, diff_mse
 
-def main():
-    dbg = False
-    try:
-        # args = Args()
-        # dbg = args.debug
-        exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-                       image_type='rings',
-                       ref_channel_index='488/TL 50um Dual',
-                       mov_channel_index='640/405 50um Dual',
-                       # for beads
-                       # thresh_488=(99.4, 100)
-                       # thresh_638=(99, 100)
-                       # crop_center=None
-                       # for zsd rings
-                       # thresh_488=(0.2, 99.8)
-                       # thresh_638=(0.2, 99.8)
-                       # crop_center=None
-                       # for 3i rings
-                       thresh_488=(0.2, 99.8),
-                       thresh_638=(0.2, 99.8),
-                       crop_center=(60, 60),
-                       method_logging=True,
-                       align_mov_img=True,
-                       align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
-                       align_mov_img_file_extension='_aligned.tif',
-                       align_matrix_file_extension='_sim_matrix.txt')
-        exe.execute()
-
-    except Exception as e:
-        log.error("===============")
-        if dbg:
-            log.error("\n\n" + traceback.format_exc())
-            log.error("===============")
-        log.error("\n\n" + str(e) + "\n")
-        log.error("===============")
-        sys.exit(1)
-
-
-# if __name__ == "__main__":
-#    main()
+# def main():
+#     dbg = False
+#     try:
+#         # args = Args()
+#         # dbg = args.debug
+#         exe = Executor(image_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+#                        image_type='rings',  # Select between 'rings' or 'zsd'
+#                        ref_channel_index='488/TL 50um Dual',  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+#                        mov_channel_index='640/405 50um Dual',  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+#                        system_type='zsd',  # Select between 'zsd' or '3i'
+#                        thresh_488=None,  # Set 'None' to use default setting
+#                        thresh_638=None,  # Set 'None' to use default setting
+#                        crop_center=None,  # Set 'None' to use default setting
+#                        method_logging=True,
+#                        align_mov_img=True,
+#                        align_mov_img_path=r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff',
+#                        align_mov_img_file_extension='_aligned.tif',
+#                        align_matrix_file_extension='_sim_matrix.txt')
+#         exe.execute()
+#         print('here')
+#     except Exception as e:
+#         log.error("===============")
+#         if dbg:
+#             log.error("\n\n" + traceback.format_exc())
+#             log.error("===============")
+#         log.error("\n\n" + str(e) + "\n")
+#         log.error("===============")
+#         sys.exit(1)
+#

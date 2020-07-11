@@ -64,11 +64,16 @@ df_date_zsd = df_date_zsd.drop_duplicates()
 bead_production_path = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl'
 ring_production_path = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER'
 
-#df_date_zsd = pd.DataFrame(columns=['ImagingDate', 'InstrumentId/Name'])
+df_date_zsd = pd.DataFrame(columns=['ImagingDate', 'InstrumentId/Name'])
 #df_date_zsd = df_date_zsd.append({'ImagingDate': '20190809', 'InstrumentId/Name': 'ZSD-1'}, ignore_index=True)
 #df_date_zsd = df_date_zsd.append({'ImagingDate': '20190813', 'InstrumentId/Name': 'ZSD-1'}, ignore_index=True)
 #df_date_zsd = df_date_zsd.append({'ImagingDate': '20191112', 'InstrumentId/Name': 'ZSD-1'}, ignore_index=True)
-#df_date_zsd = df_date_zsd.append({'ImagingDate': '20191118', 'InstrumentId/Name': 'ZSD-3'}, ignore_index=True)
+df_date_zsd = df_date_zsd.append({'ImagingDate': '20190201', 'InstrumentId/Name': 'ZSD-2'}, ignore_index=True)
+
+update_align_info = True
+
+align_info = r'\\allen\aics\microscopy\Data\alignV2\align_info.csv'
+df_align_info = pd.read_csv(align_info)
 
 for index, row in df_date_zsd.iterrows():
     file_path = None
@@ -132,15 +137,41 @@ for index, row in df_date_zsd.iterrows():
 
     if filepath is not None:
         print('aligning: ' + filepath)
-        exe = camera_alignment.Executor(image_path=filepath,
-                                        image_type=image_type,
-                                        ref_channel_index='EGFP',
-                                        mov_channel_index='CMDRP',
-                                        bead_488_lower_thresh=99.4,
-                                        bead_638_lower_thresh=99,
-                                        method_logging=True,
-                                        align_mov_img=True,
-                                        align_mov_img_path=filepath,
-                                        align_mov_img_file_extension='_aligned.tif',
-                                        align_matrix_file_extension='_sim_matrix.txt')
-        exe.execute()
+        exe = camera_alignment.Executor(
+            image_path=filepath,
+            image_type=image_type,
+            ref_channel_index='EGFP',
+            mov_channel_index='CMDRP',
+            system_type='zsd',
+            thresh_488=None,  # Set 'None' to use default setting
+            thresh_638=None,  # Set 'None' to use default setting
+            crop_center=None,  # Set 'None' to use default setting
+            method_logging=True,
+            align_mov_img=True,
+            align_mov_img_path=filepath,
+            align_mov_img_file_extension='_aligned.tif',
+            align_matrix_file_extension='_sim_matrix.txt')
+
+        transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary,\
+            coor_dist_qc, diff_sum_beads, mse_qc, diff_mse = exe.execute()
+
+        if update_align_info:
+            row = {'folder': system,
+                   'instrument': system,
+                   'date': date,
+                   'image_type': image_type,
+                   'shift_x': transformation_parameters_dict['shift_x'],
+                   'shift_y': transformation_parameters_dict['shift_y'],
+                   'rotate_angle': transformation_parameters_dict['rotate_angle'],
+                   'scaling': transformation_parameters_dict['scaling'],
+                   'num_beads': num_beads,
+                   'num_beads_qc': bead_num_qc,
+                   'change_median_intensity': changes_fov_intensity_dictionary['median_intensity'],
+                   'coor_dist_qc': coor_dist_qc,
+                   'dist_sum_diff': diff_sum_beads,
+                   'mse_qc': mse_qc,
+                   'diff_mse': diff_mse
+                   }
+            df_align_info = df_align_info.append(row, ignore_index=True)
+
+df_align_info.to_csv(r'\\allen\aics\microscopy\Data\alignV2\updated.csv')

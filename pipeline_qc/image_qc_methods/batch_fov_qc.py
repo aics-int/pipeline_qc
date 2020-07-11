@@ -6,8 +6,8 @@ from typing import NamedTuple
 
 import pandas as pd
 from aics_dask_utils import DistributedHandler
-from dask_jobqueue import SLURMCluster
 import dask.config
+import aicsimageio
 from dask_jobqueue import SLURMCluster
 from pipeline_qc import detect_edge, detect_z_stack_false_clip
 from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
@@ -23,17 +23,20 @@ class StandardizeFOVArrayError(NamedTuple):
     fov_id: int
     error: str
 
-def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
+def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg', reprocess = False):
+
+    aicsimageio.use_dask(False)
 
     try:
 
         print(f"Processing fovid:{str(row['fovid'])}")
 
-        # Doesn't run the code if a picke for the fovid identified already exists
-        if os.path.isfile(f"{json_dir}/{row['fovid']}.pickle"):
-            print(f"Fovid:{str(row['fovid'])} has already been processed")
-            with open(f"{json_dir}/{row['fovid']}.pickle", 'rb') as handle:
-                return StandardizeFOVArrayResult(row['fovid'], pickle.load(handle))
+        if reprocess == False:
+            # Doesn't run the code if a picke for the fovid identified already exists
+            if os.path.isfile(f"{json_dir}/{row['fovid']}.pickle"):
+                print(f"Fovid:{str(row['fovid'])} has already been processed")
+                with open(f"{json_dir}/{row['fovid']}.pickle", 'rb') as handle:
+                    return StandardizeFOVArrayResult(row['fovid'], pickle.load(handle))
 
         # Splits 6D image into single channel images for qc algorithm processing
         channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
@@ -65,7 +68,10 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
                     stat_dict.update({channel_name + ' ' + zstack_key: zstack_value})
                 bf_false_clip_dict = detect_z_stack_false_clip.detect_false_clip_bf(channel_array)
                 for false_clip_key, false_clip_value in bf_false_clip_dict.items():
-                    stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
+                    if false_clip_key == 'laplace_range':
+                        continue
+                    else:
+                        stat_dict.update({channel_name + ' ' + false_clip_key + '-false clip': false_clip_value})
 
                 # PUT QC_IMAGES FOR BF HERE
                 if image_gen:
@@ -96,7 +102,7 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg'):
         print(f"Failed processing for FOV:{row['fovid']}")
         return StandardizeFOVArrayError(row['fovid'], str(e))
 
-def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg'):
+def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg', reprocess = False):
     # Runs qc steps and collates all data into a single dataframe for easy sorting and plotting
     # Runs on multiple files, to be used with the query_fms function
     pd.options.mode.chained_assignment = None
@@ -149,6 +155,7 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
             [output_dir for i in range(len(query_df))],
             [image_gen for i in range(len(query_df))],
             [env for i in range(len(query_df))],
+            [reprocess for i in range(len(query_df))],
         )
     stat_list = []
     errors = []
@@ -165,4 +172,36 @@ def batch_qc(output_dir, json_dir, workflows=None, cell_lines=None, plates=None,
     errors_df = pd.DataFrame(errors)
     errors_df.to_csv(output_dir + '/errors.csv')
 
-    return stat_df, errors
+    return stat_df, errors_df
+
+
+def batch_qc_serially(output_dir, json_dir, workflows=None, cell_lines=None, plates=None, fovids=None, only_from_fms=True, image_gen=False, env='stg', reprocess = False):
+    query_df = query_fovs.query_fovs(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
+    print(f'''
+    __________________________________________
+
+    {len(query_df)} fovs were found to process.
+
+    __________________________________________
+    ''')
+
+    results = list()
+    for i, row in query_df.iterrows():
+        results.append(process_single_fov(row, json_dir, output_dir, image_gen, env, reprocess))
+
+    stat_list = []
+    errors = []
+    for result in results:
+        if isinstance(result, StandardizeFOVArrayResult):
+            stat_list.append(result.stat_dict)
+        else:
+            errors.append([result.fov_id, result.error])
+
+    # Joins query_df to stat_list, and then writes out a csv of all the data to an output folder
+
+    stat_df = pd.concat([query_df, pd.DataFrame(stat_list)], axis=1)
+    stat_df.to_csv(output_dir + '/fov_qc_metrics.csv')
+    errors_df = pd.DataFrame(errors)
+    errors_df.to_csv(output_dir + '/errors.csv')
+
+    return stat_df, errors_df

@@ -30,12 +30,12 @@ def split_image_into_channels(im_path, source_image_file_id, labkey_host: str = 
         result = server_context.execute_sql('microscopy', sql)
         df = pd.DataFrame(result['rows'])
 
-    if df.empty:
+    if df.shape[0] < 4:
         channels = im.get_channel_names()
         channel_info_list = list()
         for channel in channels:
             channel_info_dict = dict()
-            if channel in ['Bright_2']:
+            if channel in ['Bright_2', 'TL_100x']:
                 channel_info_dict.update({'name': 'Raw brightfield'})
                 channel_info_dict.update({'channelnumber':channels.index(channel)})
             elif channel in ['EGFP']:

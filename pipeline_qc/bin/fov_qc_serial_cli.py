@@ -88,7 +88,7 @@ def main():
     try:
         # Do your work here - preferably in a class or function,
         # passing in your args. E.g.
-        batch_fov_qc.batch_qc(
+        batch_fov_qc.batch_qc_serially(
             output_dir=args.output_dir,
             json_dir=args.json_dir,
             workflows=args.workflows,
