@@ -79,13 +79,12 @@ class Args(argparse.Namespace):
 
 ###############################################################################
 
-def configure_logging(debug: bool):  
+def configure_logging(debug: bool):
     f = Formatter(fmt='[%(asctime)s][%(levelname)s] %(message)s')
     streamHandler = StreamHandler()
     streamHandler.setFormatter(f)
-    fileHandler = FileHandler(filename="cell_seg_cli.log", mode="w")
+    fileHandler = FileHandler(filename=f"cell_seg_cli_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log", mode="w")
     fileHandler.setFormatter(f)
-
     log = logging.getLogger() # root logger
     log.handlers = [streamHandler, fileHandler] # overwrite handlers
     log.setLevel(logging.DEBUG if debug else logging.INFO)
