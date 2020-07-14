@@ -5,7 +5,7 @@ import os
 from unittest import mock
 from unittest.mock import Mock
 from pandas import Series, DataFrame
-from pipeline_qc.cell_segmentation.fov_file import FovFile
+from pipeline_qc.segmentation.fov_file import FovFile
 
 @pytest.mark.skipif(os.environ.get("USER", "") == "jenkins",
                     reason=f"Import errors on Jenkins. Can't install all necessary modules through gradle + setup.py.")
@@ -13,12 +13,12 @@ class TestCellSegmentationService:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        from pipeline_qc.cell_segmentation.cell_seg_service import AppConfig, CellSegmentationService, CellSegmentationRepository
+        from pipeline_qc.segmentation.cell.cell_seg_service import AppConfig, CellSegmentationService, CellSegmentationRepository
         self._mock_repository = Mock(spec=CellSegmentationRepository)
         self._cell_seg_service = CellSegmentationService(self._mock_repository, config=Mock(spec=AppConfig))
 
     def test_single_cell_segmentation_skips_existing_fov(self):
-        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult
+        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult
 
         # Arrange       
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
@@ -35,9 +35,9 @@ class TestCellSegmentationService:
         assert result.fov_id == 63
         assert result.status == ResultStatus.SKIPPED
 
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.file_processing_methods")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
     def test_single_cell_segmentation_skips_incompatible_fov(self, mock_file_processing_methods: Mock):
-        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult
+        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult
         
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
@@ -58,10 +58,10 @@ class TestCellSegmentationService:
         assert result.fov_id == 63
         assert result.status == ResultStatus.SKIPPED
 
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.file_processing_methods")
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.SuperModel")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
     def test_single_cell_segmentation_fails_on_empty_segmentation(self, mock_super_model: Mock, mock_file_processing_methods: Mock):
-        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult, SuperModel
+        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult, SuperModel
         
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
@@ -84,11 +84,11 @@ class TestCellSegmentationService:
         assert result.fov_id == 63
         assert result.status == ResultStatus.FAILED
 
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.file_processing_methods")
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.SuperModel")
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
     def test_single_cell_segmentation_happy_path_dual_camera(self, mock_tiff_writer: Mock, mock_super_model: Mock, mock_file_processing_methods: Mock):
-        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult, CellSegmentationService
+        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult, CellSegmentationService
 
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
@@ -111,11 +111,11 @@ class TestCellSegmentationService:
         assert result.status == ResultStatus.SUCCESS
         mock_super_model.assert_called_once_with("DNA_MEM_instance_LF_integration_two_camera")
 
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.file_processing_methods")
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.SuperModel")
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
     def test_single_cell_segmentation_happy_path_single_camera(self, mock_tiff_writer: Mock, mock_super_model: Mock, mock_file_processing_methods: Mock):
-        from pipeline_qc.cell_segmentation.cell_seg_service import ResultStatus, CellSegmentationResult, CellSegmentationService
+        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult, CellSegmentationService
 
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.1", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
@@ -138,7 +138,7 @@ class TestCellSegmentationService:
         assert result.status == ResultStatus.SUCCESS
         mock_super_model.assert_called_once_with("DNA_MEM_instance_LF_integration")
 
-    @mock.patch("pipeline_qc.cell_segmentation.cell_seg_service.query_fovs")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.query_fovs")
     def test_get_fov_records(self, mock_query_fovs: Mock):
         # Arrange
         data = {

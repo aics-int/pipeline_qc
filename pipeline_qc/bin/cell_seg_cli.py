@@ -5,10 +5,10 @@ import traceback
 
 from logging import FileHandler, StreamHandler, Formatter
 from datetime import datetime
-from pipeline_qc.cell_segmentation.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
-from pipeline_qc.cell_segmentation.cell_seg_service import CellSegmentationService
-from pipeline_qc.cell_segmentation.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
-from pipeline_qc.cell_segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
+from pipeline_qc.segmentation.cell.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
+from pipeline_qc.segmentation.cell.cell_seg_service import CellSegmentationService
+from pipeline_qc.segmentation.cell.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
+from pipeline_qc.segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
 
 
 class Args(argparse.Namespace):
@@ -79,13 +79,12 @@ class Args(argparse.Namespace):
 
 ###############################################################################
 
-def configure_logging(debug: bool):  
+def configure_logging(debug: bool):
     f = Formatter(fmt='[%(asctime)s][%(levelname)s] %(message)s')
     streamHandler = StreamHandler()
     streamHandler.setFormatter(f)
-    fileHandler = FileHandler(filename="cell_seg_cli.log", mode="w")
+    fileHandler = FileHandler(filename=f"cell_seg_cli_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log", mode="w")
     fileHandler.setFormatter(f)
-
     log = logging.getLogger() # root logger
     log.handlers = [streamHandler, fileHandler] # overwrite handlers
     log.setLevel(logging.DEBUG if debug else logging.INFO)

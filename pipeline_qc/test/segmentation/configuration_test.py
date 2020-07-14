@@ -1,6 +1,6 @@
 import pytest
 
-from pipeline_qc.cell_segmentation.configuration import AppConfig, GpuClusterConfig
+from pipeline_qc.segmentation.configuration import AppConfig, GpuClusterConfig
 
 class TestAppConfig:
     CONFIG = {
