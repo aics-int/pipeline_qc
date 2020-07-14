@@ -105,5 +105,5 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
 
             self.log.info("Results:")
             for future, result in as_completed(futures, with_results=True):
-                log.info(result)
+                self.log.info(result)
         
