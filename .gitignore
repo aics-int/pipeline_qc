@@ -23,3 +23,5 @@ activate
 
 # Log files
 *.log
+
+dask-worker-space

@@ -3,6 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from aics_dask_utils import DistributedHandler
 from dask_jobqueue import SLURMCluster
+from distributed import as_completed
 from pipeline_qc.image_qc_methods import query_fovs
 from .cell_seg_service import CellSegmentationService
 from ..configuration import AppConfig, GpuClusterConfig
@@ -92,7 +93,7 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
         self.log.debug(cluster.job_script())
 
         with DistributedHandler(cluster.scheduler_address) as handler:
-            results = handler.batched_map(
+            futures = handler.client.map(
                 lambda fov: self._cell_seg_service.single_cell_segmentation(fov, 
                                                                             save_to_fms=save_to_fms, 
                                                                             save_to_filesystem=save_to_filesystem,
@@ -103,6 +104,6 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
             )
 
             self.log.info("Results:")
-            for r in results:
-                self.log.info(r)
+            for future, result in as_completed(futures, with_results=True):
+                self.log.info(result)
         
