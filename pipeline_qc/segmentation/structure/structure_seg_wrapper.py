@@ -15,5 +15,5 @@ class StructureSegmentationWrapper(StructureSegmentationWrapperBase):
 class StructureSegmentationWrapperDistributed(StructureSegmentationWrapperBase):
     # query
     #   ?? how do I distributed to CPU or GPU based on structure type? 
-    #   run everything on GPU and call it a day?
+    #   for now -> run everything on GPU
     pass
