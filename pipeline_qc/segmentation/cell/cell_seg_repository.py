@@ -38,11 +38,11 @@ class CellSegmentationRepository:
         self._labkey_provider = labkey_provider
         self._config = config        
 
-    def upload_combined_segmentation(self, combined_segmentation_path: str, input_file_id: str):
+    def upload_combined_segmentation(self, combined_segmentation_path: str, source_file_id: str):
         """
         Augment with proper metadata and upload a combined segmentation files to FMS
         :param: combined_segmentation_path: combined segmentation output file path
-        :param: input_file_id: file ID of the input image used to produce this segmentation (used to gather metadata)
+        :param: source_file_id: file ID of the input image used to produce this segmentation (used to gather metadata)
         """
 
         # Minimal Metadata structure:
@@ -74,7 +74,7 @@ class CellSegmentationRepository:
         run_id = self._labkey_provider.create_run_id(ALGORITHM, ALGORITHM_VERSION, processing_date)
 
         # Initialize metadata from input file's metadata, or start over if not available
-        metadata = self._get_file_metadata(input_file_id) or {}
+        metadata = self._get_file_metadata(source_file_id) or {}
         metadata.update({"file": {"file_type": "image"}})
 
         metadata["content_processing"] = {

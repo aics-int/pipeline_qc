@@ -19,8 +19,6 @@ class TestCellSegmentationRepository:
         combined_seg_path = "test/combined_seg.tiff"
         self._mock_fms_client.query_files.return_value = None
         self._mock_labkey_provider.create_run_id.return_value = 1234
-        # self._mock_labkey_client.insert_rows.return_value = {"rows": [{"runid": 1234}]}
-        # self._mock_labkey_client.select_first.return_value = {"ContentGenerationAlgorithmId": 999}
 
         # Act
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
@@ -44,8 +42,6 @@ class TestCellSegmentationRepository:
         combined_seg_path = "test/combined_seg.tiff"
         self._mock_fms_client.query_files.return_value = [{"microscopy": {"fov_id": "9999"}}]
         self._mock_labkey_provider.create_run_id.return_value = 1234
-        # self._mock_labkey_client.insert_rows.return_value = {"rows": [{"runid": 1234}]}
-        # self._mock_labkey_client.select_first.return_value = {"ContentGenerationAlgorithmId": 999}
 
         # Act
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)

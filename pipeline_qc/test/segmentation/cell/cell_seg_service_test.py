@@ -5,7 +5,7 @@ import os
 from unittest import mock
 from unittest.mock import Mock
 from pandas import Series, DataFrame
-from pipeline_qc.segmentation.fov_file import FovFile
+from pipeline_qc.segmentation.common.fov_file import FovFile
 
 @pytest.mark.skipif(os.environ.get("USER", "") == "jenkins",
                     reason=f"Import errors on Jenkins. Can't install all necessary modules through gradle + setup.py.")
@@ -21,7 +21,7 @@ class TestCellSegmentationService:
         from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult
 
         # Arrange       
-        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         self._mock_repository.segmentation_exists.return_value = True
 
         # Act
@@ -40,7 +40,7 @@ class TestCellSegmentationService:
         from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult
         
         # Arrange
-        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
                       "405nm": [1, 2, 3],
                       "638nm": [4, 5, 6]
@@ -64,7 +64,7 @@ class TestCellSegmentationService:
         from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult, SuperModel
         
         # Arrange
-        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
                       "405nm": [1, 2, 3],
                       "638nm": [4, 5, 6],
@@ -91,7 +91,7 @@ class TestCellSegmentationService:
         from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult, CellSegmentationService
 
         # Arrange
-        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
                       "405nm": [1, 2, 3],
                       "638nm": [4, 5, 6],
@@ -118,7 +118,7 @@ class TestCellSegmentationService:
         from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult, CellSegmentationService
 
         # Arrange
-        fov = FovFile(fov_id=63, workflow="Pipeline 4.1", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.1", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
                       "405nm": [1, 2, 3],
                       "638nm": [4, 5, 6],
@@ -145,7 +145,8 @@ class TestCellSegmentationService:
                 "fovid": [63, 64, 65], 
                 "workflow": [["Pipeline 4"], ["Pipeline 4.1"], ["Pipeline 4.2"]], 
                 "localfilepath": ["/allen/file1.tiff", "/allen/file2.tiff", "/allen/file3.tiff"], 
-                "sourceimagefileid": ["abc", "def", "1234"]
+                "sourceimagefileid": ["abc", "def", "1234"],
+                "gene": ["LMNB1", "H2B", "AASV1"]
                }
         df = DataFrame(data=data)  
         mock_query_fovs.query_fovs.return_value = df

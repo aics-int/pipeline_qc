@@ -1,7 +1,7 @@
 import pytest
 
 from pandas import Series
-from pipeline_qc.segmentation.fov_file import FovFile
+from pipeline_qc.segmentation.common.fov_file import FovFile
 
 class TestFovFile:
 
@@ -38,7 +38,7 @@ class TestFovFile:
                              ])
     def test_is_single_camera(self, workflow: str, expected: bool):
         # Act
-        fov = FovFile(fov_id=63, workflow=workflow, local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        fov = FovFile(fov_id=63, workflow=workflow, local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
 
         # Assert
         assert fov.is_single_camera == expected

@@ -9,7 +9,7 @@ from pipeline_qc.segmentation.cell.cell_seg_wrapper import CellSegmentationWrapp
 from pipeline_qc.segmentation.cell.cell_seg_service import CellSegmentationService
 from pipeline_qc.segmentation.cell.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
 from pipeline_qc.segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
-
+from pipeline_qc.segmentation.common.labkey_provider import LabkeyProvider
 
 class Args(argparse.Namespace):
 
@@ -99,7 +99,8 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
     app_config = AppConfig(Configuration.load(f"config/config.{env}.yaml"))
     fms = FileManagementSystem(host=app_config.fms_host, port=app_config.fms_port)
     labkey = LabKey(host=app_config.labkey_host, port=app_config.labkey_port)
-    repository = CellSegmentationRepository(fms, labkey, app_config)
+    labkey_provider = LabkeyProvider(labkey)
+    repository = CellSegmentationRepository(fms, labkey_provider, app_config)
     service = CellSegmentationService(repository, app_config)
 
     if args.distributed:

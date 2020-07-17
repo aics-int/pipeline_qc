@@ -8,13 +8,10 @@ class LabkeyProvider:
     """
     Interface for Labkey specific only operations
     """
-    def __init__(self, labkey_client: LabKey, config: AppConfig):
+    def __init__(self, labkey_client: LabKey):
         if labkey_client is None:
             raise AttributeError("labkey_client")
-        if config is None:
-            raise AttributeError("config")
-        self._labkey_client = labkey_client
-        self._config = config      
+        self._labkey_client = labkey_client    
         self._ensure_netrc()
 
     def create_run_id(self, algorithm: str, algorithm_version: str, processing_date: str) -> int:
