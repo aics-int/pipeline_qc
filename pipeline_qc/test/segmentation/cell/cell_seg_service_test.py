@@ -57,6 +57,7 @@ class TestCellSegmentationService:
         # Assert
         assert result.fov_id == 63
         assert result.status == ResultStatus.FAILED
+        assert result.message.startswith("Exception") == False
 
 
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
@@ -67,9 +68,9 @@ class TestCellSegmentationService:
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
         image_data = {
-                      "405nm": [1, 2, 3],
-                      "638nm": [4, 5, 6],
-                      "brightfield": [7, 8, 9]
+                      "405nm": numpy.array([1, 2, 3]),
+                      "638nm": numpy.array([4, 5, 6]),
+                      "brightfield": numpy.array([7, 8, 9])
                      }
         mock_file_processing_methods.split_image_into_channels.return_value = image_data
         mock_super_model.return_value.apply_on_single_zstack.return_value = None
@@ -84,6 +85,7 @@ class TestCellSegmentationService:
         # Assert
         assert result.fov_id == 63
         assert result.status == ResultStatus.FAILED
+        assert result.message.startswith("Exception") == False
 
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
@@ -150,7 +152,7 @@ class TestCellSegmentationService:
                }
         df = DataFrame(data=data)  
         mock_query_fovs.query_fovs.return_value = df
-    
+
         # Act
         result = self._cell_seg_service.get_fov_records(workflows=None, plates=None, cell_lines=None, fovids=[63, 64, 65], only_from_fms=True)
         
