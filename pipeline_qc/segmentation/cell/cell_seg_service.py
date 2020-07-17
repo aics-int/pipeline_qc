@@ -107,7 +107,7 @@ class CellSegmentationService:
             if combined_segmentation is None:
                 msg = f"FOV {fov_id} could not be segmented: returned empty result"
                 self.log.info(msg)
-                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, msg=msg)
+                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
