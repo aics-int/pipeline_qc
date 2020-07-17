@@ -2,7 +2,7 @@ import pytest
 
 from unittest.mock import Mock, call
 from aicsfiles import FileManagementSystem
-from pipeline_qc.segmentation.cell.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
+from pipeline_qc.segmentation.cell.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabkeyProvider
 from pipeline_qc.segmentation.configuration import AppConfig
 
 class TestCellSegmentationRepository:
@@ -10,16 +10,17 @@ class TestCellSegmentationRepository:
     @pytest.fixture(autouse=True)
     def setup(self):
         self._mock_fms_client = Mock(spec=FileManagementSystem)
-        self._mock_labkey_client = Mock(spec=LabKey)
-        self._cell_seg_repository = CellSegmentationRepository(fms_client=self._mock_fms_client, labkey_client=self._mock_labkey_client, config=Mock(spec=AppConfig))
+        self._mock_labkey_provider = Mock(spec=LabkeyProvider)
+        self._cell_seg_repository = CellSegmentationRepository(fms_client=self._mock_fms_client, labkey_provider=self._mock_labkey_provider, config=Mock(spec=AppConfig))
 
     def test_upload_combined_segmentation_no_initial_metadata(self):
         # Arrange
         input_file_path = "test/input.tiff"
         combined_seg_path = "test/combined_seg.tiff"
         self._mock_fms_client.query_files.return_value = None
-        self._mock_labkey_client.insert_rows.return_value = {"rows": [{"runid": 1234}]}
-        self._mock_labkey_client.select_first.return_value = {"ContentGenerationAlgorithmId": 999}
+        self._mock_labkey_provider.create_run_id.return_value = 1234
+        # self._mock_labkey_client.insert_rows.return_value = {"rows": [{"runid": 1234}]}
+        # self._mock_labkey_client.select_first.return_value = {"ContentGenerationAlgorithmId": 999}
 
         # Act
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
@@ -42,8 +43,9 @@ class TestCellSegmentationRepository:
         input_file_path = "test/input.tiff"
         combined_seg_path = "test/combined_seg.tiff"
         self._mock_fms_client.query_files.return_value = [{"microscopy": {"fov_id": "9999"}}]
-        self._mock_labkey_client.insert_rows.return_value = {"rows": [{"runid": 1234}]}
-        self._mock_labkey_client.select_first.return_value = {"ContentGenerationAlgorithmId": 999}
+        self._mock_labkey_provider.create_run_id.return_value = 1234
+        # self._mock_labkey_client.insert_rows.return_value = {"rows": [{"runid": 1234}]}
+        # self._mock_labkey_client.select_first.return_value = {"ContentGenerationAlgorithmId": 999}
 
         # Act
         self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)

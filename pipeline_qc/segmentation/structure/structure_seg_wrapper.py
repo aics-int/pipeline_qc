@@ -9,10 +9,18 @@ class StructureSegmentationWrapperBase(ABC):
 
 
 class StructureSegmentationWrapper(StructureSegmentationWrapperBase):
+    """
+    Single process Structure Segmentation wrapper
+    """
     pass
 
 
 class StructureSegmentationWrapperDistributed(StructureSegmentationWrapperBase):
+    """
+    Distributed Structure Segmentation wrapper
+    This wrapper uses Dask to distribute segmentation runs accross GPU nodes on the Slurm cluster 
+    """
+
     # query
     #   ?? how do I distributed to CPU or GPU based on structure type? 
     #   for now -> run everything on GPU

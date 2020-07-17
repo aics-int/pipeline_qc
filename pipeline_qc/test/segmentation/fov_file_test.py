@@ -11,8 +11,9 @@ class TestFovFile:
         expected_workflow = "Pipeline 4.4"
         expected_local_path = "/allen/aics/some/place/file.tiff"
         expected_source_file_id = "abcdef123456"
-        row = Series(index=["fovid", "workflow", "localfilepath", "sourceimagefileid"],
-                     data=[expected_fov_id, [expected_workflow], expected_local_path, expected_source_file_id])
+        expected_gene = "LMNB1"
+        row = Series(index=["fovid", "workflow", "localfilepath", "sourceimagefileid", "gene"],
+                     data=[expected_fov_id, [expected_workflow], expected_local_path, expected_source_file_id, expected_gene])
         
         # Act
         fov = FovFile.from_dataframe_row(row)
@@ -22,6 +23,7 @@ class TestFovFile:
         assert fov.workflow == expected_workflow
         assert fov.local_file_path == expected_local_path
         assert fov.source_image_file_id == expected_source_file_id
+        assert fov.gene == expected_gene
 
 
     @pytest.mark.parametrize("workflow,expected", 

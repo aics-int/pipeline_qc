@@ -32,5 +32,6 @@ class FovFile:
         return FovFile(fov_id=row["fovid"],
                        workflow=row["workflow"][0],
                        local_file_path=row["localfilepath"],
-                       source_image_file_id=row["sourceimagefileid"]
+                       source_image_file_id=row["sourceimagefileid"],
+                       gene=row["gene"]
                        )
