@@ -8,6 +8,7 @@ Input:
  -  [3] - Membrane contour
 
 """
+import json
 import logging
 import typing
 
@@ -15,6 +16,7 @@ from aicsimageio import AICSImage
 from aicsfiles import FileManagementSystem
 from lkaccess import LabKey, QueryFilter
 from lkaccess.accessors import FOV, Cell
+from pandas import DataFrame
 import skimage.measure
 
 ORIGIN = 'Pixel coordinate from zero index'
@@ -301,3 +303,18 @@ def generate_cells(segmentation_file_path: str, segmentation_file_metadata: dict
         _update_metadata(segmentation_file_id, cell_ids, fms)
 
     return cell_id_map
+
+
+def generate_cells_from_fov_ids(fov_ids: DataFrame, lk: LabKey):
+    # Generate cells from a dataframe containing FOV info
+    for index, row in fov_ids.iterrows():
+        fovid = row['fovid']
+        seg_readpath = row['latest_segmentation_readpath'].strip()
+        seg_metadata = json.loads(row['latest_segmentation_metadata'])
+        log.info(f"Generating Cells for FOV {fovid}")
+        generate_cells(
+            segmentation_file_path=seg_readpath,
+            segmentation_file_metadata=seg_metadata,
+            lk_conn=lk,
+            update_metadata=True
+        )

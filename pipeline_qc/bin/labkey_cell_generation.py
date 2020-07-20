@@ -1,4 +1,4 @@
-import pipeline_qc.labkey_cell_generation as cell_generation
+import pipeline_qc.cell_generation.labkey_cell_generation as cell_generation
 
 import argparse
 import json
