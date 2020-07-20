@@ -35,8 +35,12 @@ class TestCellSegmentationService:
         assert result.fov_id == 63
         assert result.status == ResultStatus.SKIPPED
 
+    @pytest.mark.parametrize("image_data", 
+                             [{"405nm": numpy.array([1, 2, 3]),"638nm": numpy.array([4, 5, 6])},
+                              {"405nm": numpy.array([1]),"638nm": numpy.array([4, 5, 6]), "brightfield": numpy.array([7, 8, 9])}
+                             ])
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
-    def test_single_cell_segmentation_skips_incompatible_fov(self, mock_file_processing_methods: Mock):
+    def test_single_cell_segmentation_fails_on_incompatible_fov(self, mock_file_processing_methods: Mock, image_data):
         from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, CellSegmentationResult
         
         # Arrange
@@ -56,7 +60,9 @@ class TestCellSegmentationService:
                                                                                          process_duplicates=False)
         # Assert
         assert result.fov_id == 63
-        assert result.status == ResultStatus.SKIPPED
+        assert result.status == ResultStatus.FAILED
+        assert result.message.startswith("Exception") == False
+
 
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
@@ -66,9 +72,9 @@ class TestCellSegmentationService:
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
-                      "405nm": [1, 2, 3],
-                      "638nm": [4, 5, 6],
-                      "brightfield": [7, 8, 9]
+                      "405nm": numpy.array([1, 2, 3]),
+                      "638nm": numpy.array([4, 5, 6]),
+                      "brightfield": numpy.array([7, 8, 9])
                      }
         mock_file_processing_methods.split_image_into_channels.return_value = image_data
         mock_super_model.return_value.apply_on_single_zstack.return_value = None
@@ -83,6 +89,7 @@ class TestCellSegmentationService:
         # Assert
         assert result.fov_id == 63
         assert result.status == ResultStatus.FAILED
+        assert result.message.startswith("Exception") == False
 
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
@@ -93,9 +100,9 @@ class TestCellSegmentationService:
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
-                      "405nm": [1, 2, 3],
-                      "638nm": [4, 5, 6],
-                      "brightfield": [7, 8, 9]
+                      "405nm": numpy.array([1, 2, 3]),
+                      "638nm": numpy.array([4, 5, 6]),
+                      "brightfield": numpy.array([7, 8, 9])
                      }
         self._mock_repository.segmentation_exists.return_value = False    
         mock_file_processing_methods.split_image_into_channels.return_value = image_data        
@@ -120,9 +127,9 @@ class TestCellSegmentationService:
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.1", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
-                      "405nm": [1, 2, 3],
-                      "638nm": [4, 5, 6],
-                      "brightfield": [7, 8, 9]
+                      "405nm": numpy.array([1, 2, 3]),
+                      "638nm": numpy.array([4, 5, 6]),
+                      "brightfield": numpy.array([7, 8, 9])
                      }
         self._mock_repository.segmentation_exists.return_value = False
         mock_file_processing_methods.split_image_into_channels.return_value = image_data        

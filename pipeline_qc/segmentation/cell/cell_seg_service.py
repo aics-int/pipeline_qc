@@ -96,10 +96,10 @@ class CellSegmentationService:
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
             
             im = self._create_segmentable_image(fov)
-            if im.shape[0] != 3:
-                msg = f"FOV {fov_id} does not have nucleus or cellular color channels"
+            if im is None or im.shape[0] != 3:
+                msg = f"FOV {fov_id} incompatible: missing channels or dimensions"
                 self.log.info(msg)
-                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
+                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
             
             self.log.info(f'Running Segmentation on FOV {fov_id}')
 
@@ -107,7 +107,7 @@ class CellSegmentationService:
             if combined_segmentation is None:
                 msg = f"FOV {fov_id} could not be segmented: returned empty result"
                 self.log.info(msg)
-                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, msg=msg)
+                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
@@ -146,9 +146,11 @@ class CellSegmentationService:
 
         full_im_list = list()
         for channel in ['405nm', '638nm', 'brightfield']:
-            for key, value in channel_dict.items():
-                if key == channel:
-                    full_im_list.append(value)
+            for channel_name, channel_array in channel_dict.items():
+                if channel_array.shape[0] <= 1: 
+                    return None # not a multi-dimensional image
+                if channel_name == channel:
+                    full_im_list.append(channel_array)
 
         return np.array(full_im_list)
 

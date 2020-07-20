@@ -5,6 +5,6 @@ https://download.pytorch.org/whl/cu101/torch-1.4.0-cp37-cp37m-linux_x86_64.whl #
 https://download.pytorch.org/whl/cu101/torchvision-0.5.0-cp37-cp37m-linux_x86_64.whl #torchvision==0.5.0+cu101
 scikit-image==0.15.0
 
-git+https://aicsbitbucket.corp.alleninstitute.org/scm/assay/dl_model_zoo.git@compatibility/pipeline #dl_model_zoo
+git+https://aicsbitbucket.corp.alleninstitute.org/scm/assay/dl_model_zoo.git@0.1.0.20200717-pipeline-compatible #dl_model_zoo
 git+https://github.com/AllenCellModeling/pytorch_fnet.git@ad_customization #fnet
 -e git+https://aicsbitbucket.corp.alleninstitute.org/scm/assay/cell_detector.git#egg=cell_detector #cell_detector

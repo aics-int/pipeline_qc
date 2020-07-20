@@ -77,6 +77,7 @@ class Args(argparse.Namespace):
         p.parse_args(namespace=self)
 
 
+
 ###############################################################################
 
 def configure_logging(debug: bool):
@@ -120,6 +121,7 @@ def main():
     try:
         log.info("Start cell_seg_cli")
         log.info(f"Environment: {args.env}")
+        log.info(args)
 
         cell_seg = get_app_root(args)
         cell_seg.batch_cell_segmentations(
