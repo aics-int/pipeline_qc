@@ -5,9 +5,9 @@ import traceback
 
 from logging import FileHandler, StreamHandler, Formatter
 from datetime import datetime
-from pipeline_qc.segmentation.cell.cell_seg_wrapper import CellSegmentationWrapperBase, CellSegmentationWrapper, CellSegmentationDistributedWrapper
-from pipeline_qc.segmentation.cell.cell_seg_service import CellSegmentationService
-from pipeline_qc.segmentation.cell.cell_seg_repository import CellSegmentationRepository, FileManagementSystem, LabKey
+from pipeline_qc.segmentation.structure.structure_seg_wrapper import StructureSegmentationWrapperBase, StructureSegmentationWrapper, StructureSegmentationWrapperDistributed
+from pipeline_qc.segmentation.structure.structure_seg_service import StructureSegmentationService
+from pipeline_qc.segmentation.structure.structure_seg_repository import StructureSegmentationRepository, FileManagementSystem, LabKey
 from pipeline_qc.segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
 from pipeline_qc.segmentation.common.labkey_provider import LabkeyProvider
 
@@ -16,7 +16,7 @@ class Args(argparse.Namespace):
     def __init__(self):
         super().__init__()
         # Arguments that could be passed in through the command line
-        self.output_dir = '/allen/aics/microscopy/Aditya/cell_segmentations'
+        self.output_dir = '/allen/aics/microscopy/Aditya/structure_segmentations'
         self.workflows = None
         self.cell_lines = None
         self.plates = None
@@ -84,7 +84,7 @@ def configure_logging(debug: bool):
     f = Formatter(fmt='[%(asctime)s][%(levelname)s] %(message)s')
     streamHandler = StreamHandler()
     streamHandler.setFormatter(f)
-    fileHandler = FileHandler(filename=f"cell_seg_cli_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log", mode="w")
+    fileHandler = FileHandler(filename=f"struct_seg_cli_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.log", mode="w")
     fileHandler.setFormatter(f)
     log = logging.getLogger() # root logger
     log.handlers = [streamHandler, fileHandler] # overwrite handlers
@@ -101,15 +101,15 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
     fms = FileManagementSystem(host=app_config.fms_host, port=app_config.fms_port)
     labkey = LabKey(host=app_config.labkey_host, port=app_config.labkey_port)
     labkey_provider = LabkeyProvider(labkey)
-    repository = CellSegmentationRepository(fms, labkey_provider, app_config)
-    service = CellSegmentationService(repository, app_config)
+    repository = StructureSegmentationRepository(fms, labkey_provider, app_config)
+    service = StructureSegmentationService(repository, app_config)
 
     if args.distributed:
         gpu = args.gpu
         cluster_config = GpuClusterConfig(gpu, Configuration.load(f"config/cluster.yaml"))
-        return CellSegmentationDistributedWrapper(service, app_config, cluster_config)
+        return StructureSegmentationWrapperDistributed(service, app_config, cluster_config)
     else:    
-        return CellSegmentationWrapper(service, app_config)
+        return StructureSegmentationWrapper(service, app_config0)
 
 
 def main():
@@ -119,7 +119,7 @@ def main():
     log = logging.getLogger(__name__)
 
     try:
-        log.info("Start cell_seg_cli")
+        log.info("Start struct_seg_cli")
         log.info(f"Environment: {args.env}")
         log.info(args)
 
@@ -136,7 +136,7 @@ def main():
             process_duplicates=args.process_duplicates
         )
 
-        log.info("End cell_seg_cli")
+        log.info("End struct_seg_cli")
 
     except Exception as e:
         log.error("=============================================")

@@ -17,21 +17,8 @@ from model_zoo_3d_segmentation.zoo import SuperModel
 from .cell_seg_repository import CellSegmentationRepository
 from ..configuration import AppConfig
 from ..common.fov_file import FovFile
+from ..common.segmentation_result import SegmentationResult, ResultStatus
 
-class ResultStatus(Enum):
-    SUCCESS = "SUCCESS"
-    SKIPPED = "SKIPPED"
-    FAILED = "FAILED"
-
-
-@dataclass
-class CellSegmentationResult:
-    fov_id: int
-    status: ResultStatus
-    message: str = ""
-
-    def __str__(self):
-        return f"FOV {self.fov_id}: {self.status.value}\n{self.message}"
     
 
 class CellSegmentationService:
@@ -72,7 +59,7 @@ class CellSegmentationService:
                                  save_to_fms: bool, 
                                  save_to_filesystem: bool, 
                                  output_dir: str, 
-                                 process_duplicates: bool) -> CellSegmentationResult: 
+                                 process_duplicates: bool) -> SegmentationResult: 
         """
         Run segmentation process for a single FOV
         :param: fov: FOV record
@@ -93,13 +80,13 @@ class CellSegmentationService:
             if not process_duplicates and self._repository.segmentation_exists(file_name):
                 msg = f"FOV {fov_id} has already been segmented"
                 self.log.info(msg)
-                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
+                return SegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
             
             im = self._create_segmentable_image(fov)
             if im is None or im.shape[0] != 3:
                 msg = f"FOV {fov_id} incompatible: missing channels or dimensions"
                 self.log.info(msg)
-                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+                return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
             
             self.log.info(f'Running Segmentation on FOV {fov_id}')
 
@@ -107,7 +94,7 @@ class CellSegmentationService:
             if combined_segmentation is None:
                 msg = f"FOV {fov_id} could not be segmented: returned empty result"
                 self.log.info(msg)
-                return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+                return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
@@ -123,12 +110,12 @@ class CellSegmentationService:
                 with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
                     writer.save(combined_segmentation)
 
-            return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SUCCESS)
+            return SegmentationResult(fov_id=fov_id, status=ResultStatus.SUCCESS)
 
         except Exception as ex:
             msg = f"Exception while processing FOV {fov_id}: {str(ex)}\n{traceback.format_exc()}"
             self.log.info(msg)
-            return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+            return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
     def _segment_from_model(self, image, model):
         sm = SuperModel(model)

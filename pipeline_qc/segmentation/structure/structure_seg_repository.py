@@ -17,7 +17,7 @@ class ContentTypes(object):
     StructureSeg = "Structure segmentation"
     StructureContour = "Structure contour"
 
-class CellSegmentationRepository:
+class StructureSegmentationRepository:
     """
     Interface for persistence (FMS/Labkey) operations on segmentation files
     """
@@ -33,13 +33,13 @@ class CellSegmentationRepository:
         self._config = config        
 
     def upload_structure_segmentation(self): #TODO
-        pass
+        pass #TODO
 
     def segmentation_exists(self, fov_id: int):
         """
         Check whether the given FOV has already been segmented
         param: fov_id: the FOV id
-        return: True if file already exists, False otherwise
+        return: True if segmentation already exists, False otherwise
         """
         pass #TODO
 
