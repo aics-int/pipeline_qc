@@ -66,6 +66,8 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
 
     df = pd.merge(df, df2, how='left', on='fovid')
 
+
+
     for i in range(len(df)):
         if not pd.isna(df.iloc[i, df.columns.get_loc('alignedfilepath')]):
             df.at[i, 'sourceimagefileid'] = df.iloc[i, df.columns.get_loc('alignedimagefileid')]
@@ -76,6 +78,9 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
         return pd.DataFrame(columns=['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath',
                                      'wellname', 'barcode', 'cellline', 'workflow', 'imaging_mode', 'gene'])
     else:
+        df = df.drop(
+            df[(df['workflow'].astype('str') == "['Pipeline 4.4']") &
+               (df['localfilepath']).str.contains('alignV2') == False].index)
         return df[['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
                     'cellline', 'workflow', 'imaging_mode', 'gene']]
 
