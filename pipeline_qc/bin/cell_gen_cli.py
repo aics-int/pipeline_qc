@@ -3,17 +3,13 @@ import logging
 import sys
 import traceback
 
-from lkaccess import LabKey, contexts
+from lkaccess import LabKey
 
 import pipeline_qc.cell_generation.labkey_cell_generation as cell_generation
 from pipeline_qc.image_qc_methods.query_fovs import query_fovs
 
-
-CONTEXTS_MAP = {
-    'prod': contexts.PROD,
-    'stg': contexts.STAGE,
-    'dev': contexts.DEV
-}
+# TODO: This config should be refactored to live outside the segmentation folder
+from pipeline_qc.segmentation.configuration import Configuration, AppConfig
 
 
 def _configure_logging(debug: bool):
@@ -64,6 +60,8 @@ class Args(argparse.Namespace):
 
 def main():
     args = Args()
+    app_config = AppConfig(Configuration.load(f"config/config.{args.env}.yaml"))
+
     _configure_logging(args.debug)
     log = logging.getLogger(__name__)
 
@@ -71,7 +69,10 @@ def main():
         log.info("Start cell_gen_cli")
         log.info(f"Environment: {args.env}")
 
-        lk = LabKey(server_context=CONTEXTS_MAP[args.env])
+        lk = LabKey(
+            host=app_config.labkey_host,
+            port=app_config.labkey_port
+        )
 
         log.info("Querying FOV info")
         fovs_df = query_fovs(
@@ -79,8 +80,8 @@ def main():
             cell_lines=args.cell_lines,
             plates=args.plates,
             fovids=args.fovids,
-            labkey_host='stg-aics.corp.alleninstitute.org',  # TODO Use host from env
-            labkey_port=80  # TODO: Use port from env
+            labkey_host=app_config.labkey_host,
+            labkey_port=app_config.labkey_port
         )
         cell_generation.generate_cells_from_fov_ids(fovs_df, lk)
 
