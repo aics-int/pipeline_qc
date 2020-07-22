@@ -80,7 +80,7 @@ def query_fovs_from_fms(workflows = None, cell_lines = None, plates = None, fovi
     else:
         df = df.drop(
             df[(df['workflow'].astype('str') == "['Pipeline 4.4']") &
-               (df['localfilepath']).str.contains('alignV2') == False].index)
+               (df['localfilepath'].str.contains('alignV2') == False)].index)
         return df[['sourceimagefileid', 'fovimagedate', 'fovid', 'instrument', 'localfilepath', 'wellname', 'barcode',
                     'cellline', 'workflow', 'imaging_mode', 'gene']]
 
