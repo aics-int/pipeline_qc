@@ -53,6 +53,8 @@ def query_fovs_from_fms(workflows=None, cell_lines=None, plates=None, fovids=Non
            fov.wellid.plateid.workflow.name as workflow,
            welljn.imagingmodeid.name as imaging_mode,
            cldef.geneid.name as gene,
+           -- Here we use SUBSTRING() to chop off the added "created" dates from above, which are used to grab the
+           -- most recent segmentation info. Dates returned from LabKey are of the format '2000-00-00 00:00:00.00000'
            SUBSTRING(MAX(CellNucSegFiles.filename), 27) AS latest_segmentation_filename,
            SUBSTRING(MAX(CellNucSegFiles.readpath), 27) AS latest_segmentation_readpath,
            SUBSTRING(MAX(CellNucSegFiles.metadata), 27) AS latest_segmentation_metadata
