@@ -27,6 +27,8 @@ CELL = 'Cell'
 
 NUCLEUS_SEGMENTATION_CHANNEL_INDEX = 0
 MEMBRANE_SEGMENTATION_CHANNEL_INDEX = 1
+NUCLEUS_CONTOUR_CHANNEL_INDEX = 2
+MEMBRANE_CONTOUR_CHANNEL_INDEX = 3
 
 '''
  The number of pixels a given cell may be away from the FOV image boundary yet still be classified as
@@ -116,7 +118,10 @@ def _make_cell(fov_id, region, pixel_unit_id, origin_id, fov: FOV, algorithm_id,
                 source_nucleus_file_id=segmentation_file_id,
                 source_membrane_file_id=segmentation_file_id,
                 nucleus_segmentation_channel_index=NUCLEUS_SEGMENTATION_CHANNEL_INDEX,
-                membrane_segmentation_channel_index=MEMBRANE_SEGMENTATION_CHANNEL_INDEX)
+                membrane_segmentation_channel_index=MEMBRANE_SEGMENTATION_CHANNEL_INDEX,
+                nucleus_contour_channel_index=NUCLEUS_CONTOUR_CHANNEL_INDEX,
+                membrane_contour_channel_index=MEMBRANE_CONTOUR_CHANNEL_INDEX
+                )
 
     # The cell index is defined as the label of the property region
     cell.cell_index = region.label
