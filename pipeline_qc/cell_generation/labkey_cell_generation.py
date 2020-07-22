@@ -309,12 +309,17 @@ def generate_cells_from_fov_ids(fov_ids: DataFrame, lk: LabKey):
     # Generate cells from a dataframe containing FOV info
     for index, row in fov_ids.iterrows():
         fovid = row['fovid']
-        seg_readpath = row['latest_segmentation_readpath'].strip()
-        seg_metadata = json.loads(row['latest_segmentation_metadata'])
-        log.info(f"Generating Cells for FOV {fovid}")
-        generate_cells(
-            segmentation_file_path=seg_readpath,
-            segmentation_file_metadata=seg_metadata,
-            lk_conn=lk,
-            update_metadata=True
-        )
+        seg_readpath = row['latest_segmentation_readpath']
+        seg_metadata = row['latest_segmentation_metadata']
+        if seg_readpath is not None and seg_metadata is not None:
+            log.info(f"Generating Cells for FOV {fovid}")
+            log.debug(f"File path: {seg_readpath.strip()}")
+            log.debug(f"Metadata:  {seg_metadata}")
+            generate_cells(
+                segmentation_file_path=seg_readpath.strip(),
+                segmentation_file_metadata=json.loads(seg_metadata),
+                lk_conn=lk,
+                update_metadata=True
+            )
+        else:
+            log.info(f"Could not generate cells for FOV {fovid}; File path or metadata block missing")

@@ -64,7 +64,7 @@ def query_fovs_from_fms(workflows=None, cell_lines=None, plates=None, fovids=Non
         INNER JOIN fms.file as file on fov.sourceimagefileid = file.fileid
         INNER JOIN microscopy.wellimagingmodejunction as welljn on well.wellid = welljn.wellid
         INNER JOIN celllines.celllinedefinition as cldef on fcl.celllineid = cldef.celllineid
-        INNER JOIN CellNucSegFiles ON CellNucSegFiles.fovid = fov.fovid
+        LEFT JOIN CellNucSegFiles ON CellNucSegFiles.fovid = fov.fovid
     WHERE fov.objective = 100
         AND file.filename NOT LIKE '%aligned_cropped%'
         AND fov.qcstatusid.name = 'Passed'
