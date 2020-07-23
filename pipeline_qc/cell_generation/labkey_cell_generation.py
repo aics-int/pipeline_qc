@@ -8,6 +8,7 @@ Input:
  -  [3] - Membrane contour
 
 """
+import json
 import logging
 import typing
 
@@ -15,6 +16,7 @@ from aicsimageio import AICSImage
 from aicsfiles import FileManagementSystem
 from lkaccess import LabKey, QueryFilter
 from lkaccess.accessors import FOV, Cell
+from pandas import DataFrame
 import skimage.measure
 
 ORIGIN = 'Pixel coordinate from zero index'
@@ -25,6 +27,8 @@ CELL = 'Cell'
 
 NUCLEUS_SEGMENTATION_CHANNEL_INDEX = 0
 MEMBRANE_SEGMENTATION_CHANNEL_INDEX = 1
+NUCLEUS_CONTOUR_CHANNEL_INDEX = 2
+MEMBRANE_CONTOUR_CHANNEL_INDEX = 3
 
 '''
  The number of pixels a given cell may be away from the FOV image boundary yet still be classified as
@@ -114,7 +118,10 @@ def _make_cell(fov_id, region, pixel_unit_id, origin_id, fov: FOV, algorithm_id,
                 source_nucleus_file_id=segmentation_file_id,
                 source_membrane_file_id=segmentation_file_id,
                 nucleus_segmentation_channel_index=NUCLEUS_SEGMENTATION_CHANNEL_INDEX,
-                membrane_segmentation_channel_index=MEMBRANE_SEGMENTATION_CHANNEL_INDEX)
+                membrane_segmentation_channel_index=MEMBRANE_SEGMENTATION_CHANNEL_INDEX,
+                nucleus_contour_channel_index=NUCLEUS_CONTOUR_CHANNEL_INDEX,
+                membrane_contour_channel_index=MEMBRANE_CONTOUR_CHANNEL_INDEX
+                )
 
     # The cell index is defined as the label of the property region
     cell.cell_index = region.label
@@ -301,3 +308,23 @@ def generate_cells(segmentation_file_path: str, segmentation_file_metadata: dict
         _update_metadata(segmentation_file_id, cell_ids, fms)
 
     return cell_id_map
+
+
+def generate_cells_from_fov_ids(fov_ids: DataFrame, lk: LabKey):
+    # Generate cells from a dataframe containing FOV info
+    for index, row in fov_ids.iterrows():
+        fovid = row['fovid']
+        seg_readpath = row['latest_segmentation_readpath']
+        seg_metadata = row['latest_segmentation_metadata']
+        if seg_readpath is not None and seg_metadata is not None:
+            log.info(f"Generating Cells for FOV {fovid}")
+            log.debug(f"File path: {seg_readpath.strip()}")
+            log.debug(f"Metadata:  {seg_metadata}")
+            generate_cells(
+                segmentation_file_path=seg_readpath.strip(),
+                segmentation_file_metadata=json.loads(seg_metadata),
+                lk_conn=lk,
+                update_metadata=True
+            )
+        else:
+            log.info(f"Could not generate cells for FOV {fovid}; File path or metadata block missing")

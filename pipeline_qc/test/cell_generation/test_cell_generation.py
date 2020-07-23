@@ -3,14 +3,12 @@
 from collections import namedtuple
 import pathlib
 
-from lkaccess import LabKey
 from lkaccess.accessors import FOV
-import lkaccess.contexts
 import numpy.testing
 import pytest
 import skimage.measure
 
-import pipeline_qc.labkey_cell_generation as CG
+import pipeline_qc.cell_generation.labkey_cell_generation as CG
 
 
 ##################################################
