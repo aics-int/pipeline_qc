@@ -16,6 +16,7 @@ from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from model_zoo_3d_segmentation.zoo import SuperModel
 from .structure_seg_repository import StructureSegmentationRepository
 from ..configuration import AppConfig
+from .structures import Structures, StructureInfo
 from ..common.fov_file import FovFile
 from ..common.segmentation_result import SegmentationResult, ResultStatus
 
@@ -75,8 +76,20 @@ class StructureSegmentationService:
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
 
-            #TODO create segmentable image based on structure
+            structure = Structures.get(fov.gene)
+            if structure is None:
+                msg = f"FOV {fov_id} unsupported structure"
+                self.log.info(msg)
+                return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+
+            im = self._create_segmentable_image(fov, structure.ml)
+            if im is None or im.shape[0] != 3:
+                msg = f"FOV {fov_id} incompatible: missing channels or dimensions"
+                self.log.info(msg)
+                return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+
             #TODO segment
+            structure_segmentation, structure_contour = self._segment_image(im, structure)
             
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
@@ -92,7 +105,37 @@ class StructureSegmentationService:
             self.log.info(msg)
             return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
-    
+    def _segment_image(self, image: np.array, structure_info: StructureInfo):
+        """
+        Perform structure segmentation
+        return: (structure_segmentation, structure_contour)
+        """
+        if structure_info.ml:
+            return self._segment_from_model(image, structure_info.ml_model)
+        
+        return self._segment_from_legacy_wrapper(image, structure_info.gene)
+
+    def _segment_from_model(self, image: np.array, model):
+        """
+        Segment using ML model
+        Uses core ML segmentation code from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/dl_model_zoo/browse 
+        """
+        sm = SuperModel(model)
+
+        return sm.apply_on_single_zstack(input_img=image)
+
+    def _segment_from_legacy_wrapper(self, image: np.array, gene: str):
+        """
+        Segment using legacy wrappers from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/aics-segmentation/browse 
+        """
+        #TODO implement
+        raise NotImplementedError()
+
+    def _create_segmentable_image(self, fov: FovFile, ml: bool):
+        """
+        Create a segmentable image
+        """
+        return self._create_segmentable_image_ml(fov) if ml else self._create_segmentable_image_legacy(fov)
 
     def _create_segmentable_image_ml(self, fov: FovFile):
         """
