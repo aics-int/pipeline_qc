@@ -7,7 +7,7 @@ from datetime import datetime
 from aicsfiles import FileManagementSystem
 from aicsfiles.filter import Filter
 from ..configuration import AppConfig
-from ..common.labkey_provider import LabkeyProvider
+from ..common.labkey_provider import LabkeyProvider, RunInfo
 from .structures import StructureInfo
 
 class ContentTypes(object):
@@ -98,7 +98,7 @@ class StructureSegmentationRepository:
         self._fms_client.upload_file_sync(segmentation_path, metadata, timeout=self._config.fms_timeout_in_seconds)
 
 
-    def segmentation_exists(self, filename: str, fov_id: int):
+    def segmentation_exists(self, filename: str, structure_info: StructureInfo):
         """
         Check whether the given FOV has already been segmented
         param: fov_id: the FOV id
@@ -107,12 +107,22 @@ class StructureSegmentationRepository:
         # 1) check that file exists
         query = Filter().with_file_name(filename)
         result = self._fms_client.query_files(query)
-        file_exists = (result is not None and len(result) > 0) 
-        if not file_exists:
-            return False  
+        if result is None or len(result) == 0:
+            return False
+        
+        # 2) check that run_id exists with current algorithm        
+        metadata = result[0]
+        run_id = medadata.get("content_processing", {}).get("channels", {}).get("0", {0}).get("run_id", None)
+        if run_id is None:
+            return False
 
-        # 2) check that run_id exists with current algorithm
-        pass #TODO
+        run: RunInfo = self._labkey_provider.get_run_by_id(run_id)
+        if run is None:
+            return False
+
+        return (run.algorithm_name == structure_info.algorithm_name and run.algorithm_version == structure_info.algorithm_version)
+
+        
 
     def _channel_metadata_block(self, content_type: str, algorithm: str, algorithm_version: str, processing_date: str, run_id: int):
         """
