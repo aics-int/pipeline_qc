@@ -57,6 +57,7 @@ class CellSegmentationRepository:
         #             "algorithm_version": <algorithm version, as recorded in Labkey>,
         #             "content_type": <ContentType, as recorded in Labkey>,
         #             "processing_date": <processing date>,
+        #             "run_id": <run id>
         #         },
         #         "1": {
         #           ...

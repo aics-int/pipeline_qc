@@ -3,8 +3,8 @@ from dataclasses import dataclass
 @dataclass
 class StructureInfo:
     gene: str
-    ml: bool
-    ml_model: str
+    ml: bool # Indicate whether the structure is segmented using Machine Learning / Deep learning
+    ml_model: str # Model to use for ML segmentations
     algorithm_name: str
     algorithm_version: str
 

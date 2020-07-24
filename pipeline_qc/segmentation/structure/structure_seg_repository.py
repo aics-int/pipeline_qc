@@ -8,7 +8,7 @@ from aicsfiles import FileManagementSystem
 from aicsfiles.filter import Filter
 from ..configuration import AppConfig
 from ..common.labkey_provider import LabkeyProvider
-
+from .structures import StructureInfo
 
 class ContentTypes(object):
     """
@@ -32,18 +32,70 @@ class StructureSegmentationRepository:
         self._labkey_provider = labkey_provider
         self._config = config        
 
-    def upload_structure_segmentation(self): #TODO
-        pass #TODO
+    def upload_structure_segmentation(self, structure_info: StructureInfo, structure_segmentation_path: str, source_file_id: str): #TODO
+        """
+        Augment with proper metadata and upload a structure segmentation file to FMS
+        :param: structure_info: information about the segmented structure
+        :param: structure_segmentation_path: structure segmentation output file path
+        :param: source_file_id: file ID of the input image used to produce this segmentation (used to gather metadata)
+        """
 
-    def segmentation_exists(self, fov_id: int):
+        # Minimal Metadata structure:
+        #
+        # "file": {
+        #     "file_type": "image"
+        # },
+        # "content_processing": {
+        #     "channels": {
+        #         "0": {
+        #             "algorithm": <algorithm name, as recorded in Labkey>,
+        #             "algorithm_version": <algorithm version, as recorded in Labkey>,
+        #             "content_type": <ContentType, as recorded in Labkey>,
+        #             "processing_date": <processing date>,
+        #             "run_id": <run id>
+        #         }
+        #     }
+        # }
+
+        # Channel 0 = Structure segmentation
+
+
+        processing_date: str = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        run_id = self._labkey_provider.create_run_id(structure_info.algorithm_name, structure_info.algorithm_version, processing_date)
+
+        # Initialize metadata from input file's metadata, or start over if not available
+        metadata = self._get_file_metadata(source_file_id) or {}
+        metadata.update({"file": {"file_type": "image"}})
+
+        metadata["content_processing"] = {
+            "channels": {
+                "0": self._channel_metadata_block(ContentTypes.StructureSeg, 
+                                                  structure_info.algorithm_name, 
+                                                  structure_info.algorithm_version, 
+                                                  processing_date, 
+                                                  run_id)
+            }
+        }
+
+        self._fms_client.upload_file_sync(structure_segmentation_path, metadata, timeout=self._config.fms_timeout_in_seconds)
+
+    def segmentation_exists(self, filename: str, fov_id: int):
         """
         Check whether the given FOV has already been segmented
         param: fov_id: the FOV id
         return: True if segmentation already exists, False otherwise
         """
+        # 1) check that file exists
+        query = Filter().with_file_name(filename)
+        result = self._fms_client.query_files(query)
+        file_exists = (result is not None and len(result) > 0) 
+        if not file_exists:
+            return False  
+
+        # 2) check that run_id exists with current algorithm
         pass #TODO
 
-    def _channel_metadata_block(self, algorithm: str, algorithm_version: str, content_type: str, processing_date: str, run_id: int):
+    def _channel_metadata_block(self, content_type: str, algorithm: str, algorithm_version: str, processing_date: str, run_id: int):
         """
         Build and return a metadata block for a given channel
         param: content_type: content type to identify the channel's contents
