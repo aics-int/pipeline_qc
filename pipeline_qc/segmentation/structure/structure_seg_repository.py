@@ -32,7 +32,11 @@ class StructureSegmentationRepository:
         self._labkey_provider = labkey_provider
         self._config = config        
 
-    def upload_structure_segmentation(self, structure_info: StructureInfo, structure_segmentation_path: str, source_file_id: str): #TODO
+    def upload_structure_segmentation(self, 
+                                      structure_info: StructureInfo, 
+                                      source_file_id: str,
+                                      segmentation_path: str, 
+                                      contour_path: str = None):
         """
         Augment with proper metadata and upload a structure segmentation file to FMS
         :param: structure_info: information about the segmented structure
@@ -67,6 +71,20 @@ class StructureSegmentationRepository:
         metadata = self._get_file_metadata(source_file_id) or {}
         metadata.update({"file": {"file_type": "image"}})
 
+        # Contour
+        if contour_path is not None:
+            metadata["content_processing"] = {
+                "channels": {
+                    "0": self._channel_metadata_block(ContentTypes.StructureContour, 
+                                                      structure_info.algorithm_name, 
+                                                      structure_info.algorithm_version, 
+                                                      processing_date, 
+                                                      run_id)
+                }
+            }
+            self._fms_client.upload_file_sync(contour_path, metadata, timeout=self._config.fms_timeout_in_seconds)
+
+        # Segmentation
         metadata["content_processing"] = {
             "channels": {
                 "0": self._channel_metadata_block(ContentTypes.StructureSeg, 
@@ -77,7 +95,8 @@ class StructureSegmentationRepository:
             }
         }
 
-        self._fms_client.upload_file_sync(structure_segmentation_path, metadata, timeout=self._config.fms_timeout_in_seconds)
+        self._fms_client.upload_file_sync(segmentation_path, metadata, timeout=self._config.fms_timeout_in_seconds)
+
 
     def segmentation_exists(self, filename: str, fov_id: int):
         """
