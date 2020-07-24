@@ -127,7 +127,7 @@ class StructureSegmentationService:
         if structure_info.ml:
             result = self._segment_from_model(image, structure_info.ml_model)
         else:
-            result = self._segment_from_legacy_wrapper(image, structure_info.gene)
+            result = self._segment_from_legacy_wrapper(image, structure_info)
         
         # format return so we can unpack into 2 values (seg, contour) no matter what gets returned by the segmentation
         if(type(result) == tuple and len(result) >= 2):
@@ -144,11 +144,13 @@ class StructureSegmentationService:
 
         return sm.apply_on_single_zstack(input_img=image)
 
-    def _segment_from_legacy_wrapper(self, image: np.array, gene: str):
+    def _segment_from_legacy_wrapper(self, image: np.array, structure_info: StructureInfo) -> (np.array, np.array): 
         """
         Segment using legacy wrappers from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/aics-segmentation/browse 
+        return: (structure_segmentation, structure_contour)
         """
         #TODO implement
+
         raise NotImplementedError()
 
     def _create_segmentable_image(self, fov: FovFile, ml: bool) -> np.array:

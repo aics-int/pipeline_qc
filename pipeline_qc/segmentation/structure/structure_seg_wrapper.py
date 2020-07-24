@@ -31,6 +31,7 @@ class StructureSegmentationWrapper(StructureSegmentationWrapperBase):
         self._config = config
         self.log = logging.getLogger(__name__)
 
+    # TODO rename to batch_structure
     def batch_cell_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
                                  only_from_fms=True, save_to_fms=False, save_to_filesystem=False, process_duplicates=False,
                                  output_dir = './output'): 
