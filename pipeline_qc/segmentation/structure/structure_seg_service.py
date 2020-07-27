@@ -98,22 +98,37 @@ class StructureSegmentationService:
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             # Handle outputs
-            # TODO save contour file if present?
             if save_to_fms:
                 self.log.info("Uploading structure segmentation to FMS")
 
-                with TemporaryDirectory() as tmp_dir: # refactor into repository?
-                    local_file_path = f'{tmp_dir}/{struct_file_name}'
-                    with ome_tiff_writer.OmeTiffWriter(local_file_path) as writer:
+                with TemporaryDirectory() as tmp_dir:
+                    # Segmentation
+                    seg_file_path = f'{tmp_dir}/{struct_file_name}'
+                    with ome_tiff_writer.OmeTiffWriter(seg_file_path) as writer:
                         writer.save(structure_segmentation)
-                    self._repository.upload_structure_segmentation(structure, local_file_path, source_file_id)
+                    
+                    if structure_contour is not None:
+                        # Contour                
+                        contour_file_path = f'{tmp_dir}/{contour_file_name}'
+                        with ome_tiff_writer.OmeTiffWriter(contour_file_path) as writer:
+                            writer.save(structure_contour)
+                        self._repository.upload_structure_segmentation(structure, source_file_id, seg_file_path, contour_file_path)                       
+                    else:     
+                        self._repository.upload_structure_segmentation(structure, source_file_id, seg_file_path)
+
 
             if save_to_filesystem:
                 self.log.info("Saving structure segmentation to filesystem")
+                # Segmentation
                 with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{struct_file_name}') as writer:
                     writer.save(structure_segmentation)
+                # Contour
+                if structure_contour is not None:
+                    with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{contour_file_name}') as writer:
+                        writer.save(structure_segmentation)                    
 
             return SegmentationResult(fov_id=fov_id, status=ResultStatus.SUCCESS)
+
         except Exception as ex:
             msg = f"Exception while processing FOV {fov_id}: {str(ex)}\n{traceback.format_exc()}"
             self.log.info(msg)

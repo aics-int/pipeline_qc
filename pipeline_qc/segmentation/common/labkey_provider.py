@@ -1,8 +1,21 @@
 import os
 
+from dataclasses import dataclass
 from pathlib import Path
 from lkaccess import LabKey, QueryFilter
 from ..configuration import AppConfig
+
+@dataclass
+class RunInfo:
+    """
+    Information about an algorithm run
+    """
+    run_id: int
+    algorithm_id: int
+    algorithm_name: str
+    algorithm_version: str
+    execution_date: str
+
 
 class LabkeyProvider:
     """
@@ -38,6 +51,30 @@ class LabkeyProvider:
             raise Exception(f"Failed to create Run ID or unable to retrieve result from Labkey.")
 
         return int(response['rows'][0]['runid'])
+
+    def get_run_by_id(self, run_id: int) -> RunInfo:
+        """
+        Get algorithm run information for the given run ID
+        return: 
+        """
+        ALGO_ID = "ContentGenerationAlgorithmId"
+        ALGO_NAME = "ContentGenerationAlgorithmId/Name"
+        ALGO_VERSION = "ContentGenerationAlgorithmId/Version"
+        EXECUTION_DATE = "ExecutionDate"
+
+        response = self._labkey_client.select_rows_as_list("processing", "run", 
+                                   filter_array=[QueryFilter("RunId", run_id)], 
+                                   columns=[ALGO_ID, ALGO_NAME, ALGO_VERSION, EXECUTION_DATE])
+
+        if response is None or len(response) == 0:
+            return None
+        
+        result = response[0]
+        return RunInfo(run_id=run_id,
+                       algorithm_id=int(result[ALGO_ID]),
+                       algorithm_name=result[ALGO_NAME],
+                       algorithm_version=result[ALGO_VERSION],
+                       execution_date=result[EXECUTION_DATE])
 
     def _ensure_netrc(self):
         """
