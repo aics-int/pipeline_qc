@@ -150,6 +150,10 @@ class StructureSegmentationService:
         return: (structure_segmentation, structure_contour)
         """
         #TODO implement
+        # identify what module to use
+        # load the module
+        # invoke the processing on the module
+        # return the results of the processing (possibly read from file)
 
         raise NotImplementedError()
 
