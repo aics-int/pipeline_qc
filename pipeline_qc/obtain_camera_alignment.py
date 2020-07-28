@@ -68,21 +68,33 @@ class Executor(object):
         self.align_matrix_file_extension = align_matrix_file_extension
         self.system_type = system_type
 
-        if image_type == 'beads':
-            self.thresh_488 = (99.4, 100)
-            self.thresh_638 = (99, 100)
-            self.crop_center = None
-        elif (image_type == 'rings') & (system_type == 'zsd'):
-            self.thresh_488 = (0.2, 99.8)
-            self.thresh_638 = (0.2, 99.8)
-            self.crop_center = None
-        elif (image_type == 'rings') & (system_type == '3i'):
-            self.thresh_488 = (0.2, 99.8)
-            self.thresh_638 = (0.2, 99.8)
+        if thresh_488 is not None:
+            self.thresh_488 = thresh_488
+        if thresh_638 is not None:
+            self.thresh_638 = thresh_638
+
+        if thresh_488 is None:
+            if image_type == 'beads':
+                self.thresh_488 = (99.4, 100)
+            elif (image_type == 'rings') & (system_type == 'zsd'):
+                self.thresh_488 = (0.2, 99.8)
+            elif (image_type == 'rings') & (system_type == '3i'):
+                self.thresh_488 = (0.2, 99.8)
+
+        if thresh_638 is None:
+            if image_type == 'beads':
+                self.thresh_638 = (99, 100)
+            elif (image_type == 'rings') & (system_type == 'zsd'):
+                self.thresh_638 = (0.2, 99.8)
+            elif (image_type == 'rings') & (system_type == '3i'):
+                self.thresh_638 = (0.2, 99.8)
+
+        if (image_type == 'rings') & (system_type == '3i'):
             self.crop_center = (60, 60)
         else:
-            self.thresh_488 = thresh_488
-            self.thresh_638 = thresh_638
+            self.crop_center = None
+
+        if crop_center is not None:
             self.crop_center = crop_center
 
 

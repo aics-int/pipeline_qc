@@ -2,16 +2,16 @@
 
 # READ HERE
 # Set user inputs:
-optical_control_img_filepath = r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\Capture 1 - Position 2_XY1584023869_Z00_T0_C0.tiff'
-image_type = 'rings'  # Select between 'rings' or 'beads'
-ref_channel = '488/TL 50um Dual'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
-mov_channel = '640/405 50um Dual'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
-system_type = '3i'  # Select between 'zsd' or '3i'
+optical_control_img_filepath = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200701\argo_split\20200701_N02_001-Scene-3-P3.czi'
+image_type = 'beads'  # Select between 'rings' or 'beads'
+ref_channel = 'EGFP'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
+mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
+system_type = 'zsd'  # Select between 'zsd' or '3i'
 
-folder_to_img = r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\align_test'  # Input folder to czi images
-folder_save = r'\\allen\aics\microscopy\Calysta\test\argo_3i\20200312\align_output'  # Output folder to save split scene tiffs
-img_type = '.tiff'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
-crop_dim = (1712, 1752)  # Final dimension of image after cropping in the form of (image height, image width)
+folder_to_img = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200701\to_process_100X\split'  # Input folder to czi images
+folder_save = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200701\aligned'  # Output folder to save split scene tiffs
+img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
+crop_dim = (600, 900)  # Final dimension of image after cropping in the form of (image height, image width)
 
 #===================================
 # Core script - don't change plz
