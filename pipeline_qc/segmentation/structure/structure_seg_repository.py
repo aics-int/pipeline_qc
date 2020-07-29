@@ -59,6 +59,11 @@ class StructureSegmentationRepository:
         #             "run_id": <run id>
         #         }
         #     }
+        # },
+        # "provenance": {
+        #     "input_files": [<source file id>],
+        #     "algorithm": <algorithm name, as recorded in Labkey>
+        #     "algorithm_version": <algorithm version, as recorded in Labkey>, 
         # }
 
         # Channel 0 = Structure segmentation
@@ -71,9 +76,16 @@ class StructureSegmentationRepository:
         metadata = self._get_file_metadata(source_file_id) or {}
         metadata.update({"file": {"file_type": "image"}})
 
+        metadata["provenance"] = {
+            "input_files": [source_file_id],
+            "algorithm": structure_info.algorithm_name,
+            "algorithm_version": structure_info.algorithm_version
+        }
+
         # Contour
         if contour_path is not None:
-            metadata["content_processing"] = {
+            contour_metadata = metadata.copy()
+            contour_metadata["content_processing"] = {
                 "channels": {
                     "0": self._channel_metadata_block(ContentTypes.StructureContour, 
                                                       structure_info.algorithm_name, 
@@ -82,10 +94,11 @@ class StructureSegmentationRepository:
                                                       run_id)
                 }
             }
-            self._fms_client.upload_file_sync(contour_path, metadata, timeout=self._config.fms_timeout_in_seconds)
+            self._fms_client.upload_file_sync(contour_path, contour_metadata, timeout=self._config.fms_timeout_in_seconds)
 
         # Segmentation
-        metadata["content_processing"] = {
+        seg_metadata = metadata.copy()
+        seg_metadata["content_processing"] = {
             "channels": {
                 "0": self._channel_metadata_block(ContentTypes.StructureSeg, 
                                                   structure_info.algorithm_name, 
@@ -95,7 +108,7 @@ class StructureSegmentationRepository:
             }
         }
 
-        self._fms_client.upload_file_sync(segmentation_path, metadata, timeout=self._config.fms_timeout_in_seconds)
+        self._fms_client.upload_file_sync(segmentation_path, seg_metadata, timeout=self._config.fms_timeout_in_seconds)
 
 
     def segmentation_exists(self, filename: str, structure_info: StructureInfo):
@@ -112,7 +125,7 @@ class StructureSegmentationRepository:
         
         # 2) check that run_id exists with current algorithm        
         metadata = result[0]
-        run_id = medadata.get("content_processing", {}).get("channels", {}).get("0", {0}).get("run_id", None)
+        run_id = metadata.get("content_processing", {}).get("channels", {}).get("0", {}).get("run_id", None)
         if run_id is None:
             return False
 

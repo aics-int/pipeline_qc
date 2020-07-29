@@ -123,8 +123,8 @@ def main():
         log.info(f"Environment: {args.env}")
         log.info(args)
 
-        cell_seg = get_app_root(args)
-        cell_seg.batch_cell_segmentations(
+        struct_seg = get_app_root(args)
+        struct_seg.batch_structure_segmentations(
             output_dir=args.output_dir,
             workflows=args.workflows,
             cell_lines=args.cell_lines,

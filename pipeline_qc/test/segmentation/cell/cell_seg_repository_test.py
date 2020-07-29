@@ -15,13 +15,13 @@ class TestCellSegmentationRepository:
 
     def test_upload_combined_segmentation_no_initial_metadata(self):
         # Arrange
-        input_file_path = "test/input.tiff"
+        input_file_id = "abcd1234"
         combined_seg_path = "test/combined_seg.tiff"
         self._mock_fms_client.query_files.return_value = None
         self._mock_labkey_provider.create_run_id.return_value = 1234
 
         # Act
-        self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
+        self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_id)
 
         # Assert
         self._mock_fms_client.upload_file_sync.assert_called_once()
@@ -35,16 +35,19 @@ class TestCellSegmentationRepository:
         assert metadata["content_processing"]["channels"]["2"]["content_type"] == "Nucleus contour"
         assert metadata["content_processing"]["channels"]["3"]["content_type"] == "Membrane contour"
         assert metadata["content_processing"]["channels"]["0"]["run_id"] == 1234
+        assert metadata["provenance"]["input_files"][0] == input_file_id
+        assert metadata["provenance"]["algorithm"] == CellSegmentationRepository.ALGORITHM
+        assert metadata["provenance"]["algorithm_version"] == CellSegmentationRepository.ALGORITHM_VERSION
 
     def test_upload_combined_segmentation_with_initial_metadata(self):
         # Arrange
-        input_file_path = "test/input.tiff"
+        input_file_id = "abcd1234"
         combined_seg_path = "test/combined_seg.tiff"
         self._mock_fms_client.query_files.return_value = [{"microscopy": {"fov_id": "9999"}}]
         self._mock_labkey_provider.create_run_id.return_value = 1234
 
         # Act
-        self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_path)
+        self._cell_seg_repository.upload_combined_segmentation(combined_seg_path, input_file_id)
 
         # Assert
         metadata = self._mock_fms_client.upload_file_sync.call_args[0][1]

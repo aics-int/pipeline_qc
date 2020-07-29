@@ -32,7 +32,7 @@ class StructureSegmentationWrapper(StructureSegmentationWrapperBase):
         self.log = logging.getLogger(__name__)
 
     # TODO rename to batch_structure
-    def batch_cell_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
+    def batch_structure_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
                                  only_from_fms=True, save_to_fms=False, save_to_filesystem=False, process_duplicates=False,
                                  output_dir = './output'): 
         """
@@ -70,10 +70,10 @@ class StructureSegmentationWrapperDistributed(StructureSegmentationWrapperBase):
         self.log = logging.getLogger(__name__)
         
     # TODO see if we can distribute to CPU or GPU based on structure type (ML / legacy) instead of everything on GPU
-    # TODO otherwise refactor into single wrapper for both cell and structure segmentation (same code)
-    def batch_cell_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
-                                 only_from_fms=True, save_to_fms=False, save_to_filesystem=False, process_duplicates=False,
-                                 output_dir = './output'): 
+    # TODO otherwise refactor into single wrapper for both cell and structure segmentation (same code)?
+    def batch_structure_segmentations(self, workflows=None, cell_lines=None, plates=None, fovids=None,
+                                      only_from_fms=True, save_to_fms=False, save_to_filesystem=False, process_duplicates=False,
+                                      output_dir = './output'): 
         """
         Process segmentations as a batch. 
         FOV images are queried from FMS based on the given options and segmented concurrently on GPU nodes

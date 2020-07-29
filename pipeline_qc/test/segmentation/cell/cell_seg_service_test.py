@@ -41,9 +41,7 @@ class TestCellSegmentationService:
                               {"405nm": numpy.array([1]),"638nm": numpy.array([4, 5, 6]), "brightfield": numpy.array([7, 8, 9])}
                              ])
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
-    def test_single_cell_segmentation_fails_on_incompatible_fov(self, mock_file_processing_methods: Mock, image_data):
-        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, SegmentationResult
-        
+    def test_single_cell_segmentation_fails_on_incompatible_fov(self, mock_file_processing_methods: Mock, image_data):        
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         mock_file_processing_methods.split_image_into_channels.return_value = image_data
@@ -63,9 +61,7 @@ class TestCellSegmentationService:
 
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
-    def test_single_cell_segmentation_fails_on_empty_segmentation(self, mock_super_model: Mock, mock_file_processing_methods: Mock):
-        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, SegmentationResult, SuperModel
-        
+    def test_single_cell_segmentation_fails_on_empty_segmentation(self, mock_super_model: Mock, mock_file_processing_methods: Mock):       
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
@@ -92,8 +88,6 @@ class TestCellSegmentationService:
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
     def test_single_cell_segmentation_happy_path_dual_camera(self, mock_tiff_writer: Mock, mock_super_model: Mock, mock_file_processing_methods: Mock):
-        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, SegmentationResult, CellSegmentationService
-
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
@@ -119,8 +113,6 @@ class TestCellSegmentationService:
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
     def test_single_cell_segmentation_happy_path_single_camera(self, mock_tiff_writer: Mock, mock_super_model: Mock, mock_file_processing_methods: Mock):
-        from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, SegmentationResult, CellSegmentationService
-
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.1", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
         image_data = {
