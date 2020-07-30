@@ -14,6 +14,7 @@ import typing
 
 from aicsimageio import AICSImage
 from aicsfiles import FileManagementSystem
+from datetime import datetime
 from lkaccess import LabKey, QueryFilter
 from lkaccess.accessors import FOV, Cell
 from pandas import DataFrame
@@ -310,21 +311,39 @@ def generate_cells(segmentation_file_path: str, segmentation_file_metadata: dict
     return cell_id_map
 
 
-def generate_cells_from_fov_ids(fov_ids: DataFrame, lk: LabKey):
+def generate_cells_from_fov_ids(fov_ids: DataFrame, lk: LabKey, init_time=datetime.utcnow().strftime('%Y%m%d_%H%M%S')):
     # Generate cells from a dataframe containing FOV info
+
+    failed_fovs = DataFrame(columns=['FOV', 'Failure'])
+
     for index, row in fov_ids.iterrows():
         fovid = row['fovid']
         seg_readpath = row['latest_segmentation_readpath']
         seg_metadata = row['latest_segmentation_metadata']
         if seg_readpath is not None and seg_metadata is not None:
-            log.info(f"Generating Cells for FOV {fovid}")
-            log.debug(f"File path: {seg_readpath.strip()}")
-            log.debug(f"Metadata:  {seg_metadata}")
-            generate_cells(
-                segmentation_file_path=seg_readpath.strip(),
-                segmentation_file_metadata=json.loads(seg_metadata),
-                lk_conn=lk,
-                update_metadata=True
-            )
+            try:
+                log.info(f"Generating Cells for FOV {fovid}")
+                log.debug(f"File path: {seg_readpath.strip()}")
+                log.debug(f"Metadata:  {seg_metadata}")
+                generate_cells(
+                    segmentation_file_path=seg_readpath.strip(),
+                    segmentation_file_metadata=json.loads(seg_metadata),
+                    lk_conn=lk,
+                    update_metadata=True
+                )
+            except Exception as e:
+                # Continue through the loop if an exception occurs, but record info about the exception
+                err_type = type(e).__name__  # Grab the exception type manually because str(e) doesn't include it
+                err_msg = f"{err_type}: {e}"
+                log.error(err_msg)
+                failed_fovs = _update_failed_fovs(failed_fovs, fovid, err_msg, init_time)
         else:
-            log.info(f"Could not generate cells for FOV {fovid}; File path or metadata block missing")
+            msg = 'File path or metadata block missing'
+            log.info(f"Could not generate cells for FOV {fovid}; {msg}")
+            failed_fovs = _update_failed_fovs(failed_fovs, fovid, msg, init_time)
+
+
+def _update_failed_fovs(failed_fovs: DataFrame, fovid: str, failure_msg: str, init_time):
+    failed_fovs = failed_fovs.append({'FOV': fovid, 'Failure': failure_msg},  ignore_index=True)
+    failed_fovs.to_csv(f'cell_gen_cli_{init_time}_failed_fovs.csv')
+    return failed_fovs

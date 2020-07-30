@@ -37,7 +37,7 @@ def query_fovs_from_fms(workflows=None, cell_lines=None, plates=None, fovids=Non
                ff.fovid,
                (f.created||' '||f.filename) AS filename,
                (f.created||' '||f.localfilepath) AS readpath,
-               (f.created||' '||f.metadata) AS metadata,
+               (f.created||' '||f.metadata) AS metadata
         FROM fms.file f
             JOIN microscopy.filefov ff ON ff.fileid = f.fileid
         WHERE f.filename LIKE '%CellNucSegCombined%'
