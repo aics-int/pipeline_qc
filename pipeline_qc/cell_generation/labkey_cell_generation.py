@@ -334,9 +334,9 @@ def generate_cells_from_fov_ids(fov_ids: DataFrame, lk: LabKey, init_time=dateti
             except Exception as e:
                 # Continue through the loop if an exception occurs, but record info about the exception
                 err_type = type(e).__name__  # Grab the exception type manually because str(e) doesn't include it
-                error_msg = f"{err_type}: {e}"
-                log.error(error_msg)
-                failed_fovs = _update_failed_fovs(failed_fovs, fovid, error_msg, init_time)
+                err_msg = f"{err_type}: {e}"
+                log.error(err_msg)
+                failed_fovs = _update_failed_fovs(failed_fovs, fovid, err_msg, init_time)
         else:
             msg = 'File path or metadata block missing'
             log.info(f"Could not generate cells for FOV {fovid}; {msg}")
