@@ -81,8 +81,8 @@ class StructureSegmentationService:
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
-            im = self._create_segmentable_image(fov, structure.ml)
-            if im is None or im.shape[0] != 3:
+            im = self._create_segmentable_image(fov, structure)
+            if im is None:
                 msg = f"FOV {fov_id} incompatible: missing channels or dimensions"
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
@@ -122,7 +122,7 @@ class StructureSegmentationService:
                 # Contour
                 if structure_contour is not None:
                     with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{contour_file_name}') as writer:
-                        writer.save(structure_segmentation)                    
+                        writer.save(structure_contour)                    
 
             return SegmentationResult(fov_id=fov_id, status=ResultStatus.SUCCESS)
 
@@ -169,11 +169,16 @@ class StructureSegmentationService:
             logging.error(f'Could not process image for gene {gene}: '+str(e))
             return (None, None)
 
-    def _create_segmentable_image(self, fov: FovFile, ml: bool) -> np.array:
+    def _create_segmentable_image(self, fov: FovFile, structure_info: StructureInfo) -> np.array:
         """
         Create a segmentable image
+        param: fov: fov file info
+        param: structure_info: structure info
         """
-        return self._create_segmentable_image_ml(fov) if ml else self._create_segmentable_image_legacy(fov)
+        if structure_info.ml:
+            return self._create_segmentable_image_ml(fov)
+        else:
+            return self._create_segmentable_image_legacy(fov)
 
     def _create_segmentable_image_ml(self, fov: FovFile) -> np.array:
         """
@@ -192,6 +197,9 @@ class StructureSegmentationService:
                     return None # not a 3D image
                 if channel_name == channel:
                     full_im_list.append(channel_array)
+        
+        if(len(full_im_list) != 2):
+            return None
 
         return np.array(full_im_list)
 
@@ -203,6 +211,9 @@ class StructureSegmentationService:
         aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
 
         channel_dict = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
+        
+        if "488nm" not in channel_dict:
+            return None
 
         struct_channel = channel_dict["488nm"]
         if struct_channel.shape[0] <= 1:

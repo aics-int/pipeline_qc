@@ -9,11 +9,6 @@ from aicsfiles.filter import Filter
 from ..configuration import AppConfig
 from ..common.labkey_provider import LabkeyProvider
 
-# Algorithm information
-# must match existing ContentGenerationAlgorithm name and version in Labkey
-ALGORITHM = "dna_cell_segmentation_ML_v1" 
-ALGORITHM_VERSION = "0.1.0"
-
 class ContentTypes(object):
     """
     Labkey ContentTypes (processing.ContentType table)
@@ -27,6 +22,12 @@ class CellSegmentationRepository:
     """
     Interface for persistence (FMS/Labkey) operations on segmentation files
     """
+
+    # Algorithm information
+    # must match existing ContentGenerationAlgorithm name and version in Labkey
+    ALGORITHM = "dna_cell_segmentation_ML_v1" 
+    ALGORITHM_VERSION = "0.1.0"
+
     def __init__(self, fms_client: FileManagementSystem, labkey_provider: LabkeyProvider, config: AppConfig):
         if fms_client is None:
             raise AttributeError("fms_client")
@@ -65,6 +66,11 @@ class CellSegmentationRepository:
         #         ...
         #     }
         # }
+        # "provenance": {
+        #     "input_files": [<source file id>],
+        #     "algorithm": <algorithm name, as recorded in Labkey>
+        #     "algorithm_version": <algorithm version, as recorded in Labkey>, 
+        # }
 
         # Channel 0 = Nucleus segmentation
         # Channel 1 = Membrane segmentation
@@ -72,11 +78,17 @@ class CellSegmentationRepository:
         # Channel 3 = Membrane contour
 
         processing_date: str = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        run_id = self._labkey_provider.create_run_id(ALGORITHM, ALGORITHM_VERSION, processing_date)
+        run_id = self._labkey_provider.create_run_id(self.ALGORITHM, self.ALGORITHM_VERSION, processing_date)
 
         # Initialize metadata from input file's metadata, or start over if not available
         metadata = self._get_file_metadata(source_file_id) or {}
         metadata.update({"file": {"file_type": "image"}})
+
+        metadata["provenance"] = {
+            "input_files": [source_file_id],
+            "algorithm": self.ALGORITHM,
+            "algorithm_version": self.ALGORITHM_VERSION
+        }
 
         metadata["content_processing"] = {
             "channels": {
@@ -106,8 +118,8 @@ class CellSegmentationRepository:
         param: processing_date: content processing date
         """
         return {
-                "algorithm": ALGORITHM,
-                "algorithm_version": ALGORITHM_VERSION,
+                "algorithm": self.ALGORITHM,
+                "algorithm_version": self.ALGORITHM_VERSION,
                 "content_type": content_type,
                 "processing_date": processing_date,
                 "run_id": run_id
