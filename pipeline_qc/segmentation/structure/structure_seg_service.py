@@ -14,7 +14,7 @@ from ..configuration import AppConfig
 from .structures import Structures, StructureInfo
 from ..common.fov_file import FovFile
 from ..common.segmentation_result import SegmentationResult, ResultStatus
-from aicssegmentation.structure_wrapper.segmentation_dispatch_service import SegmentationDispatchService
+from aicssegmentation.structure_wrapper.structure_segmenter import StructureSegmenter
 
     
 
@@ -32,7 +32,7 @@ class StructureSegmentationService:
             raise AttributeError("app_config")
         self._repository = repository
         self._config = config
-        self.segmentation_service = SegmentationDispatchService()
+        self.non_ml_segmenter = StructureSegmenter()
         self.log = logging.getLogger(__name__)
 
     def get_fov_records(self, workflows: List, plates: List, cell_lines: List, fovids: List, only_from_fms:bool) -> List[FovFile]:
@@ -163,7 +163,7 @@ class StructureSegmentationService:
         """
         try :
             gene = structure_info.gene
-            return self.segmentation_service.process_img(gene, image)
+            return self.non_ml_segmenter.process_img(gene, image)
         except Exception as e:
             # TODO: as I read the spec, we want to just log failures, not fall over.  Not sure where we want to swallow them
             logging.error(f'Could not process image for gene {gene}: '+str(e))
