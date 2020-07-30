@@ -10,11 +10,12 @@ class StructureInfo:
 
 class Structures:
     struct_map = {
-        "H2B": {"ml": True, "model": "structure_H2B_production", "algo_name": "ML H2B Structure Segmentation", "algo_version": "0.1.0"},
-        "AASV1": {"ml": True, "model": "structure_AAVS1_production", "algo_name": "ML AASV1 Structure Segmentation", "algo_version": "0.1.0"},
+        "HIST1H2BJ": {"ml": True, "model": "structure_H2B_production", "algo_name": "ML H2B Structure Segmentation", "algo_version": "0.1.0"}, #H2B
+        "AAVS1": {"ml": True, "model": "structure_AAVS1_production", "algo_name": "ML AASV1 Structure Segmentation", "algo_version": "0.1.0"},
         "LMNB1": {"ml": True, "model": "LMNB1_morphological_production_alpha", "algo_name": "ML LMNB1 Structure Segmentation", "algo_version": "0.1.0"},
         "ACTB": {"ml": False, "algo_name": "Python ACTB structure segmentation", "algo_version": "1.2.0"},
         "ACTN1": {"ml": False, "algo_name": "Python ACTN1 structure segmentation", "algo_version": "1.1.3"},
+        "ATP2A2": {"ml": False, "algo_name": "Python ATP2A2 structure segmentation", "algo_version:=": "1.0.0"},
         "CETN2": {"ml": False, "algo_name": "Python CETN2 structure segmentation", "algo_version": "1.1.0"},
         "CTNNB1": {"ml": False, "algo_name": "Python CTNNB1 structure segmentation", "algo_version": "1.1.0"},
         "DSP": {"ml": False, "algo_name": "Python DSP structure segmentation", "algo_version": "1.1.1"},

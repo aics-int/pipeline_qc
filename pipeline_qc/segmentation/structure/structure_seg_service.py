@@ -80,7 +80,7 @@ class StructureSegmentationService:
 
             structure = Structures.get(fov.gene)
             if structure is None:
-                msg = f"FOV {fov_id} unsupported structure"
+                msg = f"FOV {fov_id}: unsupported structure: {fov.gene}"
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
