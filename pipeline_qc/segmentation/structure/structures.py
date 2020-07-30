@@ -9,6 +9,7 @@ class StructureInfo:
     algorithm_version: str
 
 class Structures:
+    # no need for cardio structures in this list
     struct_map = {
         "HIST1H2BJ": {"ml": True, "model": "structure_H2B_production", "algo_name": "ML H2B Structure Segmentation", "algo_version": "0.1.0"}, #H2B
         "AAVS1": {"ml": True, "model": "structure_AAVS1_production", "algo_name": "ML AASV1 Structure Segmentation", "algo_version": "0.1.0"},
@@ -21,7 +22,9 @@ class Structures:
         "DSP": {"ml": False, "algo_name": "Python DSP structure segmentation", "algo_version": "1.1.1"},
         "FBL": {"ml": False, "algo_name": "Python FBL structure segmentation", "algo_version": "1.1.3"},
         "GJA1": {"ml": False, "algo_name": "Python GJA1 structure segmentation", "algo_version": "1.1.0"},
+        "H2B": {"ml": True, "model": "structure_H2B_production", "algo_name": "ML H2B Structure Segmentation", "algo_version": "0.1.0"},
         "LAMP1": {"ml": False, "algo_name": "Python LAMP1 structure segmentation", "algo_version": "1.1.0"},
+        "LMNB1": {"ml": True, "model": "LMNB1_morphological_production_alpha", "algo_name": "ML LMNB1 Structure Segmentation", "algo_version": "0.1.0"},
         "MYH10": {"ml": False, "algo_name": "Python MYH10 structure segmentation", "algo_version": "1.2.0"},
         "NPM1": {"ml": False, "algo_name": "Python NPM1 structure segmentation", "algo_version": "1.1.0"},
         "NUP153": {"ml": False, "algo_name": "Python NUP153 structure segmentation", "algo_version": "1.1.0"},
@@ -51,4 +54,4 @@ class Structures:
                              ml_model=cls.struct_map[gene].get("model", None),
                              algorithm_name=cls.struct_map[gene]["algo_name"],
                              algorithm_version=cls.struct_map[gene]["algo_version"])
- 
+
