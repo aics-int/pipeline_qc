@@ -3,6 +3,8 @@ import logging
 import sys
 import traceback
 
+from datetime import datetime
+from logging import FileHandler, StreamHandler, Formatter
 from lkaccess import LabKey
 
 import pipeline_qc.cell_generation.labkey_cell_generation as cell_generation
@@ -11,10 +13,17 @@ from pipeline_qc.image_qc_methods.query_fovs import query_fovs
 # TODO: This config should be refactored to live outside the segmentation folder
 from pipeline_qc.segmentation.configuration import Configuration, AppConfig
 
+INIT_TIME = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+
 
 def _configure_logging(debug: bool):
-    log = logging.getLogger()
-    logging.basicConfig(level=logging.INFO, format='[%(asctime)s][%(levelname)s] %(message)s')
+    f = Formatter(fmt='[%(asctime)s][%(levelname)s] %(message)s')
+    streamHandler = StreamHandler()
+    streamHandler.setFormatter(f)
+    fileHandler = FileHandler(filename=f"cell_gen_cli_{INIT_TIME}.log", mode="w")
+    fileHandler.setFormatter(f)
+    log = logging.getLogger()  # root logger
+    log.handlers = [streamHandler, fileHandler]  # overwrite handlers
     log.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
@@ -32,9 +41,9 @@ class Args(argparse.Namespace):
 
     def __parse(self):
         p = argparse.ArgumentParser(prog='LabKey Cell Generation',
-                                    description='Generates LabKey "Cell" entries for a series of fovs using their '
+                                    description='Generates LabKey "Cell" entries for a series of FOVs using their '
                                                 'latest segmentation results.'
-                                                'Can filter based on workflow, cell line, plate, or specific fovids')
+                                                'Can filter based on workflow, cell line, plate, or specific FOVIds')
 
         p.add_argument('--workflows', nargs='+',
                        help="Array of workflows to run segmentations on. E.g. --workflows '[PIPELINE 4]' '[PIPELINE 4.4'] ",
@@ -83,7 +92,7 @@ def main():
             labkey_host=app_config.labkey_host,
             labkey_port=app_config.labkey_port
         )
-        cell_generation.generate_cells_from_fov_ids(fovs_df, lk)
+        cell_generation.generate_cells_from_fov_ids(fovs_df, lk, init_time=INIT_TIME)
 
         log.info("End cell_gen_cli")
 
