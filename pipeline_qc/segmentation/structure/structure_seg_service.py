@@ -1,16 +1,11 @@
-import numpy as np
-import os
 import aicsimageio
-import traceback
 import logging
+import numpy as np
+import traceback
 
 from typing import List
-from enum import Enum
-from pandas import Series
-from dataclasses import dataclass
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from datetime import datetime
 from aicsimageio.writers import ome_tiff_writer
 from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from model_zoo_3d_segmentation.zoo import SuperModel
@@ -19,6 +14,7 @@ from ..configuration import AppConfig
 from .structures import Structures, StructureInfo
 from ..common.fov_file import FovFile
 from ..common.segmentation_result import SegmentationResult, ResultStatus
+from aicssegmentation.structure_wrapper.segmentation_dispatch_service import SegmentationDispatchService
 
     
 
@@ -36,6 +32,7 @@ class StructureSegmentationService:
             raise AttributeError("app_config")
         self._repository = repository
         self._config = config
+        self.segmentation_service = SegmentationDispatchService()
         self.log = logging.getLogger(__name__)
 
     def get_fov_records(self, workflows: List, plates: List, cell_lines: List, fovids: List, only_from_fms:bool) -> List[FovFile]:
@@ -159,18 +156,18 @@ class StructureSegmentationService:
 
         return sm.apply_on_single_zstack(input_img=image)
 
-    def _segment_from_legacy_wrapper(self, image: np.array, structure_info: StructureInfo) -> (np.array, np.array): 
+    def _segment_from_legacy_wrapper(self, image: np.array, structure_info: StructureInfo) -> (np.array, np.array):
         """
         Segment using legacy wrappers from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/aics-segmentation/browse 
         return: (structure_segmentation, structure_contour)
         """
-        #TODO implement
-        # identify what module to use
-        # load the module
-        # invoke the processing on the module
-        # return the results of the processing (possibly read from file)
-
-        raise NotImplementedError()
+        try :
+            gene = structure_info.gene
+            return self.segmentation_service.process_img(gene, image)
+        except Exception as e:
+            # TODO: as I read the spec, we want to just log failures, not fall over.  Not sure where we want to swallow them
+            logging.error(f'Could not process image for gene {gene}: '+str(e))
+            return (None, None)
 
     def _create_segmentable_image(self, fov: FovFile, ml: bool) -> np.array:
         """
