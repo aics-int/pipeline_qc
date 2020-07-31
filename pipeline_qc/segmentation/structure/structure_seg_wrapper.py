@@ -22,7 +22,7 @@ class StructureSegmentationWrapper(StructureSegmentationWrapperBase):
     """
     Single process Structure Segmentation wrapper
     """
-    def __init__(self, struct_seg_service: Stru, config: AppConfig):
+    def __init__(self, struct_seg_service: StructureSegmentationService, config: AppConfig):
         if struct_seg_service is None:
             raise AttributeError("struct_seg_service")
         if config is None:

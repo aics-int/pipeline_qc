@@ -91,7 +91,7 @@ def configure_logging(debug: bool):
     log.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
-def get_app_root(args: Args) -> CellSegmentationWrapperBase:
+def get_app_root(args: Args) -> StructureSegmentationWrapperBase:
     """
     Build dependency tree and return application root
     """
@@ -110,7 +110,7 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
         cluster_config = GpuClusterConfig(gpu, Configuration.load(f"config/cluster.yaml"))
         return StructureSegmentationWrapperDistributed(service, app_config, cluster_config)
     else:    
-        return StructureSegmentationWrapper(service, app_config0)
+        return StructureSegmentationWrapper(service, app_config)
 
 
 def main():

@@ -65,18 +65,16 @@ class StructureSegmentationService:
         source_file_id = fov.source_image_file_id
         
         try:
-            struct_file_name, contour_file_name = self._get_seg_filename(local_file_path)
-
-            if not process_duplicates and self._repository.segmentation_exists(fov_id):
-                msg = f"FOV {fov_id} has already been segmented"
-                self.log.info(msg)
-                return SegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
-
             structure = Structures.get(fov.gene)
             if structure is None:
                 msg = f"FOV {fov_id}: unsupported structure: {fov.gene}"
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+
+            if not process_duplicates and self._repository.segmentation_exists(fov_id, structure):
+                msg = f"FOV {fov_id} has already been segmented"
+                self.log.info(msg)
+                return SegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
 
             im = self._create_segmentable_image(fov, structure)
             if im is None:
@@ -85,6 +83,8 @@ class StructureSegmentationService:
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             # Segment
+            self.log.info(f'Running structure segmentation on FOV {fov_id}')
+
             structure_segmentation, structure_contour = self._segment_image(im, structure)
             if structure_segmentation is None:
                 msg = f"FOV {fov_id} could not be segmented: returned empty result"
@@ -92,6 +92,8 @@ class StructureSegmentationService:
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             # Handle outputs
+            struct_file_name, contour_file_name = self._get_seg_filename(local_file_path)
+
             if save_to_fms:
                 self.log.info("Uploading structure segmentation to FMS")
 
