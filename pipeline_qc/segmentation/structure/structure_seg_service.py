@@ -71,7 +71,8 @@ class StructureSegmentationService:
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
-            if not process_duplicates and self._repository.segmentation_exists(fov_id, structure):
+            struct_file_name, contour_file_name = self._get_seg_filename(local_file_path)
+            if not process_duplicates and self._repository.segmentation_exists(struct_file_name, structure):
                 msg = f"FOV {fov_id} has already been segmented"
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
@@ -92,7 +93,7 @@ class StructureSegmentationService:
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             # Handle outputs
-            struct_file_name, contour_file_name = self._get_seg_filename(local_file_path)
+
 
             if save_to_fms:
                 self.log.info("Uploading structure segmentation to FMS")

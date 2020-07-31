@@ -2,7 +2,6 @@ import os
 import logging
 
 from pathlib import Path
-from lkaccess import LabKey, QueryFilter
 from datetime import datetime
 from aicsfiles import FileManagementSystem
 from aicsfiles.filter import Filter
@@ -30,7 +29,8 @@ class StructureSegmentationRepository:
             raise AttributeError("config")
         self._fms_client = fms_client
         self._labkey_provider = labkey_provider
-        self._config = config        
+        self._config = config 
+        self.log = logging.getLogger(__name__)       
 
     def upload_structure_segmentation(self, 
                                       structure_info: StructureInfo, 
@@ -94,6 +94,7 @@ class StructureSegmentationRepository:
                                                       run_id)
                 }
             }
+            self.log.info("Uploading contour file")
             self._fms_client.upload_file_sync(contour_path, contour_metadata, timeout=self._config.fms_timeout_in_seconds)
 
         # Segmentation
@@ -108,6 +109,7 @@ class StructureSegmentationRepository:
             }
         }
 
+        self.log.info("Uploading segmentation file")
         self._fms_client.upload_file_sync(segmentation_path, seg_metadata, timeout=self._config.fms_timeout_in_seconds)
 
 

@@ -7,9 +7,9 @@ from logging import FileHandler, StreamHandler, Formatter
 from datetime import datetime
 from pipeline_qc.segmentation.structure.structure_seg_wrapper import StructureSegmentationWrapperBase, StructureSegmentationWrapper, StructureSegmentationWrapperDistributed
 from pipeline_qc.segmentation.structure.structure_seg_service import StructureSegmentationService, StructureSegmenter
-from pipeline_qc.segmentation.structure.structure_seg_repository import StructureSegmentationRepository, FileManagementSystem, LabKey
+from pipeline_qc.segmentation.structure.structure_seg_repository import StructureSegmentationRepository, FileManagementSystem
 from pipeline_qc.segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
-from pipeline_qc.segmentation.common.labkey_provider import LabkeyProvider
+from pipeline_qc.segmentation.common.labkey_provider import LabkeyProvider, LabKey
 
 class Args(argparse.Namespace):
 
