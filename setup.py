@@ -60,6 +60,7 @@ setup(name=PACKAGE_NAME,
               "fov_qc_serial_cli={}.bin.fov_qc_serial_cli:main".format(PACKAGE_NAME),
               "cardio_mip_qc_cli={}.bin.cardio_mip_qc_cli:main".format(PACKAGE_NAME),
               "cell_seg_cli={}.bin.cell_seg_cli:main".format(PACKAGE_NAME),
+              "cell_gen_cli={}.bin.cell_gen_cli:main".format(PACKAGE_NAME),
               "labkey_cell_generation={}.bin.labkey_cell_generation:main".format(PACKAGE_NAME),
               "upload_aligned_files={}.bin.aligned_file_upload:main".format(PACKAGE_NAME)
           ]
