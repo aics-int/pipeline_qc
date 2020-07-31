@@ -14,16 +14,15 @@ from ..configuration import AppConfig
 from .structures import Structures, StructureInfo
 from ..common.fov_file import FovFile
 from ..common.segmentation_result import SegmentationResult, ResultStatus
-from aicssegmentation.structure_wrapper.segmentation_dispatch_service import SegmentationDispatchService
+from aicssegmentation.structure_wrapper.structure_segmenter import StructureSegmenter
 
-    
 
 class StructureSegmentationService:
     """
     Structure Segmentation Service
     Exposes functionality to perform specific structure segmentations on FOVs
     """
-    def __init__(self, legacy_structure_segmenter: SegmentationDispatchService, repository: StructureSegmentationRepository, config: AppConfig):
+    def __init__(self, legacy_structure_segmenter: StructureSegmenter, repository: StructureSegmentationRepository, config: AppConfig):
         if repository is None:
             raise AttributeError("repository")
         if config is None:

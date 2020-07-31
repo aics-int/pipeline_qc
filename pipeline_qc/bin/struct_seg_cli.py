@@ -6,7 +6,7 @@ import traceback
 from logging import FileHandler, StreamHandler, Formatter
 from datetime import datetime
 from pipeline_qc.segmentation.structure.structure_seg_wrapper import StructureSegmentationWrapperBase, StructureSegmentationWrapper, StructureSegmentationWrapperDistributed
-from pipeline_qc.segmentation.structure.structure_seg_service import StructureSegmentationService, SegmentationDispatchService
+from pipeline_qc.segmentation.structure.structure_seg_service import StructureSegmentationService, StructureSegmenter
 from pipeline_qc.segmentation.structure.structure_seg_repository import StructureSegmentationRepository, FileManagementSystem, LabKey
 from pipeline_qc.segmentation.configuration import Configuration, AppConfig, GpuClusterConfig
 from pipeline_qc.segmentation.common.labkey_provider import LabkeyProvider
@@ -102,7 +102,7 @@ def get_app_root(args: Args) -> CellSegmentationWrapperBase:
     labkey = LabKey(host=app_config.labkey_host, port=app_config.labkey_port)
     labkey_provider = LabkeyProvider(labkey)
     repository = StructureSegmentationRepository(fms, labkey_provider, app_config)
-    legacy_segmenter = SegmentationDispatchService()
+    legacy_segmenter = StructureSegmenter()
     service = StructureSegmentationService(legacy_segmenter, repository, app_config)
 
     if args.distributed:

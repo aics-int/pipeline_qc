@@ -15,8 +15,8 @@ class TestStructureSegmentationService:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        from pipeline_qc.segmentation.structure.structure_seg_service import AppConfig, StructureSegmentationService, StructureSegmentationRepository, SegmentationDispatchService
-        self._mock_legacy_segmenter = Mock(spec=SegmentationDispatchService)
+        from pipeline_qc.segmentation.structure.structure_seg_service import AppConfig, StructureSegmentationService, StructureSegmentationRepository, StructureSegmenter
+        self._mock_legacy_segmenter = Mock(spec=StructureSegmenter)
         self._mock_repository = Mock(spec=StructureSegmentationRepository)
         self._structure_seg_service = StructureSegmentationService(self._mock_legacy_segmenter, self._mock_repository, config=Mock(spec=AppConfig))
 
