@@ -15,9 +15,10 @@ class TestStructureSegmentationService:
 
     @pytest.fixture(autouse=True)
     def setup(self):
-        from pipeline_qc.segmentation.structure.structure_seg_service import AppConfig, StructureSegmentationService, StructureSegmentationRepository
+        from pipeline_qc.segmentation.structure.structure_seg_service import AppConfig, StructureSegmentationService, StructureSegmentationRepository, SegmentationDispatchService
+        self._mock_legacy_segmenter = Mock(spec=SegmentationDispatchService)
         self._mock_repository = Mock(spec=StructureSegmentationRepository)
-        self._structure_seg_service = StructureSegmentationService(self._mock_repository, config=Mock(spec=AppConfig))
+        self._structure_seg_service = StructureSegmentationService(self._mock_legacy_segmenter, self._mock_repository, config=Mock(spec=AppConfig))
 
     @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.query_fovs")
     def test_get_fov_records(self, mock_query_fovs: Mock):
@@ -127,8 +128,30 @@ class TestStructureSegmentationService:
         assert result.status == ResultStatus.FAILED
         assert result.message.startswith("Exception") == False
 
-    def test_structure_segmentation_legacy_fails_on_empty_segmentation(self):
-        pass #TODO
+    @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.Structures")
+    @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.file_processing_methods")
+    def test_structure_segmentation_legacy_fails_on_empty_segmentation(self, mock_file_processing_methods: Mock, mock_structures: Mock):
+        # Arrange
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
+        image_data = {
+                      "488nm": numpy.array([1, 2, 3]),
+                      "638nm": numpy.array([4, 5, 6])
+                     }
+        mock_file_processing_methods.split_image_into_channels.return_value = image_data
+        mock_structures.get.return_value = StructureInfo(gene="LMNB1", ml=False, ml_model=None, algorithm_name="test", algorithm_version="1.0")
+        self._mock_repository.segmentation_exists.return_value = False
+        self._mock_legacy_segmenter.process_img.return_value = None
+
+        # Act     
+        result: SegmentationResult = self._structure_seg_service.structure_segmentation(fov, 
+                                                                                        save_to_fms=False, 
+                                                                                        save_to_filesystem=False, 
+                                                                                        output_dir="", 
+                                                                                        process_duplicates=False)
+        # Assert
+        assert result.fov_id == 63
+        assert result.status == ResultStatus.FAILED
+        assert result.message.startswith("Exception") == False
 
     @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.Structures")
     @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.file_processing_methods")
@@ -142,7 +165,7 @@ class TestStructureSegmentationService:
                      }
         struct_info = StructureInfo(gene="H2B", ml=True, ml_model="structure_H2B_production", algorithm_name="ML H2B Structure Segmentation", algorithm_version="0.1.0")
         mock_file_processing_methods.split_image_into_channels.return_value = image_data
-        mock_structures.get.return_value = StructureInfo(gene="LMNB1", ml=True, ml_model="test", algorithm_name="test", algorithm_version="1.0")
+        mock_structures.get.return_value = struct_info
         self._mock_repository.segmentation_exists.return_value = False
 
         # Act     
@@ -156,5 +179,30 @@ class TestStructureSegmentationService:
         assert result.status == ResultStatus.SUCCESS
         mock_super_model.assert_called_once_with(struct_info.ml_model)
 
-    def test_structure_segmentation_ml_happy_path(self):
-        pass #TODO
+    @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.Structures")
+    @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.file_processing_methods")
+    def test_structure_segmentation_legacy_happy_path(self, mock_file_processing_methods: Mock, mock_structures: Mock):
+        # Arrange
+        fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
+        image_data = {
+                      "488nm": numpy.array([1, 2, 3])
+                     }
+        struct_info = StructureInfo(gene="LMNB1", ml=False, ml_model=None, algorithm_name="Python LMNB1 structure segmentation", algorithm_version="1.0.0")
+        mock_file_processing_methods.split_image_into_channels.return_value = image_data
+        mock_structures.get.return_value = struct_info
+        self._mock_repository.segmentation_exists.return_value = False
+        self._mock_legacy_segmenter.process_img.return_value = numpy.array([]), numpy.array([])
+
+        # Act     
+        result: SegmentationResult = self._structure_seg_service.structure_segmentation(fov, 
+                                                                                        save_to_fms=False, 
+                                                                                        save_to_filesystem=False, 
+                                                                                        output_dir="", 
+                                                                                        process_duplicates=False)
+        # Assert
+        assert result.fov_id == 63
+        assert result.status == ResultStatus.SUCCESS
+        self._mock_legacy_segmenter.process_img.assert_called_once()
+        assert self._mock_legacy_segmenter.process_img.call_args[0][0] == fov.gene
+        #numpy arrays need to be compared with array_equal so can't use Mock.assert_called_with(args*)
+        assert numpy.array_equal(self._mock_legacy_segmenter.process_img.call_args[0][1], image_data["488nm"]) == True

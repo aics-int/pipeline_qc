@@ -23,16 +23,14 @@ class StructureSegmentationService:
     Structure Segmentation Service
     Exposes functionality to perform specific structure segmentations on FOVs
     """
-
-
-    def __init__(self, repository: StructureSegmentationRepository, config: AppConfig):
+    def __init__(self, legacy_structure_segmenter: SegmentationDispatchService, repository: StructureSegmentationRepository, config: AppConfig):
         if repository is None:
             raise AttributeError("repository")
         if config is None:
             raise AttributeError("app_config")
         self._repository = repository
         self._config = config
-        self.segmentation_service = SegmentationDispatchService()
+        self._legacy_structure_segmenter = legacy_structure_segmenter
         self.log = logging.getLogger(__name__)
 
     def get_fov_records(self, workflows: List, plates: List, cell_lines: List, fovids: List, only_from_fms:bool) -> List[FovFile]:
@@ -161,13 +159,9 @@ class StructureSegmentationService:
         Segment using legacy wrappers from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/aics-segmentation/browse 
         return: (structure_segmentation, structure_contour)
         """
-        try :
-            gene = structure_info.gene
-            return self.segmentation_service.process_img(gene, image)
-        except Exception as e:
-            # TODO: as I read the spec, we want to just log failures, not fall over.  Not sure where we want to swallow them
-            logging.error(f'Could not process image for gene {gene}: '+str(e))
-            return (None, None)
+        gene = structure_info.gene
+        return self._legacy_structure_segmenter.process_img(gene, image)
+
 
     def _create_segmentable_image(self, fov: FovFile, structure_info: StructureInfo) -> np.array:
         """

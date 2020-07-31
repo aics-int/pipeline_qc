@@ -73,6 +73,7 @@ setup(name=PACKAGE_NAME,
           'aicsfiles>=3.1.16',
           'aicsimageio>=3.2.1',
           'aics_dask_utils',
+          #'aicssegmentation>=0.1.19', TODO - add once tag is ready
           'bokeh',
           'dask',
           'dask_jobqueue',
