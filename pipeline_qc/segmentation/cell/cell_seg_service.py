@@ -81,7 +81,6 @@ class CellSegmentationService:
         :param: output_dir: output directory path when saving to file system (can be network / isilon path)
         :param: process_duplicates: indicate whether to process or skip fov if segmentation already exists in FMS
         """                                
-        self.log.info(f"Start: single_cell_segmentation FOV {fov_id}")
         fov_id = fov.fov_id
         local_file_path = fov.local_file_path
         source_file_id = fov.source_image_file_id
