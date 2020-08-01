@@ -106,7 +106,7 @@ class CellSegmentationService:
             msg = f"Create segmentable image"
             self.log.info(msg)
             print(msg)
-            
+
             im = self._create_segmentable_image(fov)
             if im is None or im.shape[0] != 3:
                 msg = f"FOV {fov_id} incompatible: missing channels or dimensions"
@@ -114,7 +114,9 @@ class CellSegmentationService:
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
             
-            self.log.info(f'Running Segmentation on FOV {fov_id}')
+            msg = f'Running Segmentation on FOV {fov_id}'
+            print(msg)
+            self.log.info(msg)
 
             combined_segmentation = self._segment_from_model(im, model)
             if combined_segmentation is None:
@@ -122,6 +124,10 @@ class CellSegmentationService:
                 print(msg)
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+
+            msg = f"End segmentation processing on FOV {fov_id}"
+            print(msg)
+            self.log.info(msg)
 
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
@@ -138,6 +144,9 @@ class CellSegmentationService:
                 with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{file_name}') as writer:
                     writer.save(combined_segmentation)
 
+            msg = f"End: single_cell_segmentation FOV {fov_id}. Returning."
+            print(msg)
+            self.log.info(msg)
             return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SUCCESS)
 
         except Exception as ex:
