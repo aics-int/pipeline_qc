@@ -81,20 +81,31 @@ class CellSegmentationService:
         :param: output_dir: output directory path when saving to file system (can be network / isilon path)
         :param: process_duplicates: indicate whether to process or skip fov if segmentation already exists in FMS
         """                                
-
+        self.log.info(f"Start: single_cell_segmentation FOV {fov_id}")
         fov_id = fov.fov_id
         local_file_path = fov.local_file_path
         source_file_id = fov.source_image_file_id
         model = self.MODEL_SINGLE_CAMERA if fov.is_single_camera else self.MODEL_DUAL_CAMERA
         
         try:
+            msg = f"Start: single_cell_segmentation FOV {fov_id}"
+            print(msg)
+            self.log.info(msg)
+
             file_name = self._get_seg_filename(local_file_path)
 
+            msg = f"Check if segmentation exists"
+            self.log.info(msg)
+            print(msg)
             if not process_duplicates and self._repository.segmentation_exists(file_name):
                 msg = f"FOV {fov_id} has already been segmented"
                 print(msg)
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
+            
+            msg = f"Create segmentable image"
+            self.log.info(msg)
+            print(msg)
             
             im = self._create_segmentable_image(fov)
             if im is None or im.shape[0] != 3:
