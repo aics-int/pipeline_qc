@@ -78,6 +78,7 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
         """                                
         fovs = self._cell_seg_service.get_fov_records(workflows=workflows, plates=plates, cell_lines=cell_lines, fovids=fovids, only_from_fms=only_from_fms)
 
+        print(f"{len(fovs)} fovs were found to process.")
         self.log.info(f"{len(fovs)} fovs were found to process.")
 
         cluster = SLURMCluster(cores=1, 
@@ -106,4 +107,5 @@ class CellSegmentationDistributedWrapper(CellSegmentationWrapperBase):
             self.log.info("Results:")
             for future, result in as_completed(futures, with_results=True):
                 self.log.info(result)
+                print(result)
         

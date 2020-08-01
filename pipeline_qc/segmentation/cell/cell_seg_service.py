@@ -92,12 +92,14 @@ class CellSegmentationService:
 
             if not process_duplicates and self._repository.segmentation_exists(file_name):
                 msg = f"FOV {fov_id} has already been segmented"
+                print(msg)
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
             
             im = self._create_segmentable_image(fov)
             if im is None or im.shape[0] != 3:
                 msg = f"FOV {fov_id} incompatible: missing channels or dimensions"
+                print(msg)
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
             
@@ -106,11 +108,13 @@ class CellSegmentationService:
             combined_segmentation = self._segment_from_model(im, model)
             if combined_segmentation is None:
                 msg = f"FOV {fov_id} could not be segmented: returned empty result"
+                print(msg)
                 self.log.info(msg)
                 return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             if save_to_fms:
                 self.log.info("Uploading output file to FMS")
+                print("Uploading output file to FMS")
 
                 with TemporaryDirectory() as tmp_dir:
                     local_file_path = f'{tmp_dir}/{file_name}'
@@ -127,6 +131,7 @@ class CellSegmentationService:
 
         except Exception as ex:
             msg = f"Exception while processing FOV {fov_id}: {str(ex)}\n{traceback.format_exc()}"
+            print(msg)
             self.log.info(msg)
             return CellSegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
