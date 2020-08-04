@@ -16,6 +16,12 @@ from ..common.fov_file import FovFile
 from ..common.segmentation_result import SegmentationResult, ResultStatus
 from aicssegmentation.structure_wrapper.structure_segmenter import StructureSegmenter
 
+class IncompatibleImageException(Exception):
+    """
+    Raised on incompatible image detection (image can't be segmented)
+    """
+    def __init__(self, message: str):
+        super().__init__(message)
 
 class StructureSegmentationService:
     """
@@ -77,11 +83,11 @@ class StructureSegmentationService:
                 self.log.info(msg)
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.SKIPPED, message=msg)
 
-            im = self._create_segmentable_image(fov, structure)
-            if im is None:
-                msg = f"FOV {fov_id} incompatible: missing channels or dimensions"
-                self.log.info(msg)
-                return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
+            try:
+                im = self._create_segmentable_image(fov, structure)
+            except IncompatibleImageException as ex:
+                self.log.info(str(ex))
+                return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=str(ex))
 
             # Segment
             self.log.info(f'Running structure segmentation on FOV {fov_id}')
@@ -93,8 +99,6 @@ class StructureSegmentationService:
                 return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
             # Handle outputs
-
-
             if save_to_fms:
                 self.log.info("Uploading structure segmentation to FMS")
 
@@ -162,60 +166,50 @@ class StructureSegmentationService:
         return: (structure_segmentation, structure_contour)
         """
         gene = structure_info.gene
-        return self._legacy_structure_segmenter.process_img(gene, image)
-
+        return self._legacy_structure_segmenter.process_img(gene=gene, image=image)
 
     def _create_segmentable_image(self, fov: FovFile, structure_info: StructureInfo) -> np.array:
         """
-        Create a segmentable image
+        Create a segmentable image by picking the right channels. This method performs channel and dimensions validations.
+        ML structure segmentation requires an image with 2 channels: structure (488nm or 561nm) and membrane (638nm)
+        Legacy structure segmentation requires the image structure channel only
+
         param: fov: fov file info
         param: structure_info: structure info
+        raises: IncompatibleImageException
+        return: image as np.array in format compatible for segmentation
         """
-        if structure_info.ml:
-            return self._create_segmentable_image_ml(fov)
+        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
+
+        channels = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
+
+        if "488nm" in channels and "561nm" in channels:
+            raise IncompatibleImageException(f"""FOV {fov.fov_id} incompatible: detected two structure channels 488nm and 561nm.
+                                              Dual edited FOVs are not supported at this time.""")
+        if "488nm" in channels:
+            struct_channel_name = "488nm"
+        elif "561nm" in channels:
+            struct_channel_name = "561nm"
         else:
-            return self._create_segmentable_image_legacy(fov)
+            raise IncompatibleImageException(f"FOV {fov.fov_id} incompatible: missing channel. Expected 488nm or 561nm structure channel.")
 
-    def _create_segmentable_image_ml(self, fov: FovFile) -> np.array:
-        """
-        Create a segmentable image by picking the right channels
-        ML structure segmentation requires an image with 2 channels: 488nm (structure) and 638nm (membrane)
-        """
-        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
+        if structure_info.ml: # ML validation + transform
+            if "638nm" not in channels:
+                raise IncompatibleImageException(f"FOV {fov.fov_id} incompatible: missing channel. Expected 638nm membrane channel.")
 
-        channel_dict = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
+            for channel in [struct_channel_name, '638nm']:
+                if channels[channel].shape[0] <= 1:  # not a 3D image
+                    raise IncompatibleImageException(f"FOV {fov.fov_id} incompatible: not a 3D image")
+            
+            output_channels = [channels[struct_channel_name], channels["638nm"]]
+            return np.array(output_channels)
 
-        full_im_list = list()
+        else: # Legacy validation + transform
+            struct_channel = channels[struct_channel_name]
+            if struct_channel.shape[0] <= 1: # not a 3D image
+                raise IncompatibleImageException(f"FOV {fov.fov_id} incompatible: not a 3D image")  
 
-        for channel in ['488nm', '638nm']:
-            for channel_name, channel_array in channel_dict.items():
-                if channel_array.shape[0] <= 1: 
-                    return None # not a 3D image
-                if channel_name == channel:
-                    full_im_list.append(channel_array)
-        
-        if(len(full_im_list) != 2):
-            return None
-
-        return np.array(full_im_list)
-
-    def _create_segmentable_image_legacy(self, fov: FovFile) -> np.array:
-        """
-        Create a segmentable image by picking the right channels
-        Legacy structure segmentation requires the image structure channel only
-        """
-        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
-
-        channel_dict = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
-        
-        if "488nm" not in channel_dict:
-            return None
-
-        struct_channel = channel_dict["488nm"]
-        if struct_channel.shape[0] <= 1:
-            return None # not a 3D image
-        
-        return struct_channel
+            return struct_channel          
 
     def _get_seg_filename(self, fov_file_path: str) -> (str, str):
         """
