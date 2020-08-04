@@ -96,6 +96,7 @@ def main():
             plates=args.plates,
             fovids=args.fovids,
             only_from_fms=args.only_from_fms,
+            env = args.env,
             reprocess = args.reprocess
         )
 
