@@ -56,7 +56,7 @@ class Args(argparse.Namespace):
                        default=False, required=False, action='store_true')
         p.add_argument('--output_dir', type=str,
                        help='directory where files should be saved when saving to filesystem (can be isilon)',
-                       default='/allen/aics/microscopy/Aditya/cell_segmentations', required=False)
+                       default='output', required=False)
         p.add_argument('--process_duplicates',
                        help="Re-process segmentation run if existing segmentation is found (default is False)",
                        default=False, required=False, action='store_true')                                              
