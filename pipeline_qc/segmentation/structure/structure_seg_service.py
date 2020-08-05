@@ -1,12 +1,12 @@
 import aicsimageio
 import logging
-import numpy as np
+import numpy
 import traceback
 
 from typing import List
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from aicsimageio.writers import ome_tiff_writer
+from aicsimageio.writers import OmeTiffWriter
 from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
 from model_zoo_3d_segmentation.zoo import SuperModel
 from .structure_seg_repository import StructureSegmentationRepository
@@ -65,12 +65,13 @@ class StructureSegmentationService:
         :param: output_dir: output directory path when saving to file system (can be network / isilon path)
         :param: process_duplicates: indicate whether to process or skip fov if segmentation already exists in FMS
         """               
-
-        fov_id = fov.fov_id
-        local_file_path = fov.local_file_path
-        source_file_id = fov.source_image_file_id
         
         try:
+            fov_id = fov.fov_id
+            local_file_path = fov.local_file_path
+            source_file_id = fov.source_image_file_id
+            original_pixel_size = self._get_physical_pixel_size(local_file_path)
+
             structure = Structures.get(fov.gene)
             if structure is None:
                 msg = f"FOV {fov_id}: unsupported structure: {fov.gene}"
@@ -91,7 +92,7 @@ class StructureSegmentationService:
 
             # Segment
             self.log.info(f'Running structure segmentation on FOV {fov_id}')
-
+            
             structure_segmentation, structure_contour = self._segment_image(im, structure)
             if structure_segmentation is None:
                 msg = f"FOV {fov_id} could not be segmented: returned empty result"
@@ -104,15 +105,13 @@ class StructureSegmentationService:
 
                 with TemporaryDirectory() as tmp_dir:
                     # Segmentation
-                    seg_file_path = f'{tmp_dir}/{struct_file_name}'
-                    with ome_tiff_writer.OmeTiffWriter(seg_file_path) as writer:
-                        writer.save(structure_segmentation)
+                    seg_file_path = f"{tmp_dir}/{struct_file_name}"
+                    self._save_segmentation_as_ome_tiff(structure_segmentation, seg_file_path, original_pixel_size)
                     
                     if structure_contour is not None:
                         # Contour                
-                        contour_file_path = f'{tmp_dir}/{contour_file_name}'
-                        with ome_tiff_writer.OmeTiffWriter(contour_file_path) as writer:
-                            writer.save(structure_contour)
+                        contour_file_path = f"{tmp_dir}/{contour_file_name}"
+                        self._save_contour_as_ome_tiff(structure_contour, contour_file_path, original_pixel_size)
                         self._repository.upload_structure_segmentation(structure, source_file_id, seg_file_path, contour_file_path)                       
                     else:     
                         self._repository.upload_structure_segmentation(structure, source_file_id, seg_file_path)
@@ -121,12 +120,12 @@ class StructureSegmentationService:
             if save_to_filesystem:
                 self.log.info("Saving structure segmentation to filesystem")
                 # Segmentation
-                with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{struct_file_name}') as writer:
-                    writer.save(structure_segmentation)
+                seg_file_path = f"{output_dir}/{struct_file_name}"
+                self._save_segmentation_as_ome_tiff(structure_segmentation, seg_file_path, original_pixel_size)
                 # Contour
                 if structure_contour is not None:
-                    with ome_tiff_writer.OmeTiffWriter(f'{output_dir}/{contour_file_name}') as writer:
-                        writer.save(structure_contour)                    
+                    contour_file_path = f"{output_dir}/{contour_file_name}"
+                    self._save_contour_as_ome_tiff(structure_contour, contour_file_path, original_pixel_size)              
 
             return SegmentationResult(fov_id=fov_id, status=ResultStatus.SUCCESS)
 
@@ -135,7 +134,7 @@ class StructureSegmentationService:
             self.log.info(msg)
             return SegmentationResult(fov_id=fov_id, status=ResultStatus.FAILED, message=msg)
 
-    def _segment_image(self, image: np.array, structure_info: StructureInfo):
+    def _segment_image(self, image: numpy.array, structure_info: StructureInfo):
         """
         Perform structure segmentation
         return: (structure_segmentation, structure_contour)
@@ -151,7 +150,7 @@ class StructureSegmentationService:
         
         return (result, None)
         
-    def _segment_from_model(self, image: np.array, model):
+    def _segment_from_model(self, image: numpy.array, model):
         """
         Segment using ML model
         Uses core ML segmentation code from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/dl_model_zoo/browse 
@@ -160,7 +159,7 @@ class StructureSegmentationService:
 
         return sm.apply_on_single_zstack(input_img=image)
 
-    def _segment_from_legacy_wrapper(self, image: np.array, structure_info: StructureInfo) -> (np.array, np.array):
+    def _segment_from_legacy_wrapper(self, image: numpy.array, structure_info: StructureInfo) -> (numpy.array, numpy.array):
         """
         Segment using legacy wrappers from https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/aics-segmentation/browse 
         return: (structure_segmentation, structure_contour)
@@ -168,7 +167,7 @@ class StructureSegmentationService:
         gene = structure_info.gene
         return self._legacy_structure_segmenter.process_img(gene=gene, image=image)
 
-    def _create_segmentable_image(self, fov: FovFile, structure_info: StructureInfo) -> np.array:
+    def _create_segmentable_image(self, fov: FovFile, structure_info: StructureInfo) -> numpy.array:
         """
         Create a segmentable image by picking the right channels. This method performs channel and dimensions validations.
         ML structure segmentation requires an image with 2 channels: structure (488nm or 561nm) and membrane (638nm)
@@ -177,7 +176,7 @@ class StructureSegmentationService:
         param: fov: fov file info
         param: structure_info: structure info
         raises: IncompatibleImageException
-        return: image as np.array in format compatible for segmentation
+        return: image as numpy.array in format compatible for segmentation
         """
         aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
 
@@ -202,7 +201,7 @@ class StructureSegmentationService:
                     raise IncompatibleImageException(f"FOV {fov.fov_id} incompatible: not a 3D image")
             
             output_channels = [channels[struct_channel_name], channels["638nm"]]
-            return np.array(output_channels)
+            return numpy.array(output_channels)
 
         else: # Legacy validation + transform
             struct_channel = channels[struct_channel_name]
@@ -228,4 +227,31 @@ class StructureSegmentationService:
         file_prefix = file_prefix.replace("-alignV2", "").replace("alignV2", "") # get rid of alignV2 in all its forms
         
         return (f"{file_prefix}_struct_segmentation.tiff", f"{file_prefix}_struct_contour.tiff")
-        
+
+    def _get_physical_pixel_size(self, filepath: str) -> str:
+        """
+        Read and return the physical pixel size from a source image
+        """
+        aicsimageio.use_dask(False)
+
+        img = aicsimageio.AICSImage(filepath)
+        return img.get_physical_pixel_size()
+
+    def _save_segmentation_as_ome_tiff(self, image: numpy.array, filepath: str, pixel_size: str):
+        channel_names = ["structure_segmentation"]
+        self._save_as_ome_tiff(image, filepath, channel_names, pixel_size)
+
+    def _save_contour_as_ome_tiff(self, image: numpy.array, filepath: str, pixel_size: str):
+        channel_names = ["structure_contour"]
+        self._save_as_ome_tiff(image, filepath, channel_names, pixel_size)
+
+    def _save_as_ome_tiff(self, image: numpy.array, filepath: str, channel_names: list, pixel_size: str):
+        """
+        Save image as ome tiff to disk, with OME metadata
+        param: image: image data as numpy array
+        param: filepath: path to save to
+        param: channel_names: channel names in correct order (for metadata)
+        param: pixel_size: physical pixel size (for metadata)
+        """
+        with OmeTiffWriter(filepath) as writer:
+            writer.save(data=image, channel_names=channel_names, pixels_physical_size=pixel_size)

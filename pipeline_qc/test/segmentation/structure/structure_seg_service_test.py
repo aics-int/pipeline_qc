@@ -13,12 +13,15 @@ from pipeline_qc.segmentation.structure.structures import StructureInfo
                     reason=f"Import errors on Jenkins. Can't install all necessary modules through gradle + setup.py.")
 class TestStructureSegmentationService:
 
-    @pytest.fixture(autouse=True)
+    
+    @pytest.fixture(autouse=True)  
     def setup(self):
         from pipeline_qc.segmentation.structure.structure_seg_service import AppConfig, StructureSegmentationService, StructureSegmentationRepository, StructureSegmenter
         self._mock_legacy_segmenter = Mock(spec=StructureSegmenter)
         self._mock_repository = Mock(spec=StructureSegmentationRepository)
         self._structure_seg_service = StructureSegmentationService(self._mock_legacy_segmenter, self._mock_repository, config=Mock(spec=AppConfig))
+        with mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.aicsimageio.AICSImage"):
+            yield
 
     @mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.query_fovs")
     def test_get_fov_records(self, mock_query_fovs: Mock):
@@ -41,7 +44,7 @@ class TestStructureSegmentationService:
         assert len(result) == 3
         assert result[0].fov_id == 63
         assert result[1].fov_id == 64
-        assert result[2].fov_id == 65    
+        assert result[2].fov_id == 65  
 
     def test_structure_segmentation_skips_existing_fov(self):
         # Arrange       
