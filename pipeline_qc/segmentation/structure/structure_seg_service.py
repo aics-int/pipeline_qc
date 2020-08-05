@@ -254,4 +254,4 @@ class StructureSegmentationService:
         param: pixel_size: physical pixel size (for metadata)
         """
         with OmeTiffWriter(filepath) as writer:
-            writer.save(data=image, channel_names=channel_names, pixels_physical_size=pixel_size)
+            writer.save(data=image, channel_names=channel_names, pixels_physical_size=pixel_size, dimension_order="TCZYX")

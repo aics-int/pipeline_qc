@@ -16,7 +16,7 @@ class Args(argparse.Namespace):
     def __init__(self):
         super().__init__()
         # Arguments that could be passed in through the command line
-        self.output_dir = '/allen/aics/microscopy/Aditya/structure_segmentations'
+        self.output_dir = 'output'
         self.workflows = None
         self.cell_lines = None
         self.plates = None

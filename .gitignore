@@ -25,3 +25,4 @@ activate
 *.log
 
 dask-worker-space
+output
