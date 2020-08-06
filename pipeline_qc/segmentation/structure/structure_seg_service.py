@@ -183,8 +183,7 @@ class StructureSegmentationService:
         channels = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
 
         if "488nm" in channels and "561nm" in channels:
-            raise IncompatibleImageException(f"""FOV {fov.fov_id} incompatible: detected two structure channels 488nm and 561nm.
-                                              Dual edited FOVs are not supported at this time.""")
+            raise IncompatibleImageException(f"FOV {fov.fov_id} incompatible: detected two structure channels 488nm and 561nm. Dual edited FOVs are not supported at this time.")
         if "488nm" in channels:
             struct_channel_name = "488nm"
         elif "561nm" in channels:
@@ -253,5 +252,5 @@ class StructureSegmentationService:
         param: channel_names: channel names in correct order (for metadata)
         param: pixel_size: physical pixel size (for metadata)
         """
-        with OmeTiffWriter(filepath) as writer:
-            writer.save(data=image, channel_names=channel_names, pixels_physical_size=pixel_size, dimension_order="TCZYX")
+        with OmeTiffWriter(filepath, overwrite_file=True) as writer:
+            writer.save(data=image, channel_names=channel_names, pixels_physical_size=pixel_size, dimension_order="ZYX")
