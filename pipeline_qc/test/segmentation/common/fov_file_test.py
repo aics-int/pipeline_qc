@@ -1,7 +1,7 @@
 import pytest
 
 from pandas import Series
-from pipeline_qc.segmentation.fov_file import FovFile
+from pipeline_qc.segmentation.common.fov_file import FovFile
 
 class TestFovFile:
 
@@ -11,8 +11,9 @@ class TestFovFile:
         expected_workflow = "Pipeline 4.4"
         expected_local_path = "/allen/aics/some/place/file.tiff"
         expected_source_file_id = "abcdef123456"
-        row = Series(index=["fovid", "workflow", "localfilepath", "sourceimagefileid"],
-                     data=[expected_fov_id, [expected_workflow], expected_local_path, expected_source_file_id])
+        expected_gene = "LMNB1"
+        row = Series(index=["fovid", "workflow", "localfilepath", "sourceimagefileid", "gene"],
+                     data=[expected_fov_id, [expected_workflow], expected_local_path, expected_source_file_id, expected_gene])
         
         # Act
         fov = FovFile.from_dataframe_row(row)
@@ -22,6 +23,7 @@ class TestFovFile:
         assert fov.workflow == expected_workflow
         assert fov.local_file_path == expected_local_path
         assert fov.source_image_file_id == expected_source_file_id
+        assert fov.gene == expected_gene
 
 
     @pytest.mark.parametrize("workflow,expected", 
@@ -36,7 +38,7 @@ class TestFovFile:
                              ])
     def test_is_single_camera(self, workflow: str, expected: bool):
         # Act
-        fov = FovFile(fov_id=63, workflow=workflow, local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456")
+        fov = FovFile(fov_id=63, workflow=workflow, local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
 
         # Assert
         assert fov.is_single_camera == expected

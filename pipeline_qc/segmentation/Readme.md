@@ -1,5 +1,5 @@
-# Single cell segmentation
-A pipeline friendly wrapper for Single Cell ML Segmentation. This module wraps the [Model zoo 3D Segmentation code](https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/dl_model_zoo/browse?at=refs%2Ftags%2F0.1.0-pipeline-compatible) which runs on GPU processing.
+# Single cell and structure segmentation
+A pipeline friendly wrapper for Single Cell ML Segmentation and Structure Segmentation. This module wraps the [Model zoo 3D Segmentation code](https://aicsbitbucket.corp.alleninstitute.org/projects/ASSAY/repos/dl_model_zoo/browse?at=refs%2Ftags%2F0.1.0-pipeline-compatible) which runs on GPU processing.
 
 ## Local setup
 ### Prerequisites

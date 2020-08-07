@@ -11,6 +11,7 @@ class FovFile:
     workflow: str
     local_file_path: str
     source_image_file_id: str
+    gene: str
 
     @property
     def is_single_camera(self) -> bool:
@@ -31,5 +32,6 @@ class FovFile:
         return FovFile(fov_id=row["fovid"],
                        workflow=row["workflow"][0],
                        local_file_path=row["localfilepath"],
-                       source_image_file_id=row["sourceimagefileid"]
+                       source_image_file_id=row["sourceimagefileid"],
+                       gene=row["gene"]
                        )
