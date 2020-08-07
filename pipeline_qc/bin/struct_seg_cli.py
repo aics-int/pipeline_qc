@@ -16,7 +16,7 @@ class Args(argparse.Namespace):
     def __init__(self):
         super().__init__()
         # Arguments that could be passed in through the command line
-        self.output_dir = 'output'
+        self.output_dir = 'structure_segmentation_output'
         self.workflows = None
         self.cell_lines = None
         self.plates = None
@@ -56,7 +56,7 @@ class Args(argparse.Namespace):
                        default=False, required=False, action='store_true')
         p.add_argument('--output_dir', type=str,
                        help='directory where files should be saved when saving to filesystem (can be isilon)',
-                       default='output', required=False)
+                       default='structure_segmentation_output', required=False)
         p.add_argument('--process_duplicates',
                        help="Re-process segmentation run if existing segmentation is found (default is False)",
                        default=False, required=False, action='store_true')                                              
