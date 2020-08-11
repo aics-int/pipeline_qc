@@ -50,6 +50,7 @@ class StructureSegmentationWrapper(StructureSegmentationWrapperBase):
                                                             save_to_filesystem=save_to_filesystem,
                                                             output_dir=output_dir,
                                                             process_duplicates=process_duplicates)
+            self.log.info(result)
 
 
 class StructureSegmentationWrapperDistributed(StructureSegmentationWrapperBase):
