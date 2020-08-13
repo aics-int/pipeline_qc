@@ -45,11 +45,11 @@ class StructureSegmentationWrapper(StructureSegmentationWrapperBase):
 
 
         for fov in fovs:
-            self._struct_seg_service.structure_segmentation(fov, 
-                                                            save_to_fms=save_to_fms, 
-                                                            save_to_filesystem=save_to_filesystem,
-                                                            output_dir=output_dir,
-                                                            process_duplicates=process_duplicates)
+            result = self._struct_seg_service.structure_segmentation(fov, 
+                                                                     save_to_fms=save_to_fms, 
+                                                                     save_to_filesystem=save_to_filesystem,
+                                                                     output_dir=output_dir,
+                                                                     process_duplicates=process_duplicates)
             self.log.info(result)
 
 
