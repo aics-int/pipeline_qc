@@ -1,6 +1,5 @@
 """
-This sample script will get deployed in the bin directory of the
-users' virtualenv when the parent module is installed using pip.
+This script will allow us to call the fov_qc_post_processing script through a cli
 """
 
 import argparse
@@ -53,8 +52,6 @@ def main():
     dbg = args.debug
 
     try:
-        # Do your work here - preferably in a class or function,
-        # passing in your args. E.g.
         fov_qc_post_processing.update_qc_data_labkey(
             df=fov_qc_post_processing.z_score_stat_generation(),
             env = args.env,
