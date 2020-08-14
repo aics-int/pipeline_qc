@@ -58,7 +58,7 @@ setup(name=PACKAGE_NAME,
           "console_scripts": [
               "fov_qc_cli={}.bin.fov_qc_cli:main".format(PACKAGE_NAME),
               "fov_qc_serial_cli={}.bin.fov_qc_serial_cli:main".format(PACKAGE_NAME),
-              "fov_qc_post_processing_cli={}.bin.fov_qc_serial_cli:main".format(PACKAGE_NAME),
+              "fov_qc_post_processing_cli={}.bin.fov_qc_post_processing_cli:main".format(PACKAGE_NAME),
               "cardio_mip_qc_cli={}.bin.cardio_mip_qc_cli:main".format(PACKAGE_NAME),
               "cell_seg_cli={}.bin.cell_seg_cli:main".format(PACKAGE_NAME),
               "struct_seg_cli={}.bin.struct_seg_cli:main".format(PACKAGE_NAME),
