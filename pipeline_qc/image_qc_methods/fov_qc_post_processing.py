@@ -1,14 +1,6 @@
-from datetime import datetime
-from pathlib import Path
-from typing import NamedTuple
 import numpy as np
 
 import pandas as pd
-from aics_dask_utils import DistributedHandler
-import dask.config
-import aicsimageio
-from dask_jobqueue import SLURMCluster
-from pipeline_qc import detect_edge, detect_z_stack_false_clip
 from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
                                           query_fovs, z_stack_check)
 from labkey.utils import create_server_context
@@ -128,7 +120,19 @@ def update_qc_data_labkey(df, env):
                          '_405nm 99_5_intensity', 'sourceimagefileid', 'fovimagedate',
                          'instrument', 'localfilepath', 'wellname', 'barcode', 'cellline',
                          'workflow', 'imaging_mode', 'gene', 'latest_segmentation_filename',
-                         'latest_segmentation_readpath', 'latest_segmentation_metadata'], axis=1)
+                         'latest_segmentation_readpath', 'latest_segmentation_metadata',
+                         '_405nm_all_z_score', '_405nm_barcode_z_score', '_405nm_cellline_z_score',
+                         '_405nm_imaging_mode_z_score', '_405nm_instrument_z_score', '_405nm_workflow_z_score',
+                         '_405nm_raw_pass', '_488nm_all_z_score', '_488nm_barcode_z_score', '_488nm_cellline_z_score',
+                         '_488nm_imaging_mode_z_score', '_488nm_instrument_z_score', '_488nm_workflow_z_score',
+                         '_488nm_raw_pass', '_561nm_all_z_score', '_561nm_barcode_z_score', '_561nm_cellline_z_score',
+                         '_561nm_imaging_mode_z_score', '_561nm_instrument_z_score', '_561nm_workflow_z_score',
+                         '_561nm_raw_pass', '_638nm_all_z_score', '_638nm_barcode_z_score', '_638nm_cellline_z_score',
+                         '_638nm_imaging_mode_z_score', '_638nm_instrument_z_score', '_638nm_workflow_z_score',
+                         '_638nm_raw_pass', '_brightfield_all_z_score', '_brightfield_barcode_z_score',
+                         '_brightfield_cellline_z_score', '_brightfield_imaging_mode_z_score',
+                         '_brightfield_instrument_z_score', '_brightfield_workflow_z_score','_brightfield_raw_pass',
+                         '_Pass_intensity'], axis=1)
 
     for i, row in upload_df.iterrows():
         row_dict = row.drop(['fovid']).to_dict()
