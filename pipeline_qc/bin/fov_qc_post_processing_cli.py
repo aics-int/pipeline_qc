@@ -54,7 +54,7 @@ def main():
     try:
         fov_qc_post_processing.update_qc_data_labkey(
             df=fov_qc_post_processing.z_score_stat_generation(),
-            env = args.env,
+            env = args.env
         )
 
     except Exception as e:

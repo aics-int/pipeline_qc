@@ -109,9 +109,11 @@ def update_qc_data_labkey(df, env):
         row_dict = row.drop(['fovid']).to_dict()
         upload_row = {key:(str(value) if value else None) for (key, value) in row_dict.items()}
         upload_row['FovId'] = row['fovid']
+        print(f"Processing {row['fovid']}")
         lk.update_rows(
             schema_name='lists',
             query_name='FOV QC Metrics',
             rows=[upload_row]
         )
+
 
