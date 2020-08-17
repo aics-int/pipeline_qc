@@ -36,7 +36,8 @@ def query_fovs_from_fms(workflows=None, cell_lines=None, plates=None, fovids=Non
         SELECT f.fileid,
                ff.fovid,
                -- LabKey returns weirdly inconsistent date strings - sometimes they're 25 characters long, sometimes
-               --  they're 26. If we shorten them arbitrarily we
+               --  they're 26. If we shorten them arbitrarily we can maintain the same functionality on a more
+               --  consistent basis.
                SUBSTRING(CAST(f.created AS VARCHAR), 0, 22)||' '||f.filename AS filename,
                SUBSTRING(CAST(f.created AS VARCHAR), 0, 22)||' '||f.localfilepath AS readpath,
                SUBSTRING(CAST(f.created AS VARCHAR), 0, 22)||' '||f.metadata AS metadata
