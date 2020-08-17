@@ -35,9 +35,11 @@ def query_fovs_from_fms(workflows=None, cell_lines=None, plates=None, fovids=Non
     WITH CellNucSegFiles AS (
         SELECT f.fileid,
                ff.fovid,
-               (f.created||' '||f.filename) AS filename,
-               (f.created||' '||f.localfilepath) AS readpath,
-               (f.created||' '||f.metadata) AS metadata
+               -- LabKey returns weirdly inconsistent date strings - sometimes they're 25 characters long, sometimes
+               --  they're 26. If we shorten them arbitrarily we
+               SUBSTRING(CAST(f.created AS VARCHAR), 0, 22)||' '||f.filename AS filename,
+               SUBSTRING(CAST(f.created AS VARCHAR), 0, 22)||' '||f.localfilepath AS readpath,
+               SUBSTRING(CAST(f.created AS VARCHAR), 0, 22)||' '||f.metadata AS metadata
         FROM fms.file f
             JOIN microscopy.filefov ff ON ff.fileid = f.fileid
         WHERE f.filename LIKE '%CellNucSegCombined%'
@@ -55,9 +57,9 @@ def query_fovs_from_fms(workflows=None, cell_lines=None, plates=None, fovids=Non
            cldef.geneid.name as gene,
            -- Here we use SUBSTRING() to chop off the added "created" dates from above, which are used to grab the
            -- most recent segmentation info. Dates returned from LabKey are of the format '2000-00-00 00:00:00.00000'
-           SUBSTRING(MAX(CellNucSegFiles.filename), 27) AS latest_segmentation_filename,
-           SUBSTRING(MAX(CellNucSegFiles.readpath), 27) AS latest_segmentation_readpath,
-           SUBSTRING(MAX(CellNucSegFiles.metadata), 27) AS latest_segmentation_metadata
+           SUBSTRING(MAX(CellNucSegFiles.filename), 23) AS latest_segmentation_filename,
+           SUBSTRING(MAX(CellNucSegFiles.readpath), 23) AS latest_segmentation_readpath,
+           SUBSTRING(MAX(CellNucSegFiles.metadata), 23) AS latest_segmentation_metadata
     FROM microscopy.fov as fov
         INNER JOIN microscopy.well as well on fov.wellid = well.wellid
         INNER JOIN microscopy.plate as plate on well.plateid = plate.plateid
