@@ -107,7 +107,7 @@ def update_qc_data_labkey(df, env):
 
     for i, row in upload_df.iterrows():
         row_dict = row.drop(['fovid']).to_dict()
-        upload_row = {key:(str(value) if value else None) for (key, value) in row_dict.items()}
+        upload_row = {key:value for (key, value) in row_dict.items()}
         print(f"Processing {row['fovid']}")
         lk.update_rows(
             schema_name='lists',
