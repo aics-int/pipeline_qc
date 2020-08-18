@@ -103,7 +103,7 @@ def update_qc_data_labkey(df, env):
         '638nm_cellline_z_score', '638nm_barcode_z_score', '638nm_workflow_z_score', '638nm_imaging_mode_z_score',
         'brightfield_raw_pass', 'brightfield_all_z_score', 'brightfield_instrument_z_score',
         'brightfield_cellline_z_score', 'brightfield_barcode_z_score', 'brightfield_workflow_z_score',
-        'brightfield_imaging_mode_z_score', 'Pass_intensity']]
+        'brightfield_imaging_mode_z_score', 'Pass_intensity']].fillna(0)
 
     for i, row in upload_df.iterrows():
         row_dict = row.drop(['fovid']).to_dict()
