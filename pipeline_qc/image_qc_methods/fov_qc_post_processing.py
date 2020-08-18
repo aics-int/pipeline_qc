@@ -94,7 +94,7 @@ def update_qc_data_labkey(df, env):
     lk = LabKey(server_context=context)
 
     upload_df = df[[
-        'Key','405nm_raw_pass', '405nm_all_z_score', '405nm_instrument_z_score', '405nm_cellline_z_score',
+        'Key', 'fovid', '405nm_raw_pass', '405nm_all_z_score', '405nm_instrument_z_score', '405nm_cellline_z_score',
         '405nm_barcode_z_score', '405nm_workflow_z_score', '405nm_imaging_mode_z_score', '488nm_raw_pass',
         '488nm_all_z_score', '488nm_instrument_z_score', '488nm_cellline_z_score', '488nm_barcode_z_score',
         '488nm_workflow_z_score', '488nm_imaging_mode_z_score', '561nm_raw_pass', '561nm_all_z_score',
