@@ -119,23 +119,20 @@ class StructureSegmentationRepository:
         param: fov_id: the FOV id
         return: True if segmentation already exists, False otherwise
         """
-        # 1) check that file exists
+        # 1) check that one or more file exists
         query = Filter().with_file_name(filename)
         result = self._fms_client.query_files(query)
         if result is None or len(result) == 0:
             return False
         
-        # 2) check that run_id exists with current algorithm        
-        metadata = result[0]
-        run_id = metadata.get("content_processing", {}).get("channels", {}).get("0", {}).get("run_id", None)
-        if run_id is None:
-            return False
+        # 2) look for any file processed with current algorithm     
+        for metadata in result:
+            algorithm = metadata.get("content_processing", {}).get("channels", {}).get("0", {}).get("algorithm", None)
+            algorithm_version = metadata.get("content_processing", {}).get("channels", {}).get("0", {}).get("algorithm_version", None)
+            if algorithm == structure_info.algorithm_name and algorithm_version == structure_info.algorithm_version:
+                return True
 
-        run: RunInfo = self._labkey_provider.get_run_by_id(run_id)
-        if run is None:
-            return False
-
-        return (run.algorithm_name == structure_info.algorithm_name and run.algorithm_version == structure_info.algorithm_version)
+        return False
 
         
 
