@@ -16,7 +16,7 @@ class Structures:
         "ACTB": {"ml": False, "algo_name": "Python ACTB structure segmentation", "algo_version": "1.2.0"},
         "ACTN1": {"ml": False, "algo_name": "Python ACTN1 structure segmentation", "algo_version": "1.1.3"},
         "ATP2A2": {"ml": False, "algo_name": "Python ATP2A2 structure segmentation", "algo_version": "1.0.0"},
-        "CETN2": {"ml": False, "algo_name": "Python CETN2 structure segmentation", "algo_version": "1.1.0"},
+        "CETN2": {"ml": False, "algo_name": "Python CETN2 structure segmentation", "algo_version": "1.2.0"},
         "CTNNB1": {"ml": False, "algo_name": "Python CTNNB1 structure segmentation", "algo_version": "1.1.0"},
         "DSP": {"ml": False, "algo_name": "Python DSP structure segmentation", "algo_version": "1.1.1"},
         "FBL": {"ml": False, "algo_name": "Python FBL structure segmentation", "algo_version": "1.1.3"},
