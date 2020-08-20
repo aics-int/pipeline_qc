@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 import pandas as pd
 from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
@@ -9,10 +10,10 @@ from lkaccess import LabKey
 import labkey
 
 RAW_CUTOFFS = {'405nm':[400, 430],
-               '488nm':[400, 900],
-               '561nm':[400, 900],
+               '488nm':[400, 1600],
+               '561nm':[400, 700],
                '638nm':[400, 8000],
-               'brightfield':[0, 20000]}
+               'brightfield':[0, 50000]}
 
 def create_full_dataset():
 
@@ -62,15 +63,38 @@ def z_score_stat_generation():
 
 
     for i, row in full_df.iterrows():
-        if ((row['405nm_all_z_score'] < -2.58) or
-                (row['488nm_cellline_z_score'] < -2.58) or
-                (row['638nm_all_z_score'] < -2.58) or
-                (row['405nm_raw_pass'] == False) or
-                (row['488nm_raw_pass'] == False) or
-                (row['638nm_raw_pass'] == False)):
-            full_df.at[i, 'Pass_intensity'] = False
+        if ~(math.isnan(row['_488nm median_intensity'])) and (math.isnan(row['_561nm median_intensity'])):
+            if ((row['405nm_all_z_score'] < -2.58) or
+                    (row['488nm_cellline_z_score'] < -2.58) or
+                    (row['638nm_all_z_score'] < -2.58) or
+                    (row['405nm_raw_pass'] == False) or
+                    (row['488nm_raw_pass'] == False) or
+                    (row['638nm_raw_pass'] == False)):
+                full_df.at[i, 'Pass_intensity'] = False
+            else:
+                full_df.at[i, 'Pass_intensity'] = True
+        elif (math.isnan(row['_488nm median_intensity'])) and ~(math.isnan(row['_561nm median_intensity'])):
+            if ((row['405nm_all_z_score'] < -2.58) or
+                    (row['561nm_cellline_z_score'] < -2.58) or
+                    (row['638nm_all_z_score'] < -2.58) or
+                    (row['405nm_raw_pass'] == False) or
+                    (row['561nm_raw_pass'] == False) or
+                    (row['638nm_raw_pass'] == False)):
+                full_df.at[i, 'Pass_intensity'] = False
+            else:
+                full_df.at[i, 'Pass_intensity'] = True
         else:
-            full_df.at[i, 'Pass_intensity'] = True
+            if ((row['405nm_all_z_score'] < -2.58) or
+                    (row['488nm_cellline_z_score'] < -2.58) or
+                    (row['561nm_cellline_z_score'] < -2.58) or
+                    (row['638nm_all_z_score'] < -2.58) or
+                    (row['405nm_raw_pass'] == False) or
+                    (row['488nm_raw_pass'] == False) or
+                    (row['561nm_raw_pass'] == False) or
+                    (row['638nm_raw_pass'] == False)):
+                full_df.at[i, 'Pass_intensity'] = False
+            else:
+                full_df.at[i, 'Pass_intensity'] = True
 
     return full_df
 
