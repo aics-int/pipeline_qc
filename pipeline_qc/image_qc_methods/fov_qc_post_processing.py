@@ -107,12 +107,23 @@ def update_qc_data_labkey(df, env):
 
     for i, row in upload_df.iterrows():
         row_dict = row.drop(['fovid']).to_dict()
-        upload_row = {key:value for (key, value) in row_dict.items()}
+        upload_row = {key: value for (key, value) in row_dict.items()}
         print(f"Processing {row['fovid']}")
         lk.update_rows(
             schema_name='lists',
             query_name='FOV QC Metrics',
             rows=[upload_row]
+        )
+        lk.update_rows(
+            schema_name='microscopy',
+            query_name='FOV',
+            rows=[{
+                'FOVId': row['fovid'],
+                'QCPassIntensity': row['Pass_intensity'],
+                'QC638nmCropBottomFalseClip': row['???'],
+                'QC638nmCropTopFalseClip': row['???'],
+                'QCBrightfieldZStacksOutOfOrder': row['???']
+            }]
         )
 
 
