@@ -65,21 +65,37 @@ class TestStructureSegmentationRepository:
         metadata = self._mock_fms_client.upload_file_sync.call_args[0][1]
         assert metadata["microscopy"]["fov_id"] == "9999" 
 
-    def test_segmentation_exists_found(self):
+    def test_segmentation_exists_found_single_file(self):
          # Arrange
-        expected_algo_name = "ML H2B Structure Segmentation"
-        expected_algo_version = "0.1.0"
-        self._mock_fms_client.query_files.return_value = [{"file_id": "1234", "file_name": "struct.tiff", 
-                                                           "content_processing": {"channels": {"0": {"run_id": 1234}}}}]      
-        struct_info = StructureInfo(gene="H2B", ml=True, ml_model="structure_H2B_production", algorithm_name=expected_algo_name, algorithm_version=expected_algo_version)
-        run_info = RunInfo(run_id=1234, algorithm_id=1, algorithm_name=expected_algo_name, algorithm_version=expected_algo_version, execution_date="20200729")
-        self._mock_labkey_provider.get_run_by_id.return_value = run_info
+        algorithm = "ML H2B Structure Segmentation"
+        algorithm_version = "0.1.0"
+        self._mock_fms_client.query_files.return_value = [
+            {"file_id": "1234", "file_name": "struct.tiff", "content_processing": {"channels": {"0": {"run_id": 1234, "algorithm": algorithm, "algorithm_version": algorithm_version}}}}
+        ]      
+        struct_info = StructureInfo(gene="H2B", ml=True, ml_model="structure_H2B_production", algorithm_name=algorithm, algorithm_version=algorithm_version)
 
         # Act
         exists = self._struct_seg_repository.segmentation_exists("struct.tiff", struct_info)
 
         # Assert
         assert exists == True
+    
+    def test_segmentation_exists_found_multiple_files(self):
+         # Arrange
+        algorithm = "ML H2B Structure Segmentation"
+        algorithm_version = "0.1.0"
+        self._mock_fms_client.query_files.return_value = [
+            {"file_id": "1234", "file_name": "struct.tiff","content_processing": {"channels": {"0": {"run_id": 1234}}}},
+            {"file_id": "1234", "file_name": "struct.tiff","content_processing": {"channels": {"0": {"run_id": 5678}}}},
+            {"file_id": "1234", "file_name": "struct.tiff","content_processing": {"channels": {"0": {"run_id": 9999, "algorithm": algorithm, "algorithm_version": algorithm_version}}}}
+        ]      
+        struct_info = StructureInfo(gene="H2B", ml=True, ml_model="structure_H2B_production", algorithm_name=algorithm, algorithm_version=algorithm_version)
+
+        # Act
+        exists = self._struct_seg_repository.segmentation_exists("struct.tiff", struct_info)
+
+        # Assert
+        assert exists == True        
     
     @pytest.mark.parametrize("result", [None, []])
     def test_segmentation_exists_file_not_found(self, result):
@@ -93,7 +109,7 @@ class TestStructureSegmentationRepository:
         # Assert
         assert exists == False
 
-    def test_segmentation_exists_no_run_id(self):
+    def test_segmentation_exists_no_algorithm_info(self):
          # Arrange
         self._mock_fms_client.query_files.return_value = [{"file_id": "1234", "file_name": "struct.tiff"}]      
         struct_info = StructureInfo(gene="H2B", ml=True, ml_model="structure_H2B_production", algorithm_name="ML H2B Structure Segmentation", algorithm_version="0.1.0")
@@ -104,17 +120,17 @@ class TestStructureSegmentationRepository:
         # Assert
         assert exists == False
 
-
-    def test_segmentation_exists_bad_run_id(self):
+    def test_segmentation_exists_mismatch_algorithm_info(self):
          # Arrange
-        self._mock_fms_client.query_files.return_value = [{"file_id": "1234", "file_name": "struct.tiff", 
-                                                           "content_processing": {"channels": {"0": {"run_id": 1234}}}}]      
+        self._mock_fms_client.query_files.return_value = [
+            {"file_id": "1234", "file_name": "struct.tiff", "content_processing": {"channels": {"0": {"run_id": 1234, "algorithm": "old algorithm", "algorithm_version": "0.0.0"}}}},
+            {"file_id": "1234", "file_name": "struct.tiff", "content_processing": {"channels": {"0": {"run_id": 1234, "algorithm": "old algorithm", "algorithm_version": "0.1.0"}}}},
+            {"file_id": "1234", "file_name": "struct.tiff", "content_processing": {"channels": {"0": {"run_id": 1234, "algorithm": "ML H2B Structure Segmentation", "algorithm_version": "0.1.1"}}}}
+        ]      
         struct_info = StructureInfo(gene="H2B", ml=True, ml_model="structure_H2B_production", algorithm_name="ML H2B Structure Segmentation", algorithm_version="0.1.0")
-        self._mock_labkey_provider.get_run_by_id.return_value = None
 
         # Act
         exists = self._struct_seg_repository.segmentation_exists("struct.tiff", struct_info)
 
         # Assert
         assert exists == False
-        self._mock_labkey_provider.get_run_by_id.assert_called_once()
