@@ -2,8 +2,7 @@ import numpy as np
 import math
 
 import pandas as pd
-from pipeline_qc.image_qc_methods import (file_processing_methods, intensity,
-                                          query_fovs, z_stack_check)
+from pipeline_qc.image_qc_methods import query_fovs
 from labkey.utils import create_server_context
 from lkaccess import LabKey
 
@@ -69,7 +68,10 @@ def z_score_stat_generation():
                     (row['638nm_all_z_score'] < -2.58) or
                     (row['405nm_raw_pass'] == False) or
                     (row['488nm_raw_pass'] == False) or
-                    (row['638nm_raw_pass'] == False)):
+                    (row['638nm_raw_pass'] == False) or
+                    (row['_405nm max_intensity'] >= 500) or
+                    (row['_638nm max_intensity'] >= 635)
+            ):
                 full_df.at[i, 'Pass_intensity'] = False
             else:
                 full_df.at[i, 'Pass_intensity'] = True
@@ -79,7 +81,10 @@ def z_score_stat_generation():
                     (row['638nm_all_z_score'] < -2.58) or
                     (row['405nm_raw_pass'] == False) or
                     (row['561nm_raw_pass'] == False) or
-                    (row['638nm_raw_pass'] == False)):
+                    (row['638nm_raw_pass'] == False) or
+                    (row['_405nm max_intensity'] >= 500) or
+                    (row['_638nm max_intensity'] >= 635)
+            ):
                 full_df.at[i, 'Pass_intensity'] = False
             else:
                 full_df.at[i, 'Pass_intensity'] = True
@@ -91,7 +96,10 @@ def z_score_stat_generation():
                     (row['405nm_raw_pass'] == False) or
                     (row['488nm_raw_pass'] == False) or
                     (row['561nm_raw_pass'] == False) or
-                    (row['638nm_raw_pass'] == False)):
+                    (row['638nm_raw_pass'] == False) or
+                    (row['_405nm max_intensity'] >= 500) or
+                    (row['_638nm max_intensity'] >= 635)
+            ):
                 full_df.at[i, 'Pass_intensity'] = False
             else:
                 full_df.at[i, 'Pass_intensity'] = True
