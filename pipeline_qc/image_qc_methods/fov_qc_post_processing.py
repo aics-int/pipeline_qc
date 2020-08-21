@@ -69,8 +69,8 @@ def z_score_stat_generation():
                     (row['405nm_raw_pass'] == False) or
                     (row['488nm_raw_pass'] == False) or
                     (row['638nm_raw_pass'] == False) or
-                    (row['_405nm max_intensity'] >= 500) or
-                    (row['_638nm max_intensity'] >= 635)
+                    (row['_405nm max_intensity'] <= 500) or
+                    (row['_638nm max_intensity'] <= 635)
             ):
                 full_df.at[i, 'Pass_intensity'] = False
             else:
@@ -82,8 +82,8 @@ def z_score_stat_generation():
                     (row['405nm_raw_pass'] == False) or
                     (row['561nm_raw_pass'] == False) or
                     (row['638nm_raw_pass'] == False) or
-                    (row['_405nm max_intensity'] >= 500) or
-                    (row['_638nm max_intensity'] >= 635)
+                    (row['_405nm max_intensity'] <= 500) or
+                    (row['_638nm max_intensity'] <= 635)
             ):
                 full_df.at[i, 'Pass_intensity'] = False
             else:
@@ -97,8 +97,8 @@ def z_score_stat_generation():
                     (row['488nm_raw_pass'] == False) or
                     (row['561nm_raw_pass'] == False) or
                     (row['638nm_raw_pass'] == False) or
-                    (row['_405nm max_intensity'] >= 500) or
-                    (row['_638nm max_intensity'] >= 635)
+                    (row['_405nm max_intensity'] <= 500) or
+                    (row['_638nm max_intensity'] <= 635)
             ):
                 full_df.at[i, 'Pass_intensity'] = False
             else:
