@@ -209,7 +209,7 @@ def test_cells_fov_edge(image_data, fov):
                            RUN_ID, MEMB_FILE_ID, FOV_WIDTH, FOV_HEIGHT)
     cells_with_fovedge_false = [cell for cell in cells if cell.fov_edge is False]
     assert len(cells) == 17  # These values are somewhat arbitrary, only based on current resource file being used
-    assert len(cells_with_fovedge_false) == 3
+    assert len(cells_with_fovedge_false) == 4
 
 
 def test_no_cells(image_data_no_cells, fov):
