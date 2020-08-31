@@ -104,7 +104,7 @@ def _get_region_properties(memb_data):
 
 
 def _make_cell(fov_id, region, pixel_unit_id, origin_id, fov: FOV, algorithm_id,
-               run_id, segmentation_file_id, fov_height, fov_width):
+               run_id, segmentation_file_id, fov_width, fov_height):
     cell = Cell(fov_id=fov_id,
                 center_units=pixel_unit_id,
                 origin_xy=origin_id,
@@ -155,8 +155,16 @@ def _make_cell(fov_id, region, pixel_unit_id, origin_id, fov: FOV, algorithm_id,
 def _make_cells(fov_id, region_props, pixel_unit_id, origin_id, fov, algorithm_id,
                 run_id, segmentation_file_id, fov_width, fov_height):
     # Add the common information that we can derive from the FOV
-    return [_make_cell(fov_id, region, pixel_unit_id, origin_id, fov, algorithm_id,
-                       run_id, segmentation_file_id, fov_width, fov_height)
+    return [_make_cell(fov_id=fov_id,
+                       region=region,
+                       pixel_unit_id=pixel_unit_id,
+                       origin_id=origin_id,
+                       fov=fov,
+                       algorithm_id=algorithm_id,
+                       run_id=run_id,
+                       segmentation_file_id=segmentation_file_id,
+                       fov_width=fov_width,
+                       fov_height=fov_height)
             for region in region_props]
 
 
