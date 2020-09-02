@@ -139,8 +139,7 @@ def _make_cell(fov_id, region, pixel_unit_id, origin_id, fov: FOV, algorithm_id,
 
     # If a cell's bounding box touches or is near any edge of the FOV, mark FovEdge as "True"
     if cell.center_x <= CELL_BOUNDARY_PIXEL_PRECISION_OFFSET \
-            or cell.center_y <= CELL_BOUNDARY_PIXEL_PRECISION_OFFSET \
-            or cell.center_z <= CELL_BOUNDARY_PIXEL_PRECISION_OFFSET:
+            or cell.center_y <= CELL_BOUNDARY_PIXEL_PRECISION_OFFSET:
         cell.fov_edge = True
     elif (cell.center_x + cell.dimension_x) >= (fov_width - CELL_BOUNDARY_PIXEL_PRECISION_OFFSET):
         cell.fov_edge = True
