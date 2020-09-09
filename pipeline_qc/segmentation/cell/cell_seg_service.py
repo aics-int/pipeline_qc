@@ -163,16 +163,13 @@ class CellSegmentationService:
         return img.get_physical_pixel_size()
 
     def _save_segmentation_as_ome_tiff(self, image: numpy.array, filepath: str, pixel_size: str):
-        channel_names = ["nucleus_segmentation", "membrane_segmentation", "nucleus_contour", "membrane_contour"]
-        self._save_as_ome_tiff(image, filepath, channel_names, pixel_size)
-
-    def _save_as_ome_tiff(self, image: numpy.array, filepath: str, channel_names: list, pixel_size: str):
         """
-        Save image as ome tiff to disk, with OME metadata
+        Save segmentation image as ome tiff to disk, with OME metadata
         param: image: image data as numpy array
         param: filepath: path to save to
         param: channel_names: channel names in correct order (for metadata)
         param: pixel_size: physical pixel size (for metadata)
         """
+        channel_names = ["nucleus_segmentation", "membrane_segmentation", "nucleus_contour", "membrane_contour"]
         with OmeTiffWriter(filepath, overwrite_file=True) as writer:
-            writer.save(data=image, channel_names=channel_names, pixels_physical_size=pixel_size, dimension_order="ZYX")
+            writer.save(data=image, channel_names=channel_names, pixels_physical_size=pixel_size, dimension_order="ZCYX")
