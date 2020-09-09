@@ -17,6 +17,8 @@ class TestCellSegmentationService:
         from pipeline_qc.segmentation.cell.cell_seg_service import AppConfig, CellSegmentationService, CellSegmentationRepository
         self._mock_repository = Mock(spec=CellSegmentationRepository)
         self._cell_seg_service = CellSegmentationService(self._mock_repository, config=Mock(spec=AppConfig))
+        with mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.aicsimageio.AICSImage"):
+            yield
 
     def test_single_cell_segmentation_skips_existing_fov(self):
         from pipeline_qc.segmentation.cell.cell_seg_service import ResultStatus, SegmentationResult
@@ -86,7 +88,7 @@ class TestCellSegmentationService:
 
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
-    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.OmeTiffWriter")
     def test_single_cell_segmentation_happy_path_dual_camera(self, mock_tiff_writer: Mock, mock_super_model: Mock, mock_file_processing_methods: Mock):
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.4", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
@@ -111,7 +113,7 @@ class TestCellSegmentationService:
 
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.file_processing_methods")
     @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.SuperModel")
-    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.ome_tiff_writer.OmeTiffWriter")
+    @mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.OmeTiffWriter")
     def test_single_cell_segmentation_happy_path_single_camera(self, mock_tiff_writer: Mock, mock_super_model: Mock, mock_file_processing_methods: Mock):
         # Arrange
         fov = FovFile(fov_id=63, workflow="Pipeline 4.1", local_file_path="/allen/aics/some/place/file.tiff", source_image_file_id="abcdef123456", gene="LMNB1")
