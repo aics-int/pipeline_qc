@@ -125,8 +125,8 @@ def update_qc_data_labkey(df, env):
 
     lk = LabKey(server_context=context)
 
-    upload_df = df[[
-        'Key', 'fovid', '405nm_raw_pass', '405nm_all_z_score', '405nm_instrument_z_score', '405nm_cellline_z_score',
+    for i, row in df.iterrows():
+        subset_row = row[['Key', 'fovid', '405nm_raw_pass', '405nm_all_z_score', '405nm_instrument_z_score', '405nm_cellline_z_score',
         '405nm_barcode_z_score', '405nm_workflow_z_score', '405nm_imaging_mode_z_score', '488nm_raw_pass',
         '488nm_all_z_score', '488nm_instrument_z_score', '488nm_cellline_z_score', '488nm_barcode_z_score',
         '488nm_workflow_z_score', '488nm_imaging_mode_z_score', '561nm_raw_pass', '561nm_all_z_score',
@@ -136,15 +136,24 @@ def update_qc_data_labkey(df, env):
         'brightfield_raw_pass', 'brightfield_all_z_score', 'brightfield_instrument_z_score',
         'brightfield_cellline_z_score', 'brightfield_barcode_z_score', 'brightfield_workflow_z_score',
         'brightfield_imaging_mode_z_score', 'Pass_intensity']].fillna(0)
-
-    for i, row in upload_df.iterrows():
-        row_dict = row.drop(['fovid']).to_dict()
-        upload_row = {key:value for (key, value) in row_dict.items()}
+        row_dict = subset_row.drop(['fovid']).to_dict()
+        upload_row = {key: value for (key, value) in row_dict.items()}
         print(f"Processing {row['fovid']}")
         lk.update_rows(
             schema_name='lists',
             query_name='FOV QC Metrics',
             rows=[upload_row]
+        )
+        lk.update_rows(
+            schema_name='microscopy',
+            query_name='FOV',
+            rows=[{
+                'FOVId': row['fovid'],
+                'QCPassIntensity': row['Pass_intensity'],
+                'QC638nmCropBottomFalseClip': row['_638nm crop_bottom_false clip'],
+                'QC638nmCropTopFalseClip': row['_638nm crop_top_false clip'],
+                'QCBrightfieldZStacksOutOfOrder': row['_brightfield Z-stacks out of order']
+            }]
         )
 
 
