@@ -17,7 +17,7 @@ class TestCellSegmentationService:
         from pipeline_qc.segmentation.cell.cell_seg_service import AppConfig, CellSegmentationService, CellSegmentationRepository
         self._mock_repository = Mock(spec=CellSegmentationRepository)
         self._cell_seg_service = CellSegmentationService(self._mock_repository, config=Mock(spec=AppConfig))
-        with mock.patch("pipeline_qc.segmentation.structure.structure_seg_service.aicsimageio.AICSImage"):
+        with mock.patch("pipeline_qc.segmentation.cell.cell_seg_service.aicsimageio.AICSImage"):
             yield
 
     def test_single_cell_segmentation_skips_existing_fov(self):
