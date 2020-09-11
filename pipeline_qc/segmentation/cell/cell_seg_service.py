@@ -167,7 +167,6 @@ class CellSegmentationService:
         Save segmentation image as ome tiff to disk, with OME metadata
         param: image: image data as numpy array
         param: filepath: path to save to
-        param: channel_names: channel names in correct order (for metadata)
         param: pixel_size: physical pixel size (for metadata)
         """
         channel_names = ["nucleus_segmentation", "membrane_segmentation", "nucleus_contour", "membrane_contour"]
