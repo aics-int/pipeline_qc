@@ -32,7 +32,7 @@ install: venv
 > $(PYTHON) -m pip install -e .[all]
 
 test: venv
-> $(VENV_ACTIVATE) && $(PYTHON) -m pytest -e --cov-report xml --cov-report term
+> $(VENV_ACTIVATE) && $(PYTHON) -m pytest --cov-report xml --cov-report term
 
 clean:
 > rm -fr $(VENV_NAME)
