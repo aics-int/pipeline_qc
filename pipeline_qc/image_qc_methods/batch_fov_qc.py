@@ -41,6 +41,10 @@ def process_single_fov(row, json_dir, output_dir, image_gen=False, env='stg', re
         # Splits 6D image into single channel images for qc algorithm processing
         channel_dict = file_processing_methods.split_image_into_channels(row['localfilepath'],
                                                                          str(row['sourceimagefileid']))
+        # Multi-scene image check
+        if len(channel_dict) == 0:
+            print('This FOV is  a multi-scene image, skipping...')
+            return dict()
 
         # Segments area in FOV that has cells
         cell_mask = detect_edge.segment_from_zstack(channel_dict['brightfield'], segment_gauss_thresh=0.045)

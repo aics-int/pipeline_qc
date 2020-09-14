@@ -18,6 +18,9 @@ def split_image_into_channels(im_path, source_image_file_id, labkey_host: str = 
 
     server_context = LabKey(host=labkey_host, port=labkey_port)
     im = AICSImage(im_path)
+    if im.shape[0] > 1:
+        print('This FOV is  a multi-scene image, skipping...')
+        return dict()
     np_im = im.data[0, 0, :, :, :, :]
     if source_image_file_id == 'nan':
         df = pd.DataFrame()
