@@ -54,7 +54,7 @@ class Args(object):
 
 class Executor(object):
     def __init__(self, image_path, image_type, ref_channel_index, mov_channel_index, system_type, thresh_488,
-                 thresh_638, method_logging, align_mov_img, align_mov_img_path, align_mov_img_file_extension,
+                 thresh_638, ref_seg_param, mov_seg_param, method_logging, align_mov_img, align_mov_img_path, align_mov_img_file_extension,
                  align_matrix_file_extension, crop_center):
         self.image_path = image_path
         self.image_type = image_type
@@ -96,6 +96,9 @@ class Executor(object):
 
         if crop_center is not None:
             self.crop_center = crop_center
+
+        self.ref_seg_param = ref_seg_param
+        self.mov_seg_param = mov_seg_param
 
 
     def append_file_name_with_ext(self, image_path, align_mov_img_file_extension):
@@ -528,7 +531,7 @@ class Executor(object):
         return updated_ref_peak_dict, ref_distances, ref_centroid_dict, updated_mov_peak_dict, mov_distances, \
                mov_centroid_dict, ref_labelled_seg, mov_labelled_seg
 
-    def process_rings(self, ref_smooth, mov_smooth):
+    def process_rings(self, ref_smooth, mov_smooth, ref_seg_param=2.5, mov_seg_param=2.5):
         """
         Carry out the processes to generate coordinate dictionaries from rings image
         :param ref_smooth: A reference rings image that was smoothed
@@ -539,8 +542,8 @@ class Executor(object):
             filtered_label_ref: An image of labelled reference rings
             filtered_label_mov: An image of labelled moving rings
         """
-        seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, mult_factor=2.5, show_seg=True)
-        seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, mult_factor=2.5, show_seg=True)
+        seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, mult_factor=ref_seg_param, show_seg=True)
+        seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, mult_factor=mov_seg_param, show_seg=True)
         plt.figure()
         plt.imshow(seg_mov)
         plt.show()
@@ -805,9 +808,9 @@ class Executor(object):
         qc = False
 
         if image_type == 'rings':
-            seg_ref, label_ref = Executor.segment_rings(self, ref_smooth)
-            seg_mov, label_mov = Executor.segment_rings(self, mov_smooth)
-            seg_transformed, label_transform = Executor.segment_rings(self, filters.gaussian(mov_transformed, sigma=1))
+            seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, self.ref_seg_param)
+            seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, self.mov_seg_param)
+            seg_transformed, label_transform = Executor.segment_rings(self, filters.gaussian(mov_transformed, sigma=1), self.mov_seg_param)
         elif image_type == 'beads':
             mov_transformed_rescaled = exp.rescale_intensity(mov_transformed, out_range=np.uint8,
                                                              in_range=(np.percentile(mov_transformed, rescale_thresh_mov[0]),
@@ -960,9 +963,20 @@ class Executor(object):
             updated_ref_peak_dict, ref_distances, ref_centroid_dict, updated_mov_peak_dict, mov_distances, mov_centroid_dict, \
             labelled_ref, labelled_mov = Executor.process_beads(self, ref_smooth, mov_smooth)
         elif self.image_type == 'rings':
-            ref_centroid_dict, mov_centroid_dict, labelled_ref, labelled_mov = Executor.process_rings(self,
-                                                                                                      ref_smooth,
-                                                                                                      mov_smooth)
+            if (self.ref_seg_param is not None) & (self.mov_seg_param is not None):
+                ref_centroid_dict, mov_centroid_dict, labelled_ref, labelled_mov = Executor.process_rings(
+                    self,
+                    ref_smooth,
+                    mov_smooth,
+                    self.ref_seg_param,
+                    self.mov_seg_param
+                )
+            else:
+                ref_centroid_dict, mov_centroid_dict, labelled_ref, labelled_mov = Executor.process_rings(
+                    self,
+                    ref_smooth,
+                    mov_smooth
+                )
         else:
             print('invalid image type')
 

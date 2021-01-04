@@ -2,16 +2,16 @@
 
 # READ HERE
 # Set user inputs:
-optical_control_img_filepath = r'\\allen\aics\microscopy\Antoine\For GE\For CRISPR RNAi screen\Imaging\November 19 2020 - CRISPR EXPERIMENT 5\argo_split\Argo_ZSD3_11192020_100X_Before-Scene-4-P3.czi'
+optical_control_img_filepath = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200622\argo_split\20200622_N03_001-Scene-3-P3.czi'
 image_type = 'rings'  # Select between 'rings' or 'beads'
 ref_channel = 'EGFP'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
 mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
 system_type = 'zsd'  # Select between 'zsd' or '3i'
 
-folder_to_img = r'\\allen\aics\microscopy\Antoine\For GE\For CRISPR RNAi screen\Imaging\November 19 2020 - CRISPR EXPERIMENT 5\Raw_Split_Scene'  # Input folder to images 
-folder_save = r'\\allen\aics\microscopy\Antoine\For GE\For CRISPR RNAi screen\Imaging\November 19 2020 - CRISPR EXPERIMENT 5\alignV2'  # Output folder to save split scene tiffs
+folder_to_img = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200622\to_process_20x\split'  # Input folder to images
+folder_save = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200622\to_process_20x\alignV2'  # Output folder to save split scene tiffs
 img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
-crop_dim = (600, 900)  # Final dimension of image after cropping in the form of (image height, image width)
+crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form of (image height, image width)
 
 #===================================
 # Core script - don't change plz
@@ -33,6 +33,8 @@ if os.path.exists(optical_control_img_filepath.replace(img_type, '_sim_matrix.tx
         system_type=system_type,
         thresh_488=None,  # Set 'None' to use default setting
         thresh_638=None,  # Set 'None' to use default setting
+        ref_seg_param=None, # Set 'None' to use default setting
+        mov_seg_param=None, # Set 'None' to use default setting
         crop_center=None,  # Set 'None' to use default setting
         method_logging=True,
         align_mov_img=True,
@@ -79,51 +81,65 @@ if folder_to_img is not None:
             print('processing ' + raw_split_file)
             img_data = AICSImage(os.path.join(folder_to_img, raw_split_file))
             channels = img_data.get_channel_names()
-            img_stack = img_data.data
-            omexml = img_data.metadata
-            # process each channel
-            final_img = np.zeros(img_stack.shape)
 
-            channels_need_alignment = locate_channels_need_alignment(img_channel_names=channels, system_type=system_type,
-                                                                     back_camera_channels=['Bright', 'TL', 'CMDRP', 'CMDR', '640', 'BF'])
-            for channel in channels:
-                img = img_stack[0, 0, channels.index(channel), :, :, :]
-                if system_type == 'zsd':
-                    if channel in channels_need_alignment:
-                        img = perform_similarity_matrix_transform(img, tf_array)
-                if system_type == '3i':
-                    if match_channel(img_file_name=raw_split_file, channel=channel, img_data = img_data):
+            img_data.dask_data
+            s, t, c, z, y, x = img_data.shape
+
+            if s > 1:
+                print("please split scenes in your data")
+                pass
+
+            for time_point in range(0, t):
+                img_data.get_image_dask_data()
+
+                img_stack = img_data.get_image_dask_data("CZYX", S=0, T=time_point).compute()
+                omexml = img_data.metadata
+                # process each channel
+                final_img = np.zeros(img_stack.shape)
+
+                channels_need_alignment = locate_channels_need_alignment(img_channel_names=channels, system_type=system_type,
+                                                                         back_camera_channels=['Bright', 'TL', 'CMDRP', 'CMDR', '640', 'BF'])
+                for channel in channels:
+                    img = img_stack[channels.index(channel), :, :, :]
+                    if system_type == 'zsd':
                         if channel in channels_need_alignment:
                             img = perform_similarity_matrix_transform(img, tf_array)
-                # generate stack for data back fill
-                final_img[0, 0, channels.index(channel), :, :, :] = img
+                    if system_type == '3i':
+                        if match_channel(img_file_name=raw_split_file, channel=channel, img_data = img_data):
+                            if channel in channels_need_alignment:
+                                img = perform_similarity_matrix_transform(img, tf_array)
+                    # generate stack for data back fill
+                    final_img[channels.index(channel), :, :, :] = img
 
-            final_img = final_img.astype(np.uint16)
-            s, t, c, z, y, x = final_img.shape
-            upload_img = final_img[0, :, :, :, int((y-crop_dim[0])/2):int(crop_dim[0] + (y-crop_dim[0])/2), int((x-crop_dim[1])/2):int(crop_dim[1] + (x-crop_dim[1])/2)]
-            upload_img = upload_img.transpose((0, 2, 1, 3, 4))
+                final_img = final_img.astype(np.uint16)
 
-            row = {}
-            row['raw_split_scene_file_name'] = raw_split_file
-            row['path_to_raw_file_name'] = os.path.join(folder_to_img, raw_split_file)
+                upload_img = final_img[:, :, int((y-crop_dim[0])/2):int(crop_dim[0] + (y-crop_dim[0])/2), int((x-crop_dim[1])/2):int(crop_dim[1] + (x-crop_dim[1])/2)]
+                upload_img = upload_img.transpose((1, 0, 2, 3))
 
-            if system_type == 'zsd':
-                writer = writers.OmeTiffWriter(
-                    os.path.join(folder_save, raw_split_file.replace('-Scene', '-alignV2-Scene').replace('.czi', '.tiff'))
-                )
-                row['aligned_file_name'] = raw_split_file.replace('-Scene', '-alignV2-Scene').replace('.czi', '.tiff')
-                row['path_to_aligned_file'] = os.path.join(folder_save, raw_split_file.replace('-Scene', '-alignV2-Scene').replace('.czi', '.tiff'))
+                row = {}
+                row['raw_split_scene_file_name'] = raw_split_file
+                row['path_to_raw_file_name'] = os.path.join(folder_to_img, raw_split_file)
 
-            elif system_type == '3i':
-                writer = writers.OmeTiffWriter(
-                    os.path.join(folder_save, raw_split_file)
-                )
-                row['aligned_file_name'] = raw_split_file
-                row['path_to_aligned_file'] = os.path.join(folder_save, raw_split_file)
+                if system_type == 'zsd':
+                    new_file_name = raw_split_file.replace('-Scene', '-alignV2-Scene').replace('.czi', '.tiff')
+                    if t > 1:
+                        new_file_name = new_file_name.replace('-P', '-T' + str(time_point) + '-P')
+                    writer = writers.OmeTiffWriter(
+                        os.path.join(folder_save, new_file_name)
+                    )
+                    row['aligned_file_name'] = new_file_name
+                    row['path_to_aligned_file'] = os.path.join(folder_save, new_file_name)
 
-            writer.save(upload_img.astype(np.uint16))
-            row['align_version'] = 'alignV2'
+                elif system_type == '3i':
+                    writer = writers.OmeTiffWriter(
+                        os.path.join(folder_save, raw_split_file)
+                    )
+                    row['aligned_file_name'] = raw_split_file
+                    row['path_to_aligned_file'] = os.path.join(folder_save, raw_split_file)
 
-            df = df.append(row, ignore_index=True)
+                writer.save(upload_img.astype(np.uint16))
+                row['align_version'] = 'alignV2'
+
+                df = df.append(row, ignore_index=True)
 
 df.to_csv(os.path.join(folder_save, 'aligned_ref.csv'))
