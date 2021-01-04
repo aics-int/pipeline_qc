@@ -2,14 +2,14 @@
 
 # READ HERE
 # Set user inputs:
-optical_control_img_filepath = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200701\argo_split\20200701_N02_001-Scene-3-P3.czi'
-image_type = 'beads'  # Select between 'rings' or 'beads'
+optical_control_img_filepath = r'\\allen\aics\microscopy\Antoine\For GE\For CRISPR RNAi screen\Imaging\November 19 2020 - CRISPR EXPERIMENT 5\argo_split\Argo_ZSD3_11192020_100X_Before-Scene-4-P3.czi'
+image_type = 'rings'  # Select between 'rings' or 'beads'
 ref_channel = 'EGFP'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
 mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
 system_type = 'zsd'  # Select between 'zsd' or '3i'
 
-folder_to_img = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200701\to_process_100X\split'  # Input folder to czi images
-folder_save = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200701\aligned'  # Output folder to save split scene tiffs
+folder_to_img = r'\\allen\aics\microscopy\Antoine\For GE\For CRISPR RNAi screen\Imaging\November 19 2020 - CRISPR EXPERIMENT 5\Raw_Split_Scene'  # Input folder to images 
+folder_save = r'\\allen\aics\microscopy\Antoine\For GE\For CRISPR RNAi screen\Imaging\November 19 2020 - CRISPR EXPERIMENT 5\alignV2'  # Output folder to save split scene tiffs
 img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
 crop_dim = (600, 900)  # Final dimension of image after cropping in the form of (image height, image width)
 
@@ -38,7 +38,7 @@ if os.path.exists(optical_control_img_filepath.replace(img_type, '_sim_matrix.tx
         align_mov_img=True,
         align_mov_img_path=optical_control_img_filepath,
         align_mov_img_file_extension='_aligned.tif',
-        align_matrix_file_extension='_sim_matrix.txt')
+        align_matrix_file_extension='_sim_matrix.txt')  
     exe.execute()
 
 tf_array = np.loadtxt(optical_control_img_filepath.split('.')[0] + '_sim_matrix.txt', delimiter=',')
