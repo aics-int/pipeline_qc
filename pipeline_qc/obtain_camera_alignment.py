@@ -97,8 +97,15 @@ class Executor(object):
         if crop_center is not None:
             self.crop_center = crop_center
 
-        self.ref_seg_param = ref_seg_param
-        self.mov_seg_param = mov_seg_param
+        if ref_seg_param is None:
+            self.ref_seg_param = 2.5
+        else:
+            self.ref_seg_param = ref_seg_param
+        
+        if mov_seg_param is None:
+            self.mov_seg_param = 2.5
+        else:
+            self.mov_seg_param = mov_seg_param
 
 
     def append_file_name_with_ext(self, image_path, align_mov_img_file_extension):
