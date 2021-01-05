@@ -96,7 +96,7 @@ class Executor(object):
 
         if crop_center is not None:
             self.crop_center = crop_center
-
+        
         if ref_seg_param is None:
             self.ref_seg_param = 2.5
         else:
@@ -549,8 +549,8 @@ class Executor(object):
             filtered_label_ref: An image of labelled reference rings
             filtered_label_mov: An image of labelled moving rings
         """
-        seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, mult_factor=ref_seg_param, show_seg=True)
-        seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, mult_factor=mov_seg_param, show_seg=True)
+        seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, mult_factor=self.ref_seg_param, show_seg=True)
+        seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, mult_factor=self.mov_seg_param, show_seg=True)
         plt.figure()
         plt.imshow(seg_mov)
         plt.show()
@@ -798,8 +798,8 @@ class Executor(object):
 
         return transform_qc, (average_after_center - average_before_center)
 
-    def report_changes_in_mse(self, ref_smooth, mov_smooth, mov_transformed, image_type, rescale_thresh_mov=None,
-                              method_logging=True):
+    def report_changes_in_mse(self, ref_smooth, mov_smooth, mov_transformed, image_type, ref_seg_param, mov_seg_param,
+                              rescale_thresh_mov=None, method_logging=True):
         """
         Report changes in normalized root mean-squared-error value before and after transform, post-segmentation.
         :param image_type: 'rings' or 'beads
@@ -1029,6 +1029,8 @@ class Executor(object):
                                                           ref_smooth=ref_smooth, mov_smooth=mov_smooth,
                                                           mov_transformed=mov_transformed,
                                                           rescale_thresh_mov=self.thresh_638,
+                                                          ref_seg_param=self.ref_seg_param,
+                                                          mov_seg_param=self.mov_seg_param,
                                                           image_type=self.image_type, method_logging=self.method_logging)
 
         # Save metrics

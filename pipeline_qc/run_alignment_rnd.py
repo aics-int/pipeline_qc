@@ -2,13 +2,13 @@
 
 # READ HERE
 # Set user inputs:
-optical_control_img_filepath = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200622\argo_split\20200622_N03_001-Scene-3-P3.czi'
+optical_control_img_filepath = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200709\argo_split\20200709_N01_001-Scene-3-P3.czi'
 image_type = 'rings'  # Select between 'rings' or 'beads'
 ref_channel = 'EGFP'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
 mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
 system_type = 'zsd'  # Select between 'zsd' or '3i'
 
-folder_to_img = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200622\to_process_20x\split'  # Input folder to images
+folder_to_img = None  # Input folder to images
 folder_save = r'\\allen\aics\assay-dev\MicroscopyData\Sara\2020\20200622\to_process_20x\alignV2'  # Output folder to save split scene tiffs
 img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
 crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form of (image height, image width)
@@ -33,8 +33,8 @@ if os.path.exists(optical_control_img_filepath.replace(img_type, '_sim_matrix.tx
         system_type=system_type,
         thresh_488=None,  # Set 'None' to use default setting
         thresh_638=None,  # Set 'None' to use default setting
-        ref_seg_param=None, # Set 'None' to use default setting
-        mov_seg_param=None, # Set 'None' to use default setting
+        ref_seg_param=1, # Set 'None' to use default setting
+        mov_seg_param=1.5, # Set 'None' to use default setting
         crop_center=None,  # Set 'None' to use default setting
         method_logging=True,
         align_mov_img=True,
