@@ -169,12 +169,12 @@ class Executor(object):
                                                                 np.percentile(mov, mov_thresh[1])))
         else:
             print('invalid image type')
-        plt.figure()
-        plt.imshow(ref_rescaled)
-        plt.show()
-        plt.figure()
-        plt.imshow(mov_rescaled)
-        plt.show()
+        # plt.figure()
+        # plt.imshow(ref_rescaled)
+        # plt.show()
+        # plt.figure()
+        # plt.imshow(mov_rescaled)
+        # plt.show()
         return ref_rescaled, mov_rescaled
 
     def perform_similarity_matrix_transform(self, img, matrix, output_path):
@@ -349,10 +349,10 @@ class Executor(object):
         for bead_label in list(ref_mov_num_dict.values()):
             show_mov[mov_labelled_seg==bead_label] = True
 
-        for img in [show_ref, show_mov]:
-            plt.figure()
-            plt.imshow(img)
-            plt.show()
+        # for img in [show_ref, show_mov]:
+        #     plt.figure()
+        #     plt.imshow(img)
+        #     plt.show()
 
     def filter_big_beads(self, img, center=0, area=20):
         """
@@ -408,10 +408,10 @@ class Executor(object):
         filter_label = label_seg.copy()
         filter_label[label_seg==cross_label] = 0
 
-        if show_img:
-            plt.figure()
-            plt.imshow(filter_label)
-            plt.show()
+        # if show_img:
+        #     plt.figure()
+        #     plt.imshow(filter_label)
+        #     plt.show()
 
         return filter_label, props_df, cross_label
 
@@ -551,9 +551,9 @@ class Executor(object):
         """
         seg_ref, label_ref = Executor.segment_rings(self, ref_smooth, mult_factor=self.ref_seg_param, show_seg=True)
         seg_mov, label_mov = Executor.segment_rings(self, mov_smooth, mult_factor=self.mov_seg_param, show_seg=True)
-        plt.figure()
-        plt.imshow(seg_mov)
-        plt.show()
+        # plt.figure()
+        # plt.imshow(seg_mov)
+        # plt.show()
 
         # filter center cross
         filtered_label_ref, props_ref, cross_label_ref = Executor.filter_center_cross(self, label_ref, show_img=False)
@@ -991,7 +991,7 @@ class Executor(object):
         bead_centroid_dict, ref_mov_num_dict, ref_mov_coor_dict = Executor.assign_ref_to_mov(self, ref_centroid_dict,
                                                                                              mov_centroid_dict)
 
-        debug_mode = False
+        debug_mode = True
         if debug_mode:
             Executor.check_beads(self, ref_mov_num_dict, labelled_ref, labelled_ref)
 

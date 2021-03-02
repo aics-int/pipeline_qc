@@ -1,18 +1,25 @@
-from skimage import io, transform as tf
+from skimage import transform as tf
 from aicsimageio import AICSImage, writers
 import os
 import pandas as pd
 import numpy as np
+from tifffile import TiffFile
+from ome_types import from_xml, to_xml
+from cellbrowser_tools.fov_processing import _clean_ome_xml_for_known_issues
 from lkaccess import LabKey
 
 def perform_similarity_matrix_transform(img, matrix):
     """
     Performs a similarity matrix geometric transform on an image
-    :param img: A 2D/3D image to be transformed
-    :param matrix: Similarity matrix to be applied on the image
-    :param output_path: Output path to save the image
-    :param filename: Name of the image to save
-    :return:
+    Parameters
+    ----------
+    img
+        A 2D/3D image to be transformed
+    matrix
+        Similarity matrix to be applied on the image
+    Returns
+    -------
+
     """
     after_transform = None
     if len(img.shape) == 2:
@@ -26,37 +33,25 @@ def perform_similarity_matrix_transform(img, matrix):
 
     if after_transform is not None:
         after_transform = (after_transform*65535).astype(np.uint16)
-        # io.imsave(output_path, after_transform)
 
     return after_transform
-
-def generate_augments(img, path, img_size=(360, 536)):
-    y_size, x_size = img_size
-    flippedlr = np.zeros(img.shape)
-    flippedud = np.zeros(img.shape)
-    rot180 = np.zeros(img.shape)
-
-    for z in range(0, img.shape[0]):
-        z_slice = img[z, :, :]
-        flippedlr[z, :, :] = np.fliplr(z_slice).astype(np.uint16)
-        flippedud[z, :, :] = np.flipud(z_slice).astype(np.uint16)
-        rot180[z, :, :] = tf.rotate(z_slice, angle=180., order=3, preserve_range=True).astype(np.uint16)
-    row = {}
-    for key, crop_4x_img in {'_cropped': img,
-                             '_flippedlr': flippedlr,
-                             '_flippedud': flippedud,
-                             '_rot180': rot180}.items():
-        final_crop = crop_4x_img[:,
-                     int(crop_4x_img.shape[1] / 2 - y_size / 2):int(crop_4x_img.shape[1] / 2 + y_size / 2),
-                     int(crop_4x_img.shape[2] / 2 - x_size / 2):int(crop_4x_img.shape[2] / 2 + x_size / 2)]
-
-        io.imsave(path.replace('.ome', key + '.ome'), final_crop)
-        row.update({key[1:]: path.replace('.ome', key + '.ome')})
-    return row
 
 lk = LabKey(host="aics.corp.alleninstitute.org")
 
 def get_query_per_cell_line(pipeline, cell_line):
+    """
+    Query from labkey per cell line
+    Parameters
+    ----------
+    pipeline
+        Workflow name, e.g. 'Pipeline 4.4
+    cell_line
+        Cell line name, e.g. 'AICS-61'
+
+    Returns
+    -------
+
+    """
     query_results = lk.select_rows_as_list(
         schema_name='microscopy',
         query_name='FOV',
@@ -91,9 +86,12 @@ def get_query_per_cell_line(pipeline, cell_line):
     )
     return query_results
 
+# Define query parameters
 pipeline = 'Pipeline 4.4'
 cell_line = 'AICS-61'
-output_folder = '/allen/aics/microscopy/Data/alignV2/' + cell_line
+output_folder = '/allen/aics/microscopy/Data/alignV2/' + cell_line + '_2'
+
+# get query results per cell line from labkey
 results = get_query_per_cell_line(pipeline, cell_line)
 df = pd.DataFrame(results)
 
@@ -101,15 +99,20 @@ missing_folders = []
 missing_files = []
 processed_fov = []
 failed_fov = []
-optical_control = '/allen/aics/microscopy/PRODUCTION/OpticalControl'
+optical_control = '\\' + '/allen/aics/microscopy/PRODUCTION/OpticalControl'.replace('/', '\\')
 
 for index, row in df.iterrows():
     print('processing: ' + str(index) + ' out of ' + str(len(df)))
+
+    # Initialize some variables
     align_file = None
     tf_array = None
     image_date = str(row['SourceImageFileId/Filename'].split('_')[2][0:8])
     system = row['InstrumentId/Name'].replace('-', '')
 
+    # Find transformation array from either beads or argolight rings images
+
+    # Find transformation array from beads optical control images
     optical_control_path = os.path.join(optical_control, system + '_' + image_date)
     path_exists = os.path.isdir(optical_control_path)
     if path_exists:
@@ -125,7 +128,7 @@ for index, row in df.iterrows():
             missing_files.append(system + '_' + image_date)
 
     if align_file is None:
-        # Find it in argolight
+        # Find transformation array from argolight rings optical control images
         argo_path = os.path.join(optical_control, 'ARGO-POWER', system, 'split_scenes', image_date)
         argo_exists = os.path.isdir(argo_path)
         if argo_exists:
@@ -139,17 +142,30 @@ for index, row in df.iterrows():
                 print('cannot find file in argo: ' + system + '_' + image_date)
                 missing_files.append(system + '_' + image_date)
 
+    # With raw image and transformation array, apply transformation matrix to align images, and save out as tiffs
     if path_exists and tf_array is not None:
         # read image
         file_name = row['SourceImageFileId/Filename'].replace('_aligned_cropped', '').split('.')[0]
         raw_split_file =row['SourceImageFileId/LocalFilePath']
 
         if raw_split_file is not None:
+            # Read image
             img_data = AICSImage(raw_split_file)
             channels = img_data.get_channel_names()
             img_stack = img_data.data
-            omexml = img_data.metadata
-            # process each channel
+
+            # Read omexml from image
+            with TiffFile(raw_split_file) as tiff:
+                if tiff.is_ome:
+                    description = tiff.pages[0].description.strip()
+                    description = _clean_ome_xml_for_known_issues(description)
+                    # print(description)
+                    omexml = from_xml(description)
+                else:
+                    # this is REALLY catastrophic. Its not expected to happen for AICS data.
+                    raise ValueError("Bad OME TIFF file")
+
+            # process each channel, align the channel if channel name starts with 'Bright' 'CMDR'
             final_img = np.zeros(img_stack.shape)
             for channel in channels:
                 if channel.startswith('Bright'):
@@ -165,34 +181,33 @@ for index, row in df.iterrows():
                 if channel.startswith('Bright') or channel.startswith('CMDR'):
                     img = perform_similarity_matrix_transform(img, tf_array)
 
-                # save out for label free
-                # io.imsave(row[sub_folder], img)
-
                 # generate stack for data back fill
                 final_img[0, 0, channels.index(channel), :, :, :] = img
 
-
-
-                # generate augments, save out for label free
-                # augment_row = generate_augments(img=img, path=row[sub_folder], img_size=(360, 536))
-
-            pix = omexml.image().Pixels
-            pix.set_SizeX(900)
-            pix.set_SizeY(600)
-
+            # Crop image to final dimension (600, 900)
             final_img = final_img.astype(np.uint16)
             upload_img = final_img[0, :, :, :, 12:612, 12:912]
             upload_img = upload_img.transpose((0, 2, 1, 3, 4))
 
-            writer = writers.OmeTiffWriter(os.path.join(output_folder, file_name.replace('-Scene', '-alignV2-Scene') + '.tiff'))
-            writer.save(upload_img.astype(np.uint16),
-                        ome_xml=omexml)
-                        #channel_names=channels,
-                        #pixels_physical_size=img_data.get_physical_pixel_size(),
-                        #dimension_order="STCZYX"
+            # Update omexml to include accurate pixel sizes in x and y
+            p = omexml.images[0].pixels
+            p.size_x = 900
+            p.size_y = 600
 
+            # Set ometif directory to save out the image
+            ometif_dir = os.path.join('\\' + output_folder.replace('/', '\\'), file_name.replace('-Scene', '-alignV2-Scene') + '.tiff')
 
-            # io.imsave(os.path.join(output_folder, file_name.replace('-Scene', '-alignV2-Scene') + '.tiff'), upload_img.astype(np.uint16))
+            # convert omexml from string to xml
+            ome_str = to_xml(omexml)
+
+            # appease ChimeraX and possibly others who expect to see this
+            ome_str = '<?xml version="1.0" encoding="UTF-8"?>' + ome_str
+            with writers.OmeTiffWriter(file_path=ometif_dir, overwrite_file=True) as writer:
+                writer.save(
+                    upload_img.astype(np.uint16),
+                    ome_xml=ome_str,
+                )
+
             processed_fov.append(row['FOVId'])
 
         else:
