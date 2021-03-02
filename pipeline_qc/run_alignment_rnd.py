@@ -9,9 +9,9 @@ mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for
 system_type = 'zsd'  # Select between 'zsd' or '3i'
 
 folder_to_img = None  # Input folder to images
-folder_save = r'\\allen\aics\microscopy\Calysta\test\camera_alignment\20x\ZSD0\test_on_full'  # Output folder to save split scene tiffs
+folder_save = None  # Output folder to save split scene tiffs
 img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
-crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form of (image height, image width)
+crop_dim = (600, 900)  # Final dimension of image after cropping in the form of (image height, image width)
 
 #===================================
 # Core script - don't change plz
@@ -33,8 +33,8 @@ if os.path.exists(optical_control_img_filepath.replace(img_type, '_sim_matrix.tx
         system_type=system_type,
         thresh_488=None,  # Set 'None' to use default setting
         thresh_638=None,  # Set 'None' to use default setting
-        ref_seg_param=1, # Set 'None' to use default setting
-        mov_seg_param=1.1, # Set 'None' to use default setting
+        ref_seg_param=None, # Set 'None' to use default setting
+        mov_seg_param=None, # Set 'None' to use default setting
         crop_center=None,  # Set 'None' to use default setting
         method_logging=True,
         align_mov_img=True,
