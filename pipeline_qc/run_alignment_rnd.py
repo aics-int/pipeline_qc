@@ -125,7 +125,7 @@ if folder_to_img is not None:
                     if t > 1:
                         new_file_name = new_file_name.replace('-P', '-T' + str(time_point) + '-P')
                     writer = writers.OmeTiffWriter(
-                        os.path.join(folder_save, new_file_name)
+                        os.path.join(folder_save, new_file_name),
                     )
                     row['aligned_file_name'] = new_file_name
                     row['path_to_aligned_file'] = os.path.join(folder_save, new_file_name)
@@ -137,7 +137,10 @@ if folder_to_img is not None:
                     row['aligned_file_name'] = raw_split_file
                     row['path_to_aligned_file'] = os.path.join(folder_save, raw_split_file)
 
-                writer.save(upload_img.astype(np.uint16))
+                writer.save(
+                    upload_img.astype(np.uint16),
+                    channel_names=channels
+                )
                 row['align_version'] = 'alignV2'
 
                 df = df.append(row, ignore_index=True)

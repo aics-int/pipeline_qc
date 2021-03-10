@@ -241,7 +241,7 @@ class Executor(object):
         return ref, mov
 
 
-    def get_center_slice_by_contrast(self, stack):
+    def get_center_slice(self, stack):
         """
         Getx index of center z slice by finding the slice with max. contrast value
         Parameters
@@ -256,7 +256,7 @@ class Executor(object):
         center_z = 0
         max_contrast = 0
         for z in range(0, stack.shape[0]):
-            contrast = (np.max(stack[z, :, :]) - np.min(stack[z, :, :])) / (np.max(stack[z, :, :]))
+            contrast = (np.percentile(stack[z, :, :], 99.8) - np.percentile(stack[z, :, :], 0.02)) / (np.max(stack[z, :, :]))
             if contrast > max_contrast:
                 center_z = z
                 max_contrast = contrast
@@ -264,7 +264,7 @@ class Executor(object):
         return center_z, max_contrast
 
 
-    def get_center_slice(self, stack):
+    def get_center_slice_by_intensity(self, stack):
         """
         Gets index of center z slice by finding the slice with max. sum intensity
         :param stack: A 3D (or 2D) image
