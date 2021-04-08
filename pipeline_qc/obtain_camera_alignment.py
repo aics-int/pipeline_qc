@@ -236,12 +236,28 @@ class Executor(object):
             mov = mov[self.crop_center[0]:(mov.shape[0] - self.crop_center[1]),
                   self.crop_center[0]:(mov.shape[1] - self.crop_center[1])]
 
-        print(ref.shape)
-        print(mov.shape)
         return ref, mov
 
 
-    def get_center_slice(self, stack):
+    def get_image_snr(self, seg, img_intensity):
+        signal = np.median(img_intensity[seg.astype(bool)])
+        noise = np.median(img_intensity[~seg.astype(bool)])
+
+        return signal, noise
+
+
+    def report_ref_mov_image_snr(self, ref, mov, ref_seg, mov_seg, method_logging):
+        ref_signal, ref_noise = Executor.get_image_snr(self, seg=ref_seg, img_intensity=ref)
+        mov_signal, mov_noise = Executor.get_image_snr(self, seg=mov_seg, img_intensity=mov)
+
+        if method_logging:
+            print('ref img snr: ' + str(ref_signal / ref_noise))
+            print('mov img snr: ' + str(mov_signal / mov_noise))
+
+        return ref_signal, ref_noise, mov_signal, mov_noise
+
+
+    def get_center_slice(self, stack, plot_contrast=False):
         """
         Getx index of center z slice by finding the slice with max. contrast value
         Parameters
@@ -255,11 +271,18 @@ class Executor(object):
         """
         center_z = 0
         max_contrast = 0
+        all_contrast = []
         for z in range(0, stack.shape[0]):
             contrast = (np.percentile(stack[z, :, :], 99.8) - np.percentile(stack[z, :, :], 0.02)) / (np.max(stack[z, :, :]))
+            all_contrast.append(contrast)
             if contrast > max_contrast:
                 center_z = z
                 max_contrast = contrast
+
+        if plot_contrast:
+            plt.figure()
+            plt.plot(all_contrast)
+            plt.show()
 
         return center_z, max_contrast
 
@@ -354,6 +377,15 @@ class Executor(object):
         #     plt.imshow(img)
         #     plt.show()
 
+
+    def check_z_offest_between_ref_mov(self, ref_stack, mov_stack, method_logging):
+        org_ref_center, org_ref_max_i = Executor.get_center_slice(self, stack=ref_stack)
+        org_mov_center, org_mov_max_i = Executor.get_center_slice(self, stack=mov_stack)
+
+        if method_logging:
+            print('z offset between ref and mov images: ' + str(org_ref_center - org_mov_center))
+        return org_ref_center - org_mov_center, org_ref_center, org_mov_center
+
     def filter_big_beads(self, img, center=0, area=20):
         """
         Find and filter big beads from an image with mixed beads
@@ -408,10 +440,10 @@ class Executor(object):
         filter_label = label_seg.copy()
         filter_label[label_seg==cross_label] = 0
 
-        # if show_img:
-        #     plt.figure()
-        #     plt.imshow(filter_label)
-        #     plt.show()
+        if show_img:
+            plt.figure()
+            plt.imshow(filter_label)
+            plt.show()
 
         return filter_label, props_df, cross_label
 
@@ -1004,19 +1036,27 @@ class Executor(object):
                                       np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values())))
         mov_transformed = tf.warp(mov, inverse_map=tform, order=3)
 
+        # Report z offset for QC
+        z_offset, org_ref_center, org_mov_center = Executor.check_z_offest_between_ref_mov(self, ref_stack=ref_stack,
+                                                                                           mov_stack=mov_stack,
+                                                                                           method_logging=self.method_logging)
+        # Report image SNR
+        ref_signal, ref_noise, mov_signal, mov_noise = Executor.report_ref_mov_image_snr(self, ref, mov, ref_seg=labelled_ref>0, mov_seg=labelled_mov>0,
+                                                                                         method_logging=self.method_logging)
+        print(ref_signal, ref_noise)
         # Report number of beads used to estimate transform
         bead_num_qc, num_beads = Executor.report_number_beads(self, bead_centroid_dict,
                                                               method_logging=self.method_logging)
 
         # Report transform parameters
         transformation_parameters_dict = Executor.report_similarity_matrix_parameters(self, tform=tform,
-                                                                                      method_logging=self.method_logging)
+                                                                                      method_logging=False)
 
         # Report intensity changes in FOV after transform
         changes_fov_intensity_dictionary = Executor.report_change_fov_intensity_parameters(self,
                                                                                            transformed_img=mov_transformed,
                                                                                            original_img=mov,
-                                                                                           method_logging=self.method_logging)
+                                                                                           method_logging=False)
 
         # Report changes in source and destination
         coor_dist_qc, diff_sum_beads = Executor.report_changes_in_coordinates_mapping(self,
@@ -1044,7 +1084,8 @@ class Executor(object):
                                                              self, image_path=self.align_mov_img_path,
                                                              align_mov_img_file_extension=self.align_mov_img_file_extension))
 
-        return transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, coor_dist_qc, diff_sum_beads, mse_qc, diff_mse
+        return transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, coor_dist_qc, \
+               diff_sum_beads, mse_qc, diff_mse, z_offset, ref_signal, ref_noise, mov_signal, mov_noise
 
 # def main():
 #     dbg = False
