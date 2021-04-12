@@ -34,7 +34,7 @@ class Executor(object):
 
         return smooth
 
-    def segment_cross_with_iteration(self, img, cross_size_px, mult_factor_range=(1, 5)):
+    def segment_cross(self, img, cross_size_px, mult_factor_range=(1, 5), input_mult_factor=None):
         """
         Segments the center cross in the image through iterating the intensity-threshold parameter until one object
         greater than the expected cross size (in pixel) is segmented
@@ -49,10 +49,17 @@ class Executor(object):
         seg_cross: binary image of segmented cross
         props: dataframe describing the centroid location and size of the segmented cross
         """
-        for mult_factor in np.linspace(mult_factor_range[1], mult_factor_range[0], 50):
-            seg_for_cross, label_for_cross = self.segment_rings_intensity_threshold(self, img, mult_factor=mult_factor, show_seg=False)
-            if (np.max(label_for_cross) >= 1) & (np.sum(label_for_cross) > cross_size_px):
-                break
+        if input_mult_factor is not None:
+            seg_for_cross, label_for_cross = self.segment_rings_intensity_threshold(
+                self, img, mult_factor=input_mult_factor, show_seg=False
+            )
+        else:
+            for mult_factor in np.linspace(mult_factor_range[1], mult_factor_range[0], 50):
+                seg_for_cross, label_for_cross = self.segment_rings_intensity_threshold(
+                    self, img, mult_factor=mult_factor, show_seg=False
+                )
+                if (np.max(label_for_cross) >= 1) & (np.sum(label_for_cross) > cross_size_px):
+                    break
 
         filtered_label, props, cross_label = self.filter_center_cross(self, label_for_cross, show_img=False)
         seg_cross = label_for_cross == cross_label
@@ -180,7 +187,7 @@ class Executor(object):
         num_beads: number of beads after estimation
         """
         # update cross info
-        seg_cross, label_for_cross, props = self.segment_cross(self.img, mult_factor=mult_factor)
+        seg_cross, label_for_cross, props = self.segment_cross(self.img, input_mult_factor=mult_factor)
 
 
         # get number of beads from the location of center of cross
@@ -206,12 +213,13 @@ class Executor(object):
         if self.magnification in [40, 63, 100]:
             seg_rings, ring_label = self.segment_rings_intensity_threshold(self, img=img_preprocessed)
         else:
-            seg_cross, props = self.segment_cross_with_iteration(
+            seg_cross, props = self.segment_cross(
                 self, img=img_preprocessed, minArea=cross_size_px
             )
 
             seg_rings, ring_label, thresh = self.segment_rings_dot_filter(
-                self, img=img_preprocessed, seg_cross=seg_cross, num_beads=num_beads, minArea=minArea)
+                self, img=img_preprocessed, seg_cross=seg_cross, num_beads=num_beads, minArea=minArea
+            )
 
         return seg_rings, ring_label
 
