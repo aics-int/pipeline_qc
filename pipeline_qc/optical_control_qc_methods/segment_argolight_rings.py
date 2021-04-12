@@ -8,7 +8,7 @@ import pandas as pd
 
 
 class Executor(object):
-    def __init__(self, img, pixel_size, magnification, thresh=None):
+    def __init__(self, img, pixel_size, magnification, thresh=None, show_final_seg=None, show_intermediate_seg=None):
         self.img = img
         self.pixel_size = pixel_size
         self.magnification = magnification
@@ -23,6 +23,16 @@ class Executor(object):
             self.thresh = (0.2, 99.8)
         else:
             self.thresh = (0.5, 99.5)
+
+        if show_intermediate_seg is not None:
+            self.show_seg = show_intermediate_seg
+        else:
+            self.show_seg = False
+
+        if show_final_seg is not None:
+            self.show_final_seg = show_final_seg
+        else:
+            self.show_final_seg = True
 
     def preprocess_img(self):
         """
@@ -64,12 +74,12 @@ class Executor(object):
         """
         if input_mult_factor is not None:
             seg_for_cross, label_for_cross = Executor.segment_rings_intensity_threshold(
-                self, img, mult_factor=input_mult_factor, show_seg=False
+                self, img, mult_factor=input_mult_factor, show_seg=self.show_seg
             )
         else:
             for mult_factor in np.linspace(mult_factor_range[1], mult_factor_range[0], 50):
                 seg_for_cross, label_for_cross = Executor.segment_rings_intensity_threshold(
-                    self, img, mult_factor=mult_factor, show_seg=False
+                    self, img, mult_factor=mult_factor, show_seg=self.show_seg
                 )
                 if (np.max(label_for_cross) >= 1) & (np.sum(label_for_cross) > self.cross_size_px):
                     break
@@ -232,6 +242,11 @@ class Executor(object):
             seg_rings, ring_label, thresh = Executor.segment_rings_dot_filter(
                 self, img_2d=img_preprocessed, seg_cross=seg_cross, num_beads=num_beads, minArea=minArea
             )
+
+        if self.show_final_seg:
+            plt.figure()
+            plt.imshow(seg_rings)
+            plt.show()
 
         return seg_rings, ring_label
 

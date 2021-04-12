@@ -8,6 +8,8 @@ class Executor(object):
         self.bead_dist_px = 15 / (pixel_size / 10 ** -6)
         self.filter_px_size = filter_px_size
 
+        self.show_seg = False
+
     def get_crop_dimensions(self, img, cross_y, cross_x, bead_dist_px, crop_param=0.5):
         """
         Calculates the crop dimension from the location of the cross to capture complete rings in the image
