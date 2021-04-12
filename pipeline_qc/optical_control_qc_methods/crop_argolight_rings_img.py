@@ -1,11 +1,12 @@
 import math
 from pipeline_qc.optical_control_qc_methods import segment_argolight_rings
 
+
 class Executor(object):
-    def __init__(self, img, bead_dist_px, filter_pixel_size=50):
+    def __init__(self, img, pixel_size, filter_px_size=50):
         self.img = img
-        self.bead_dist_px = bead_dist_px
-        self.filter_pixel_size = filter_pixel_size
+        self.bead_dist_px = 15 / (pixel_size / 10 ** -6)
+        self.filter_px_size = filter_px_size
 
     def get_crop_dimensions(self, img, cross_y, cross_x, bead_dist_px, crop_param=0.5):
         """
@@ -53,14 +54,14 @@ class Executor(object):
         return crop_top, crop_bottom, crop_left, crop_right
 
     def execute(self):
-        seg_cross, props = segment_argolight_rings.Executor.segment_rings_intensity_threshold(
-            self.img, self.filter_px_size, show_seg=False
+        seg_cross, props = segment_argolight_rings.Executor.segment_cross(
+            self, self.img, input_mult_factor=2.5
         )
 
         cross_y, cross_x = props.loc[props['area'] == props['area'].max(), 'centroid-0'].values.tolist()[0], \
                            props.loc[props['area'] == props['area'].max(), 'centroid-1'].values.tolist()[0]
 
-        crop_top, crop_bottom, crop_left, crop_right = self.get_crop_dimensions(
+        crop_top, crop_bottom, crop_left, crop_right = Executor.get_crop_dimensions(
             self, self.img, cross_y, cross_x, self.bead_dist_px
         )
 
