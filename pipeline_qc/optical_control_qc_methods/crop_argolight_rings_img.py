@@ -1,4 +1,5 @@
 import math
+import numpy as np
 from pipeline_qc.optical_control_qc_methods import segment_argolight_rings
 
 
@@ -55,6 +56,21 @@ class Executor(object):
 
         return crop_top, crop_bottom, crop_left, crop_right
 
+    def make_grid(self, img, cross_y, cross_x, bead_dist_px):
+        grid = np.zeros(img.shape)
+        for y in np.arange(cross_y, 0, -bead_dist_px):
+            for x in np.arange(cross_x, 0, -bead_dist_px):
+                grid[int(y), int(x)] = True
+            for x in np.arange(cross_x, img.shape[1], bead_dist_px):
+                grid[int(y), int(x)] = True
+        for y in np.arange(cross_y, img.shape[0], bead_dist_px):
+            for x in np.arange(cross_x, 0, -bead_dist_px):
+                grid[int(y), int(x)] = True
+            for x in np.arange(cross_x, img.shape[1], bead_dist_px):
+                grid[int(y), int(x)] = True
+
+        return grid
+
     def execute(self):
         seg_cross, props = segment_argolight_rings.Executor.segment_cross(
             self, self.img, input_mult_factor=2.5
@@ -70,4 +86,6 @@ class Executor(object):
         crop_dimensions = (crop_top, crop_bottom, crop_left, crop_right)
         img_out = self.img[crop_top:crop_bottom, crop_left:crop_right]
 
-        return img_out, crop_dimensions
+        grid = Executor.make_grid(self, img_out, cross_y, cross_x, self.bead_dist_px)
+
+        return img_out, crop_dimensions, grid
