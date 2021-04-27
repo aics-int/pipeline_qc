@@ -2,16 +2,16 @@
 
 # READ HERE
 # Set user inputs:
-optical_control_img_filepath = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER\ZSD2\experiment_output\argo_2021-02-25\2021-02-25\Argo_ZSD2_20210225.czi'
+optical_control_img_filepath = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER\ZSD0\argo_20210315_ZSD0_63x.czi'
 image_type = 'rings'  # Select between 'rings' or 'beads'
 ref_channel = 'EGFP'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
 mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
 system_type = 'zsd'  # Select between 'zsd' or '3i'
 
-folder_to_img = None  # Input folder to images
-folder_save = None  # Output folder to save split scene tiffs
+folder_to_img = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\5500000408\ZSD0\Raw_Split_Scene'  # Input folder to images
+folder_save = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\5500000408\ZSD0\alignV2'  # Output folder to save split scene tiffs
 img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
-crop_dim = (600, 900)  # Final dimension of image after cropping in the form of (image height, image width)
+crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form of (image height, image width)
 
 #===================================
 # Core script - don't change plz
@@ -124,23 +124,31 @@ if folder_to_img is not None:
                     new_file_name = raw_split_file.replace('-Scene', '-alignV2-Scene').replace('.czi', '.tiff')
                     if t > 1:
                         new_file_name = new_file_name.replace('-P', '-T' + str(time_point) + '-P')
-                    writer = writers.OmeTiffWriter(
-                        os.path.join(folder_save, new_file_name),
-                    )
-                    row['aligned_file_name'] = new_file_name
-                    row['path_to_aligned_file'] = os.path.join(folder_save, new_file_name)
+                    if not os.path.exists(os.path.join(folder_save, new_file_name)):
+                        writer = writers.OmeTiffWriter(
+                            os.path.join(folder_save, new_file_name),
+                        )
+
+                        row['aligned_file_name'] = new_file_name
+                        row['path_to_aligned_file'] = os.path.join(folder_save, new_file_name)
+                    else:
+                        writer = None
 
                 elif system_type == '3i':
-                    writer = writers.OmeTiffWriter(
-                        os.path.join(folder_save, raw_split_file)
-                    )
-                    row['aligned_file_name'] = raw_split_file
-                    row['path_to_aligned_file'] = os.path.join(folder_save, raw_split_file)
+                    if not os.path.exists(os.path.join(folder_save, raw_split_file)):
+                        writer = writers.OmeTiffWriter(
+                            os.path.join(folder_save, raw_split_file)
+                        )
+                        row['aligned_file_name'] = raw_split_file
+                        row['path_to_aligned_file'] = os.path.join(folder_save, raw_split_file)
+                    else:
+                        writer = None
 
-                writer.save(
-                    upload_img.astype(np.uint16),
-                    channel_names=channels
-                )
+                if writer is not None:
+                    writer.save(
+                        upload_img.astype(np.uint16),
+                        channel_names=channels
+                    )
                 row['align_version'] = 'alignV2'
 
                 df = df.append(row, ignore_index=True)

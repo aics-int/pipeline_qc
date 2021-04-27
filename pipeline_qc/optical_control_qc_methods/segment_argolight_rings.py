@@ -235,18 +235,20 @@ class Executor(object):
         minArea = self.ring_size_px * 0.8
 
         if self.magnification in [40, 63, 100]:
-            seg_rings, ring_label = Executor.segment_rings_intensity_threshold(self, img=img_preprocessed)
+            seg_rings, label_rings = Executor.segment_rings_intensity_threshold(self, img=img_preprocessed)
         else:
             seg_cross, props = Executor.segment_cross(self, img=img_preprocessed)
 
-            seg_rings, ring_label, thresh = Executor.segment_rings_dot_filter(
+            seg_rings, label_rings, thresh = Executor.segment_rings_dot_filter(
                 self, img_2d=img_preprocessed, seg_cross=seg_cross, num_beads=num_beads, minArea=minArea
             )
+
+        filtered_ring_label, props_df, cross_label = Executor.filter_center_cross(self, label_rings, show_img=False)
 
         if self.show_final_seg:
             plt.figure()
             plt.imshow(seg_rings)
             plt.show()
 
-        return seg_rings, ring_label
+        return seg_rings, label_rings, props_df, cross_label
 

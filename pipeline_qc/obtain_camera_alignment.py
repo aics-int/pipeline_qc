@@ -943,7 +943,6 @@ class Executor(object):
             plt.show()
         return filtered_seg, filtered_label
 
-
     def watershed_bead_seg(self, seg):
         """
         Performs watershed on a segmentation of beads to separate beads that are touching each other based on distance
