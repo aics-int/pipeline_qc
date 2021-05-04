@@ -8,7 +8,10 @@ import pandas as pd
 
 
 class Executor(object):
-    def __init__(self, img, pixel_size, magnification, thresh=None, show_final_seg=None, show_intermediate_seg=None):
+    def __init__(
+            self, img, pixel_size, magnification,
+            thresh=None, show_final_seg=None, show_intermediate_seg=None, debug_mode=False
+    ):
         self.img = img
         self.pixel_size = pixel_size
         self.magnification = magnification
@@ -33,6 +36,8 @@ class Executor(object):
             self.show_final_seg = show_final_seg
         else:
             self.show_final_seg = True
+
+        self.debug_mode = debug_mode
 
     def preprocess_img(self):
         """
@@ -231,7 +236,7 @@ class Executor(object):
         img_preprocessed = Executor.preprocess_img(self)
 
         num_beads = Executor.get_number_rings(self, img=img_preprocessed, mult_factor=5)
-
+        print(num_beads)
         minArea = self.ring_size_px * 0.8
 
         if self.magnification in [40, 63, 100]:
@@ -245,10 +250,16 @@ class Executor(object):
 
         filtered_ring_label, props_df, cross_label = Executor.filter_center_cross(self, label_rings, show_img=False)
 
+        if self.debug_mode:
+            print(num_beads)
+            self.show_final_seg = True
+
         if self.show_final_seg:
             plt.figure()
             plt.imshow(seg_rings)
             plt.show()
+
+
 
         return seg_rings, label_rings, props_df, cross_label
 
