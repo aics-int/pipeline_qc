@@ -144,5 +144,5 @@ class Executor(object):
         similarity_matrix_dict = Executor.report_similarity_matrix_parameters(self, tform)
         num_beads_for_estimation = Executor.report_number_beads(self, bead_centroid_dict)
 
-        return tform, similarity_matrix_dict, num_beads_for_estimation
+        return tform, rev_coor_dict, similarity_matrix_dict, num_beads_for_estimation
 

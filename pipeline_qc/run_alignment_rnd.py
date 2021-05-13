@@ -10,6 +10,7 @@ system_type = 'zsd'  # Select between 'zsd' or '3i'
 
 folder_to_img = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\5500000408\ZSD0\Raw_Split_Scene'  # Input folder to images
 folder_save = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\5500000408\ZSD0\alignV2'  # Output folder to save split scene tiffs
+back_camera_channels = None # default is none (to set as Brightfield and CMDRP), otherwise users can listpossible channel names on back camera that need to be aligned (e.g. ['Bright', 'TaRFP'])
 img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
 crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form of (image height, image width)
 
@@ -45,6 +46,8 @@ if os.path.exists(optical_control_img_filepath.replace(img_type, '_sim_matrix.tx
 
 tf_array = np.loadtxt(optical_control_img_filepath.split('.')[0] + '_sim_matrix.txt', delimiter=',')
 
+if back_camera_channels is None:
+    back_camera_channels = ['Bright', 'TL', 'CMDRP', 'CMDR', '640', 'BF']
 
 def locate_channels_need_alignment(img_channel_names, system_type,
                                    back_camera_channels=['Bright', 'TL', 'CMDRP', 'CMDR', '640', 'BF']):
@@ -98,7 +101,7 @@ if folder_to_img is not None:
                 final_img = np.zeros(img_stack.shape)
 
                 channels_need_alignment = locate_channels_need_alignment(img_channel_names=channels, system_type=system_type,
-                                                                         back_camera_channels=['Bright', 'TL', 'CMDRP', 'CMDR', '640', 'BF'])
+                                                                         back_camera_channels=back_camera_channels)
                 for channel in channels:
                     img = img_stack[channels.index(channel), :, :, :]
                     if system_type == 'zsd':
