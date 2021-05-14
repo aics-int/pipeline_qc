@@ -20,8 +20,8 @@ def calculate_crop_image_size(image_shape, crop_threshold=0.5, size_threshold=(3
 
 
 def check_z_offest_between_ref_mov(ref_stack, mov_stack, method_logging):
-    org_ref_center, org_ref_max_i = get_center_z.Executor(stack=ref_stack)
-    org_mov_center, org_mov_max_i = get_center_z.Executor(stack=mov_stack)
+    org_ref_center, org_ref_max_i = get_center_z.Executor(img_stack=ref_stack).execute()
+    org_mov_center, org_mov_max_i = get_center_z.Executor(img_stack=mov_stack).execute()
 
     if method_logging:
         print('z offset between ref and mov images: ' + str(org_ref_center - org_mov_center))
@@ -33,6 +33,7 @@ def get_image_snr(seg, img_intensity):
     noise = np.median(img_intensity[~seg.astype(bool)])
 
     return signal, noise
+
 
 def report_number_beads(bead_dict, method_logging=True):
     """
