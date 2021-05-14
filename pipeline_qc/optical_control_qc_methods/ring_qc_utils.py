@@ -1,6 +1,67 @@
 import numpy as np
 from skimage import metrics
 from scipy.spatial import distance
+from pipeline_qc.optical_control_qc_methods import get_center_z
+
+
+def calculate_crop_image_size(image_shape, crop_threshold=0.5, size_threshold=(365, 560)):
+    image_size_y, image_size_x = image_shape
+    if image_size_y * crop_threshold > size_threshold[0]:
+        crop_size_y = int(image_size_y * crop_threshold)
+    else:
+        crop_size_y = size_threshold[0]
+
+    if image_size_x * crop_threshold > size_threshold[1]:
+        crop_size_x = int(image_size_x * crop_threshold)
+    else:
+        crop_size_x = size_threshold[1]
+
+    return (crop_size_y, crop_size_x)
+
+
+def check_z_offest_between_ref_mov(ref_stack, mov_stack, method_logging):
+    org_ref_center, org_ref_max_i = get_center_z.Executor(stack=ref_stack)
+    org_mov_center, org_mov_max_i = get_center_z.Executor(stack=mov_stack)
+
+    if method_logging:
+        print('z offset between ref and mov images: ' + str(org_ref_center - org_mov_center))
+    return org_ref_center - org_mov_center, org_ref_center, org_mov_center
+
+
+def get_image_snr(seg, img_intensity):
+    signal = np.median(img_intensity[seg.astype(bool)])
+    noise = np.median(img_intensity[~seg.astype(bool)])
+
+    return signal, noise
+
+def report_number_beads(bead_dict, method_logging=True):
+    """
+    Reports the number of beads used to estimate transform
+    :param bead_dict: A dictionary that each key is a bead
+    :param method_logging: A boolean to indicate if user wants print statements
+    :return:
+        bead_num_qc: Boolean indicates if number of beads passed QC (>=10) or failed (<10)
+        num_beads: An integer of number of beads used
+    """
+    bead_num_qc = False
+    num_beads = len(bead_dict)
+    if num_beads >= 10:
+        bead_num_qc = True
+    if method_logging:
+        print('number of beads used to estimate transform: ' + str(num_beads))
+    return bead_num_qc, num_beads
+
+
+def report_ref_mov_image_snr(ref, mov, ref_seg, mov_seg, method_logging):
+    ref_signal, ref_noise = get_image_snr(seg=ref_seg, img_intensity=ref)
+    mov_signal, mov_noise = get_image_snr(seg=mov_seg, img_intensity=mov)
+
+    if method_logging:
+        print('ref img snr: ' + str(ref_signal / ref_noise))
+        print('mov img snr: ' + str(mov_signal / mov_noise))
+
+    return ref_signal, ref_noise, mov_signal, mov_noise
+
 
 def report_change_fov_intensity_parameters(image_a, image_b, method_logging=True):
     """
@@ -67,19 +128,6 @@ def report_changes_in_mse(image_ref, image_mov, image_transformed, method_loggin
 
     return qc, diff_mse
 
-def calculate_crop_image_size(image_shape, crop_threshold=0.5, size_threshold=(365, 560)):
-    image_size_y, image_size_x = image_shape
-    if image_size_y * crop_threshold > size_threshold[0]:
-        crop_size_y = int(image_size_y * crop_threshold)
-    else:
-        crop_size_y = size_threshold[0]
-
-    if image_size_x * crop_threshold > size_threshold[1]:
-        crop_size_x = int(image_size_x * crop_threshold)
-    else:
-        crop_size_x = size_threshold[1]
-
-    return (crop_size_y, crop_size_x)
 
 def report_changes_in_coordinates_mapping(ref_mov_coor_dict, tform, image_shape, method_logging=True):
     """
