@@ -7,7 +7,7 @@ from pipeline_qc.optical_control_qc_methods import \
 from pipeline_qc.optical_control_qc_methods import ring_qc_utils as qc
 
 
-def execute(image_object, channels_to_align, magnification, method_logging=False):
+def execute(image_object, channels_to_align, magnification, alignment_method='alignV2', method_logging=False):
     px_size_x, px_size_y, px_size_z = image_object.get_physical_pixel_size()
 
     # detect center z-slice on reference channel
@@ -42,7 +42,8 @@ def execute(image_object, channels_to_align, magnification, method_logging=False
     # estimate alignment from segmentation
     tform, ref_coor_dict, transformation_parameters_dict, num_beads_for_estimation = estimate_alignment.Executor(
         ref_seg_rings, ref_seg_rings_label, ref_props_df, ref_cross_label,
-        mov_seg_rings, mov_seg_rings_label, mov_props_df, mov_cross_label
+        mov_seg_rings, mov_seg_rings_label, mov_props_df, mov_cross_label,
+        alignment_method
     ).execute()
 
     # apply alignment on moving image

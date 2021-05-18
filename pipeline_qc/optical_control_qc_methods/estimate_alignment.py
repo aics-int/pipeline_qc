@@ -2,11 +2,15 @@ from collections import OrderedDict
 import numpy as np
 
 from skimage import transform as tf
+from skimage.measure import ransac
 from scipy.spatial import distance
 from scipy.optimize import linear_sum_assignment
 
+
 class Executor(object):
-    def __init__(self, ref_seg_rings, ref_label_rings, ref_rings_props, ref_cross_label, mov_seg_rings, mov_label_rings, mov_rings_props, mov_cross_label):
+    def __init__(self, ref_seg_rings, ref_label_rings, ref_rings_props, ref_cross_label, mov_seg_rings,
+                 mov_label_rings, mov_rings_props, mov_cross_label, alignment_method
+                 ):
         self.ref_seg_rings = ref_seg_rings
         self.mov_label_rings = ref_label_rings
         self.ref_rings_props = ref_rings_props
@@ -15,6 +19,7 @@ class Executor(object):
         self.mov_label_rings = mov_label_rings
         self.mov_rings_props = mov_rings_props
         self.mov_cross_label = mov_cross_label
+        self.alignment_method = alignment_method
 
 
     def assign_ref_to_mov(self, updated_ref_peak_dict, updated_mov_peak_dict):
@@ -137,9 +142,23 @@ class Executor(object):
                                                                                              mov_centroid_dict)
 
         rev_coor_dict = Executor.change_coor_system(self, ref_mov_coor_dict)
+        print(rev_coor_dict)
 
-        tform = tf.estimate_transform('similarity',
-                                      np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values())))
+        if self.alignment_method == 'alignV2':
+            # alignV2 method
+            tform = tf.estimate_transform('similarity',
+                                          np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values())))
+
+        elif self.alignment_method == 'ransac':
+            # RnD method with ransac
+            # robustly estimate affine transform model with RANSAC
+
+            tform, inliers = ransac(
+                (np.asarray(list(rev_coor_dict.keys())), np.asarray(list(rev_coor_dict.values()))),
+                tf.SimilarityTransform,
+                min_samples=3, residual_threshold=2, max_trials=100
+            )
+            outliers = inliers == False
 
         similarity_matrix_dict = Executor.report_similarity_matrix_parameters(self, tform)
         num_beads_for_estimation = Executor.report_number_beads(self, bead_centroid_dict)
