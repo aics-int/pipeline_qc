@@ -19,8 +19,8 @@ crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form o
 # Core script - don't change plz
 import numpy as np
 import os
-from pipeline_qc import obtain_camera_alignment
-from pipeline_qc.optical_control_qc_methods import obtain_camera_alignment_v2 as camera_alignment
+from pipeline_qc import obtain_camera_alignment # old method: bad ring segmentation
+from pipeline_qc.optical_control_qc_methods import obtain_camera_alignment_v2 as camera_alignment # updated method for accurate ring segmentation
 from pipeline_qc.camera_alignment.apply_camera_alignment_utilities import perform_similarity_matrix_transform
 from aicsimageio import AICSImage, writers
 import pandas as pd
