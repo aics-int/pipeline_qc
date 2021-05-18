@@ -1,13 +1,24 @@
-from skimage import transform as tf
+import numpy as np
+from skimage import transform as tf, io
 from pipeline_qc.optical_control_qc_methods import \
     segment_argolight_rings as segment, \
     get_center_z, \
     crop_argolight_rings_img as crop, \
     estimate_alignment
 from pipeline_qc.optical_control_qc_methods import ring_qc_utils as qc
+from pipeline_qc.camera_alignment.apply_camera_alignment_utilities import perform_similarity_matrix_transform
 
+def execute(
+        image_object,
+        channels_to_align={},
+        magnification=int,
+        save_tform_path='',
+        save_mov_transformed_path='',
+        alignment_method='alignV2',
+        align_mov_img=True,
+        method_logging=False
+):
 
-def execute(image_object, channels_to_align, magnification, alignment_method='alignV2', method_logging=False):
     px_size_x, px_size_y, px_size_z = image_object.get_physical_pixel_size()
 
     # detect center z-slice on reference channel
@@ -86,6 +97,19 @@ def execute(image_object, channels_to_align, magnification, alignment_method='al
         method_logging=method_logging
     )
     print(ref_signal, ref_noise)
+
+    # Save metrics
+    np.savetxt(save_tform_path, tform.params, delimiter=',')
+
+    if align_mov_img:
+        aligned_img = perform_similarity_matrix_transform(
+                                            img=image_object.data[
+                                                0, 0, image_object.get_channel_names().index(channels_to_align['mov']),
+                                                :, :
+                                                ],
+                                            matrix=tform,
+                                            )
+        io.imsave(save_mov_transformed_path, aligned_img)
 
     return transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, coor_dist_qc, \
            diff_sum_beads, mse_qc, diff_mse, z_offset, ref_signal, ref_noise, mov_signal, mov_noise

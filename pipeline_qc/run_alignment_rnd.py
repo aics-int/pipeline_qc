@@ -2,14 +2,15 @@
 
 # READ HERE
 # Set user inputs:
-optical_control_img_filepath = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER\ZSD0\argo_20210315_ZSD0_63x.czi'
+optical_control_img_filepath = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\test\argo_test\argo_20210315_ZSD0_63x.czi'
 image_type = 'rings'  # Select between 'rings' or 'beads'
 ref_channel = 'EGFP'  # Enter name of reference channel (for zsd, use 'EGFP'; for 3i, use '488/TL 50um Dual')
 mov_channel = 'CMDRP'  # Enter name of moving channel (for zsd, use 'CMDRP'; for 3i, use '640/405 50um Dual')
 system_type = 'zsd'  # Select between 'zsd' or '3i'
+magnification = 63
 
 folder_to_img = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\5500000408\ZSD0\Raw_Split_Scene'  # Input folder to images
-folder_save = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\5500000408\ZSD0\alignV2'  # Output folder to save split scene tiffs
+folder_save = r'\\allen\aics\microscopy\Calysta\projects\training_emt\data\test\ZSD0\alignV2'  # Output folder to save split scene tiffs
 back_camera_channels = None # default is none (to set as Brightfield and CMDRP), otherwise users can listpossible channel names on back camera that need to be aligned (e.g. ['Bright', 'TaRFP'])
 img_type = '.czi'  # file-extension for the images, such as '.tif', '.tiff', '.czi'
 crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form of (image height, image width)
@@ -19,30 +20,28 @@ crop_dim = (1200, 1800)  # Final dimension of image after cropping in the form o
 import numpy as np
 import os
 from pipeline_qc import obtain_camera_alignment
+from pipeline_qc.optical_control_qc_methods import obtain_camera_alignment_v2 as camera_alignment
 from pipeline_qc.camera_alignment.apply_camera_alignment_utilities import perform_similarity_matrix_transform
 from aicsimageio import AICSImage, writers
 import pandas as pd
 
 print('aligning matrix')
-
+channels_to_align = {
+    'ref': ref_channel,
+    'mov': mov_channel
+}
 if os.path.exists(optical_control_img_filepath.replace(img_type, '_sim_matrix.txt')) is False:
-    exe = obtain_camera_alignment.Executor(
-        image_path=optical_control_img_filepath,
-        image_type=image_type,
-        ref_channel_index=ref_channel,
-        mov_channel_index=mov_channel,
-        system_type=system_type,
-        thresh_488=None,  # Set 'None' to use default setting
-        thresh_638=None,  # Set 'None' to use default setting
-        ref_seg_param=None, # Set 'None' to use default setting
-        mov_seg_param=None, # Set 'None' to use default setting
-        crop_center=None,  # Set 'None' to use default setting
-        method_logging=True,
+    rings_image_data = AICSImage(optical_control_img_filepath)
+    exe = camera_alignment.execute(
+        image_object=rings_image_data,
+        channels_to_align=channels_to_align,
+        magnification=magnification,
+        save_tform_path=optical_control_img_filepath.replace(img_type, '_sim_matrix.txt'),
+        save_mov_transformed_path=optical_control_img_filepath.replace(img_type, '_aligned.tif'),
+        alignment_method='alignV2',
         align_mov_img=True,
-        align_mov_img_path=optical_control_img_filepath,
-        align_mov_img_file_extension='_aligned.tif',
-        align_matrix_file_extension='_sim_matrix.txt')  
-    exe.execute()
+        method_logging=False
+    )
 
 tf_array = np.loadtxt(optical_control_img_filepath.split('.')[0] + '_sim_matrix.txt', delimiter=',')
 
