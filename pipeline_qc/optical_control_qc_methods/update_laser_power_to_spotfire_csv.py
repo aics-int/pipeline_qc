@@ -8,7 +8,7 @@ system = "ZSD1" # ZSDx
 your_initials = "CY" # xx
 objective = "10X"
 
-path_to_spotfire_csv = None # None to not write to spotfire csv, give a path to write to the spotfire csv
+path_to_spotfire_csv = r'\\allen\aics\microscopy\Data\Instrumentation\power meter readings\laser_power_measurements_FinalForSpotfireVis.csv' # None to not write to spotfire csv, give a path to write to the spotfire csv
 
 
 # Core script for running, no need to change
@@ -40,14 +40,14 @@ if path_to_spotfire_csv is not None:
     for index, row in update_rows.iterrows():
         if not (
                 (df["Laser Line"] == row["Laser Line"]) &
-                (df["Laser Power"] == row["Laser Power"]) &
+                (df["% Laser Power"] == row["% Laser Power"]) &
                 (df["Objective"] == row["Objective"]) &
                 (df["Power at the objective (mW)"] == row["Power at the objective (mW)"]) &
                 (df["System"] == row["System"]) &
-                (df["date"] == row["date"])
+                (df["Date"] == row["Date"])
 
         ).any():
             df = df.append(row)
 
-    df = df.to_csv(path_to_spotfire_csv)
+    df.to_csv(path_to_spotfire_csv)
     print("Finished updating spotfire csv")
