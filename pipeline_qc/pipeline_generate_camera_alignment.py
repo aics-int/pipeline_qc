@@ -7,7 +7,8 @@ and parameters and qc status to a csv (align_info_2021.csv) on the isilon
 Instructions to use:
     1. Prepare the argolight images by splitting them using Zen Blue
     2. Edit the file path (line 18) for the variable 'optical_control_img_filepath' to point to the ring image
-    3. Edit the system (line 20) and date (line 21) infromation
+    3. Edit the system (line 20) and date (line 21) information
+    4. Edit the objective information (Line 23) as an integer (e.g. 100, 63, 20)
     4. Hit run
     5. Check on the Console (on the right panel) and see if the transform looks good
     (6. If transform looks bad, open the aligned image and compare with the EGFP 
@@ -19,15 +20,18 @@ Instructions to use:
 optical_control_img_filepath = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER\ZSD1\split_scenes\20210222\argo_100X_20210219_P3.czi'
 system = 'ZSD1'
 date = '20210222'
+objective = 100
 
 #===================================
 ## Core script
 import os
-from pipeline_qc import obtain_camera_alignment
+from aicsimageio import AICSImage
+from pipeline_qc.optical_control_qc_methods import obtain_camera_alignment_v2 as camera_alignment
 from pipeline_qc.camera_alignment.apply_camera_alignment_utilities import perform_similarity_matrix_transform
 import pandas as pd
 
 image_type = 'rings'
+img_type = '.czi'
 ref_channel = 'EGFP'
 mov_channel = 'CMDRP'
 system_type = 'zsd'
@@ -35,22 +39,24 @@ system_type = 'zsd'
 align_info = r'\\allen\aics\microscopy\Data\alignV2\align_info_2021.csv'
 df_align_info = pd.read_csv(align_info)
 
-exe = obtain_camera_alignment.Executor(
-    image_path=optical_control_img_filepath,
-    image_type=image_type,
-    ref_channel_index=ref_channel,
-    mov_channel_index=mov_channel,
-    system_type=system_type,
-    thresh_488=None,  # Set 'None' to use default setting
-    thresh_638=None,  # Set 'None' to use default setting
-    ref_seg_param=None, # Set 'None' to use default setting
-    mov_seg_param=None, # Set 'None' to use default setting
-    crop_center=None,  # Set 'None' to use default setting
-    method_logging=True,
+channels_to_align = {
+    'ref': ref_channel,
+    'mov': mov_channel
+}
+
+rings_image_data = AICSImage(optical_control_img_filepath)
+
+
+exe = camera_alignment.execute(
+    image_object=rings_image_data,
+    channels_to_align=channels_to_align,
+    magnification=objective,
+    save_tform_path=optical_control_img_filepath.replace(img_type, '_sim_matrix.txt'),
+    save_mov_transformed_path=optical_control_img_filepath.replace(img_type, '_aligned.tif'),
+    alignment_method='alignV2',
     align_mov_img=True,
-    align_mov_img_path=optical_control_img_filepath,
-    align_mov_img_file_extension='_aligned.tif',
-    align_matrix_file_extension='_sim_matrix.txt')  
+    method_logging=False
+)
     
 transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary,\
 coor_dist_qc, diff_sum_beads, mse_qc, diff_mse, z_offset, ref_signal, ref_noise, mov_signal, mov_noise = exe.execute()
