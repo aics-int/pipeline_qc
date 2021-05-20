@@ -1,4 +1,5 @@
 import numpy as np
+from aicsimageio import writers
 from skimage import transform as tf, io
 from pipeline_qc.optical_control_qc_methods import \
     segment_argolight_rings as segment, \
@@ -30,7 +31,9 @@ def execute(
     ref_crop, crop_dims, ref_labelled_grid, ref_props_grid, ref_center_cross_label, ref_number_of_rings = crop.Executor(
         img=image_object.data[0, 0, image_object.get_channel_names().index(channels_to_align['ref']), ref_center_z, :,
             :],
-        pixel_size=px_size_x, filter_px_size=50
+        pixel_size=px_size_x,
+        magnification=magnification,
+        filter_px_size=50
     ).execute()
 
     mov_crop = image_object.data[
@@ -109,7 +112,19 @@ def execute(
                                                 ],
                                             matrix=tform,
                                             )
-        io.imsave(save_mov_transformed_path, aligned_img)
+        print(aligned_img.shape)
+        # save_img = np.zeros((1, aligned_img.shape[0], aligned_img.shape[1], aligned_img.shape[2]))
+        # save_img[0] = aligned_img
+        # save_img.transpose((1, 0, 2, 3))
+        # print(save_img.shape)
+        # print([channels_to_align['mov'] + '_' + alignment_method])
+        print(save_mov_transformed_path)
+        writer = writers.OmeTiffWriter(save_mov_transformed_path)
+        writer.save(
+            aligned_img.astype(np.uint16),
+            channel_names=channels_to_align['mov'] + '_' + alignment_method,
+            dimension_order="ZYX"
+        )
 
     return transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, coor_dist_qc, \
            diff_sum_beads, mse_qc, diff_mse, z_offset, ref_signal, ref_noise, mov_signal, mov_noise

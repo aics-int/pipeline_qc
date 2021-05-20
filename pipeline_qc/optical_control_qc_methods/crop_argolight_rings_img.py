@@ -6,10 +6,11 @@ import pandas as pd
 
 
 class Executor(object):
-    def __init__(self, img, pixel_size, filter_px_size=50):
+    def __init__(self, img, pixel_size, magnification, filter_px_size=50):
         self.img = img
         self.bead_dist_px = 15 / (pixel_size / 10 ** -6)
         self.filter_px_size = filter_px_size
+        self.magnification = magnification
 
         self.show_seg = False
 
@@ -81,9 +82,15 @@ class Executor(object):
         cross_y, cross_x = props.loc[props['area'] == props['area'].max(), 'centroid-0'].values.tolist()[0], \
                            props.loc[props['area'] == props['area'].max(), 'centroid-1'].values.tolist()[0]
 
-        crop_top, crop_bottom, crop_left, crop_right = Executor.get_crop_dimensions(
-            self, self.img, int(cross_y), int(cross_x), self.bead_dist_px
-        )
+        if self.magnification < 63:
+            crop_top, crop_bottom, crop_left, crop_right = Executor.get_crop_dimensions(
+                self, self.img, int(cross_y), int(cross_x), self.bead_dist_px
+            )
+        else:
+            crop_top = 0
+            crop_left = 0
+            crop_bottom = self.img.shape[0]
+            crop_right = self.img.shape[1]
 
         crop_dimensions = (crop_top, crop_bottom, crop_left, crop_right)
 
