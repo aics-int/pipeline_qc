@@ -19,7 +19,7 @@ Instructions to use:
 ## User edits here:
 optical_control_img_filepath = r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER\ZSD1\split_scenes\20210222\argo_100X_20210219_P3.czi'
 system = 'ZSD1'
-date = '20210222'
+date = '20210230'
 objective = 100
 
 #===================================
@@ -27,7 +27,6 @@ objective = 100
 import os
 from aicsimageio import AICSImage
 from pipeline_qc.optical_control_qc_methods import obtain_camera_alignment_v2 as camera_alignment
-from pipeline_qc.camera_alignment.apply_camera_alignment_utilities import perform_similarity_matrix_transform
 import pandas as pd
 
 image_type = 'rings'
@@ -46,7 +45,6 @@ channels_to_align = {
 
 rings_image_data = AICSImage(optical_control_img_filepath)
 
-
 exe = camera_alignment.execute(
     image_object=rings_image_data,
     channels_to_align=channels_to_align,
@@ -58,8 +56,8 @@ exe = camera_alignment.execute(
     method_logging=False
 )
     
-transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary,\
-coor_dist_qc, diff_sum_beads, mse_qc, diff_mse, z_offset, ref_signal, ref_noise, mov_signal, mov_noise = exe.execute()
+transformation_parameters_dict, bead_num_qc, num_beads, changes_fov_intensity_dictionary, \
+    coor_dist_qc, diff_sum_beads, mse_qc, diff_mse, z_offset, ref_signal, ref_noise, mov_signal, mov_noise = exe
 
 if bead_num_qc & coor_dist_qc & mse_qc:
     qc = 'pass'
