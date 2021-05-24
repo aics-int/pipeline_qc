@@ -5,13 +5,12 @@ Created on Sat Apr 20 14:20:34 2019
 @author: Calysta Yan
 """
 # User's input
-plate_path = r'\\allen\aics\microscopy\PRODUCTION\PIPELINE_5.2\3500002342\ZSD2\100X_zstack'
-output_path = r'\\allen\aics\microscopy\Antoine\plates\3500002342'
-
-
-rows = ['B','C','D','E','F','G']
+plate_path = r'\\allen\aics\microscopy\Antoine\Connexin43_February_2020\all_data_100X\FakePlate_Lamin'
+output_path = r'\\allen\aics\microscopy\Antoine\transitory\TEST'
+#Add row E next time in the row and in the cell_lin_dict
+rows = ['B']
 control_column = '11'
-cell_line_dict = {'B':30, 'C':33, 'D': 40, 'E':30, 'F':33, 'G':40}
+cell_line_dict = {'B': 53}
 
 #------------------------------------------------------------------------------
 import os
@@ -23,8 +22,8 @@ from skimage import exposure, filters, measure
 
 
 def generate_images(image):
-    image_TL = image.data[0, 0, :, :, :]
-    image_EGFP = image.data[0, 1, :, :, :]
+    image_TL = image.data[0, 0, 0, :, :, :]
+    image_EGFP = image.data[0, 0, 1, :, :, :]
     center_plane = find_center_z_plane(image_TL)
     # BF panels: top, bottom, center
     top_TL = image_TL[-1, :, :]
@@ -67,8 +66,8 @@ def create_display_setting(rows, control_column, folder_path, cell_line_dict):
         display_settings = []
         for img_file in image_list:
             image = AICSImage(os.path.join(plate_path, img_file), max_workers=1)
-            print (img_file)
-            image_EGFP = image.data[0, 1, :, :, :]
+            print(img_file)
+            image_EGFP = image.data[0, 0, 1, :, :, :]
             mip_xy = np.amax(image_EGFP, axis=0)
             display_min, display_max = np.min(mip_xy), np.max(mip_xy)
             display_settings.append((display_min, display_max))
@@ -97,23 +96,26 @@ def find_center_z_plane(image):
     
     # Identify center of z stack by finding the center of mass of 'x' pattern
     z = []
-    for i in range (100, mip_yz.shape[1]+1, 100):
-        edge_slab= new_edge_filled[:, i-100:i]
-        #print (i-100, i)
+    for i in range(100, mip_yz.shape[1]+1, 100):
+        edge_slab = new_edge_filled[:, i-100:i]
         z_center, x_center = ndimage.measurements.center_of_mass(edge_slab)
         z.append(z_center)
     
     z = [z_center for z_center in z if ~np.isnan(z_center)]
-    z_center = int(round(np.median(z)))
+    try:
+        z_center = int(round(np.median(z)))
+    except:
+        z_center = int(mip_yz.shape[0]/2)
+        print ('cannot find center, take middle slice')
     return (z_center)
 
 
 #------------------------------------------------------------------------------
 
-display_settings_dict = create_display_setting(rows = rows, 
-                                               control_column = control_column, 
-                                               folder_path = plate_path, 
-                                               cell_line_dict = cell_line_dict)
+display_settings_dict = create_display_setting(rows=rows,
+                                               control_column=control_column,
+                                               folder_path=plate_path,
+                                               cell_line_dict=cell_line_dict)
 
 print (display_settings_dict)
 # Create folder structure
@@ -162,7 +164,7 @@ for img_file in images:
             # associate with display settings
             settings = display_settings_dict[wellid]
             img = AICSImage(os.path.join(plate_path, img_file))
-            print ('read image ' + img_file)
+            print('read image ' + img_file)
             
             # generate 6 images 
             top_TL_0, bottom_TL_0, center_TL_0, mip_xy_0, mip_xz_0, mip_yz_0 = generate_images(img)
