@@ -1,6 +1,6 @@
 import pytest
 
-from pipeline_qc.camera_alignment import upload_aligned_files_to_fms as upload
+from pipeline_qc.camera_alignment_upload import upload_aligned_files_to_fms as upload
 
 
 # TODO: The `upload_aligned_files_to_fms.py` script warrants several more tests

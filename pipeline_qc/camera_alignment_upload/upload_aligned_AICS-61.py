@@ -1,4 +1,4 @@
-from pipeline_qc.camera_alignment import upload_aligned_files_to_fms
+from . import upload_aligned_files_to_fms
 from lkaccess import contexts, LabKey
 
 '''
