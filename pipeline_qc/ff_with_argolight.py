@@ -14,8 +14,8 @@ ff_f_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\dye_titration\
 ff_f = ff_f_data.data[0, 0, 0, :, :]
 br_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\analysis_dynamic_range\data_set\100X_20191108_BR-left_t25.czi')
 br = br_data.data[0, 0, 0, :, :]
-argo_data = AICSImage(r'\\allen\aics\microscopy\Calysta\argolight\argo_100x_dual_20190809_488.czi')
-argo = argo_data.data[0, 0, 0, : ,:]
+argo_data = AICSImage(r'\\allen\aics\microscopy\PRODUCTION\OpticalControl\ARGO-POWER\ZSD1\Experiment_output\argo_2021-02-25\TiltTest\Argo_20210225_tilttest_1.czi')
+argo = argo_data.data[0, 0, 1, 12, :, :]
 
 # Get image information
 img_dict = get_img_info(img=ff_f, data=ff_f_data)
@@ -73,7 +73,9 @@ ff_argo_segment = (argo_smooth>thresh) & (argo_smooth>500)
 
 show = argo_smooth*ff_argo_segment
 plt.figure()
-plt.imshow(show)
+plt.imshow(ff_argo_segment)
+plt.show()
+
 label_ref = measure.label(ff_argo_segment)
 
 field_non_uni_raw, z, coors = generate_homogeneity_ref(label_ref=label_ref, img_raw=argo_smooth, mode='median')
