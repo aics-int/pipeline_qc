@@ -90,6 +90,8 @@ setup(name=PACKAGE_NAME,
           'pyyaml',
           'scipy',
           'scikit-image',
+          'segmenter_model_zoo',
+          'torch',
           'tqdm'
       ],
 
