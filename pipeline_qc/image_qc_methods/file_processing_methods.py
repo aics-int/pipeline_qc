@@ -8,7 +8,7 @@ import os
 from skimage import exposure
 from labkey.utils import create_server_context
 import aicspylibczi
-from lmxl import etree
+from lxml import etree
 import os.path
 from datetime import datetime
 
@@ -177,8 +177,7 @@ def insert_qc_data_labkey(fovid, stat_dict, env):
 # Below is input example:
 # block_exp_dir = r"/allen/aics/microscopy/PRODUCTION/PIPELINE_8/5500000608_EE_1_TEST"
 def emt_block_duration(block_exp_dir):
-
-	all_data = list()
+    all_data = list()
     # Iterate through all
     for dirpath, dirnames, filenames in os.walk(block_exp_dir):
         for filename in [f for f in filenames if f.endswith('.czi')]:
