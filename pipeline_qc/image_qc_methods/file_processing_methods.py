@@ -15,6 +15,7 @@ from datetime import datetime
 DEFAULT_LK_HOST = "aics.corp.alleninstitute.org"
 DEFAULT_LK_PORT = 80
 
+
 def split_image_into_channels(im_path, source_image_file_id, labkey_host: str = DEFAULT_LK_HOST, labkey_port: int = DEFAULT_LK_PORT):
     # Splits image data into all requisite channels, as 3D images (405, 488, 561, 638, bf are normal channels)
     # Uses the context table in labkey to find the channel number and then splits the aicsimage loaded file accordingly
@@ -92,8 +93,7 @@ def generate_images(image):
 
 
 def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
-
-    # Generate diretories that are needed for saving files
+    # Generate directories that are needed for saving files
     directories = ['fuse', 'mip_xy', 'mip_xz', 'mip_yz', 'top', 'bottom', 'center']
     for directory in directories:
         try:
