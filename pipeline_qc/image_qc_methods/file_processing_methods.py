@@ -16,7 +16,8 @@ DEFAULT_LK_HOST = "aics.corp.alleninstitute.org"
 DEFAULT_LK_PORT = 80
 
 
-def split_image_into_channels(im_path, source_image_file_id, labkey_host: str = DEFAULT_LK_HOST, labkey_port: int = DEFAULT_LK_PORT):
+def split_image_into_channels(im_path, source_image_file_id, labkey_host: str = DEFAULT_LK_HOST,
+                              labkey_port: int = DEFAULT_LK_PORT):
     # Splits image data into all requisite channels, as 3D images (405, 488, 561, 638, bf are normal channels)
     # Uses the context table in labkey to find the channel number and then splits the aicsimage loaded file accordingly
     # This allows us to only load an image once and then use it for as many qc steps as we want to later
@@ -45,19 +46,19 @@ def split_image_into_channels(im_path, source_image_file_id, labkey_host: str = 
             channel_info_dict = dict()
             if channel in ['Bright_2', 'TL_100x']:
                 channel_info_dict.update({'name': 'Raw brightfield'})
-                channel_info_dict.update({'channelnumber':channels.index(channel)})
+                channel_info_dict.update({'channelnumber': channels.index(channel)})
             elif channel in ['EGFP']:
                 channel_info_dict.update({'name': 'Raw 488nm'})
-                channel_info_dict.update({'channelnumber':channels.index(channel)})
+                channel_info_dict.update({'channelnumber': channels.index(channel)})
             elif channel in ['CMDRP']:
                 channel_info_dict.update({'name': 'Raw 638nm'})
                 channel_info_dict.update({'channelnumber': channels.index(channel)})
             elif channel in ['H3342']:
                 channel_info_dict.update({'name': 'Raw 405nm'})
-                channel_info_dict.update({'channelnumber':channels.index(channel)})
+                channel_info_dict.update({'channelnumber': channels.index(channel)})
             elif channel in ['TaRFP']:
                 channel_info_dict.update({'name': 'Raw 561nm'})
-                channel_info_dict.update({'channelnumber':channels.index(channel)})
+                channel_info_dict.update({'channelnumber': channels.index(channel)})
             channel_info_list.append(channel_info_dict)
         df = pd.DataFrame(channel_info_list)
 
@@ -93,7 +94,7 @@ def generate_images(image):
 
 
 def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
-    # Generate directories that are needed for saving files
+    # Generate diretories that are needed for saving files
     directories = ['fuse', 'mip_xy', 'mip_xz', 'mip_yz', 'top', 'bottom', 'center']
     for directory in directories:
         try:
@@ -114,15 +115,15 @@ def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
     rescaled_xz = exposure.rescale_intensity(mip_xz, in_range=settings)
     rescaled_yz = exposure.rescale_intensity(mip_yz, in_range=settings)
     # Create fuse image combining 3 mips
-    fuse = np.zeros(shape = ((img_height + z_height), (img_width + z_height)))
+    fuse = np.zeros(shape=((img_height + z_height), (img_width + z_height)))
     fuse[0:z_height, 0:img_width] = rescaled_xz
-    fuse[z_height:z_height+img_height, 0:img_width] = rescaled_xy
-    fuse[z_height:z_height+img_height, img_width:img_width+z_height] = np.rot90(rescaled_yz)
+    fuse[z_height:z_height + img_height, 0:img_width] = rescaled_xy
+    fuse[z_height:z_height + img_height, img_width:img_width + z_height] = np.rot90(rescaled_yz)
 
     # Create qc image combining fuse and center_TL
-    qc = np.zeros(((img_height + z_height), (2*img_width + z_height)))
-    qc[:, 0:img_width+z_height] = fuse
-    qc[z_height:img_height+z_height, img_width+z_height:2*img_width+z_height] = center
+    qc = np.zeros(((img_height + z_height), (2 * img_width + z_height)))
+    qc[:, 0:img_width + z_height] = fuse
+    qc[z_height:img_height + z_height, img_width + z_height:2 * img_width + z_height] = center
 
     # Save and reformat images in a dictionary
     new_images_dict = {'top': np.reshape(top, (1, img_height, img_width)),
@@ -138,8 +139,8 @@ def generate_qc_images(single_channel_im, output_path, fov_id, channel_name):
 
     for key, image in new_images_dict.items():
         writer = ome_tiff_writer.OmeTiffWriter(os.path.join(output_path, key,
-                                                                   file_name + '-' + key + '.tif'),
-                                                      overwrite_file=True)
+                                                            file_name + '-' + key + '.tif'),
+                                               overwrite_file=True)
         writer.save(image.astype(np.uint16))
 
 
@@ -161,15 +162,15 @@ def insert_qc_data_labkey(fovid, stat_dict, env):
 
     lk = LabKey(server_context=context)
 
-    new_row = {key:(str(value) if value else None) for (key, value) in stat_dict.items()}
+    new_row = {key: (str(value) if value else None) for (key, value) in stat_dict.items()}
     new_row['FovId'] = fovid
     lk.insert_rows(
         schema_name='lists',
         query_name='FOV QC Metrics',
         rows=[new_row]
     )
-    
-    
+
+
 # This script looks at a directory with mulitple czi files from a block experiment, and
 # finds how long each of the blocks run for. The directory should either have all .czi
 # files in the directory or in subdirectories of the chosen directory. It outputs a .csv
@@ -182,7 +183,7 @@ def emt_block_duration(block_exp_dir):
     for dirpath, dirnames, filenames in os.walk(block_exp_dir):
         for filename in [f for f in filenames if f.endswith('.czi')]:
             out = aicspylibczi.CziFile(os.path.join(dirpath, filename))
-            block_num = filename[filename.find('Block') + 5 : filename.find('Block') + 6]
+            block_num = filename[filename.find('Block') + 5: filename.find('Block') + 6]
             z = 0
             c = 0
             t = 0
@@ -191,8 +192,8 @@ def emt_block_duration(block_exp_dir):
             metablock = out2[0][1]
             outlxml = etree.fromstring(metablock)
             a_time = outlxml.find('.//AcquisitionTime').text
-            date =a_time[:a_time.find('T')]
-            start_time = a_time[a_time.find('T')+1 : a_time.find('.')]
+            date = a_time[:a_time.find('T')]
+            start_time = a_time[a_time.find('T') + 1: a_time.find('.')]
             full_datetime = datetime.strptime(f'{date} {start_time}', '%Y-%m-%d %H:%M:%S')
             all_data.append(list([block_num, full_datetime]))
 
@@ -201,12 +202,13 @@ def emt_block_duration(block_exp_dir):
         durations_each_block = list()
         durations_total = list()
         for i, row in all_data_df.iterrows():
-            if i == len(all_data_df)-1:
+            if i == len(all_data_df) - 1:
                 durations_each_block.append('N/A')
                 durations_total.append('N/A')
             else:
-                durations_each_block.append(all_data_df.iloc[i+1]['Full_datetime']- all_data_df.iloc[i]['Full_datetime'])
-                durations_total.append(all_data_df.iloc[i+1]['Full_datetime'] - all_data_df.iloc[0]['Full_datetime'])
+                durations_each_block.append(
+                    all_data_df.iloc[i + 1]['Full_datetime'] - all_data_df.iloc[i]['Full_datetime'])
+                durations_total.append(all_data_df.iloc[i + 1]['Full_datetime'] - all_data_df.iloc[0]['Full_datetime'])
 
     all_data_df['Duration_single_Block'] = durations_each_block
     all_data_df['Duration_total'] = durations_total
