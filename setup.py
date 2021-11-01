@@ -73,8 +73,8 @@ setup(name=PACKAGE_NAME,
           # -- E.g.
           # 'numpy>=1.15.1',
           # 'requests'
-          'aicsfiles<4',
-          'aicsimageio',
+          'aicsfiles==4.1.1',
+          'aicsimageio==3.3.7',
           'aics_dask_utils',
           'aicspylibczi',
           'aicssegmentation>=0.1.20',

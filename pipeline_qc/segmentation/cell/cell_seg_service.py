@@ -126,6 +126,7 @@ class CellSegmentationService:
         Create a segmentable image by picking the right channels
         Nucleus/Membrane segmentation requires an image with 3 channels: 405nm, 638nm and brightfield
         """
+        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
 
         channel_dict = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
 
@@ -156,6 +157,7 @@ class CellSegmentationService:
         """
         Read and return the physical pixel size from a source image
         """
+        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
 
         img = aicsimageio.AICSImage(filepath)
         return img.get_physical_pixel_size()

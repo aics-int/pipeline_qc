@@ -178,6 +178,7 @@ class StructureSegmentationService:
         raises: IncompatibleImageException
         return: image as numpy.array in format compatible for segmentation
         """
+        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
 
         channels = file_processing_methods.split_image_into_channels(fov.local_file_path, fov.source_image_file_id)
 
@@ -230,6 +231,7 @@ class StructureSegmentationService:
         """
         Read and return the physical pixel size from a source image
         """
+        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
 
         img = aicsimageio.AICSImage(filepath)
         return img.get_physical_pixel_size()
