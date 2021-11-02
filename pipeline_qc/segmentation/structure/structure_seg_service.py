@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from aicsimageio.writers import OmeTiffWriter
 from pipeline_qc.image_qc_methods import file_processing_methods, query_fovs
-from model_zoo_3d_segmentation.zoo import SuperModel
+from segmenter_model_zoo.zoo import SuperModel
 from .structure_seg_repository import StructureSegmentationRepository
 from ..configuration import AppConfig
 from .structures import Structures, StructureInfo
@@ -231,7 +231,7 @@ class StructureSegmentationService:
         """
         Read and return the physical pixel size from a source image
         """
-        aicsimageio.use_dask(False)
+        aicsimageio.use_dask(False) # disable dask image reads to avoid losing performance when running on GPU nodes
 
         img = aicsimageio.AICSImage(filepath)
         return img.get_physical_pixel_size()
